@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Nome storico (NetMap): non cambiarlo, i segreti esistenti stanno sotto questo id -->
+    <UserSecretsId>dotnet-NetMap.Worker-0afa02dd-8f9e-4eaf-9198-6b9920646dbc</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lextm.SharpSnmpLib" Version="12.5.7" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VedettaVip.Shared\VedettaVip.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- appsettings.Local.json: configurazione dell'installazione, fuori da Git -->
+    <Compile Include="..\LocalSettings.cs" Link="LocalSettings.cs" />
+  </ItemGroup>
+</Project>

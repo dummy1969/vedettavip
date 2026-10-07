@@ -1,0 +1,132 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<section class="card import-panel">
+    <div class="card-header d-flex align-items-center gap-2">
+        <strong>Importa dispositivi da CSV</strong>
+        <a class="small ms-3" href="@TemplateHref" download="vedettavip-modello.csv">modello CSV</a>
+        <a class="small" href="@Api.DeviceExportUrl">esporta i dispositivi attuali</a>
+        <button class="btn-close ms-auto" aria-label="Chiudi" @onclick="OnClose"></button>
+    </div>
+    <div class="card-body">
+        <p class="small text-muted mb-2">
+            Intestazione obbligatoria con almeno <b>nome</b> e <b>indirizzo</b>; facoltative <b>tipo</b> (router, switch,
+            accesspoint, server, firewall, storage, pc, printer, camera, phone, ups, other), <b>snmp</b> (none, v1, v2c, v3), <b>cliente</b>, <b>padre</b> (nome o indirizzo, anche
+            di una riga del file), <b>profilo_snmp</b>, <b>abilitato</b> (si/no). Separatore ; , o tab. I duplicati si riconoscono
+            dall'indirizzo; negli aggiornamenti una colonna presente sovrascrive il campo anche se vuota.
+        </p>
+
+        <div class="import-source">
+            <InputFile OnChange="LoadFileAsync" accept=".csv,.txt,text/csv" class="form-control form-control-sm" />
+            <span class="small text-muted">oppure incolla qui sotto</span>
+        </div>
+        <textarea class="form-control form-control-sm font-monospace mt-2" rows="5" placeholder="nome;indirizzo;tipo;snmp;cliente"
+                  @bind="csv" @bind:event="oninput" @bind:after="Invalidate"></textarea>
+        @if (fileInfo is not null)
+        {
+            <div class="form-text">@fileInfo</div>
+        }
+
+        <div class="import-options">
+            <label class="small">Indirizzo già presente
+                <select class="form-select form-select-sm" @bind="onDuplicate" @bind:after="Invalidate">
+                    <option value="@ImportDuplicateMode.Skip">salta la riga</option>
+                    <option value="@ImportDuplicateMode.Update">aggiorna il dispositivo</option>
+                </select>
+            </label>
+            <label class="small">Aggiungi alla mappa
+                <select class="form-select form-select-sm" @bind="mapId" @bind:after="Invalidate">
+                    <option value="">nessuna</option>
+                    @foreach (var m in maps)
+                    {
+                        <option value="@m.Id">@m.Name</option>
+                    }
+                </select>
+            </label>
+            @if (User.IsAdmin)
+            {
+                <div class="form-check small align-self-end">
+                    <input id="imp-customers" class="form-check-input" type="checkbox" @bind="createCustomers" @bind:after="Invalidate" />
+                    <label class="form-check-label" for="imp-customers">Crea i clienti mancanti</label>
+                </div>
+            }
+            <button class="btn btn-sm btn-outline-primary align-self-end" disabled="@(busy || string.IsNullOrWhiteSpace(csv))" @onclick="PreviewAsync">
+                Anteprima
+            </button>
+        </div>
+
+        @if (error is not null)
+        {
+            <div class="alert alert-danger py-1 px-2 small mt-2">@error</div>
+        }
+
+        @if (result is { } r)
+        {
+            @if (r.Error is not null)
+            {
+                <div class="alert alert-danger py-1 px-2 small mt-2">@r.Error</div>
+            }
+            else
+            {
+                <div class="import-summary mt-3">
+                    <strong>@(r.DryRun ? "Anteprima:" : "Importazione completata:")</strong>
+                    <span class="badge text-bg-success">@r.Created @(r.DryRun ? "da creare" : "creati")</span>
+                    <span class="badge text-bg-primary">@r.Updated @(r.DryRun ? "da aggiornare" : "aggiornati")</span>
+                    <span class="badge text-bg-secondary">@r.Skipped saltati</span>
+                    <span class="badge @(r.Errors > 0 ? "text-bg-danger" : "text-bg-light border")">@r.Errors con errori</span>
+                    @if (r.AddedToMap > 0)
+                    {
+                        <span class="small">@r.AddedToMap @(r.DryRun ? "da aggiungere" : "aggiunti") alla mappa</span>
+                    }
+                    @if (r.Errors > 0)
+                    {
+                        <div class="form-check form-switch small ms-auto">
+                            <input id="imp-errors" class="form-check-input" type="checkbox" @bind="errorsOnly" />
+                            <label class="form-check-label" for="imp-errors">Solo errori</label>
+                        </div>
+                    }
+                </div>
+                <div class="small text-muted">
+                    Colonne: @string.Join(", ", r.Columns)
+                    @if (r.IgnoredColumns.Count > 0)
+                    {
+                        <span> · ignorate: @string.Join(", ", r.IgnoredColumns)</span>
+                    }
+                </div>
+
+                <div class="import-rows">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Riga</th><th>Esito</th><th>Nome</th><th>Indirizzo</th><th>Dettaglio</th></tr></thead>
+                        <tbody>
+                            @foreach (var row in r.Rows.Where(x => !errorsOnly || x.Action == ImportRowAction.Error))
+                            {
+                                <tr class="@(row.Action == ImportRowAction.Error ? "table-danger" : "")">
+                                    <td class="small">@row.Line</td>
+                                    <td><span class="badge @ActionClass(row.Action)">@ActionText(row.Action, r.DryRun)</span></td>
+                                    <td>@row.Name</td>
+                                    <td class="font-monospace small">@row.Address</td>
+                                    <td class="small">@row.Message</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (r.DryRun && r.Created + r.Updated > 0)
+                {
+                    <div class="d-flex align-items-baseline gap-2 mt-2">
+                        <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="ImportAsync">
+                            Importa @(r.Created + r.Updated) dispositivi
+                        </button>
+                        @if (r.Errors > 0)
+                        {
+                            <span class="small text-muted">le @r.Errors righe con errori non vengono importate</span>
+                        }
+                    </div>
+                }
+            }
+        }
+    </div>
+</section>

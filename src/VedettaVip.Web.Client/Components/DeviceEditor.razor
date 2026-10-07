@@ -1,0 +1,210 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<aside class="device-editor">
+    <h6>@(Device is null ? "Nuovo dispositivo" : $"Modifica {Device.Name}")</h6>
+
+    @if (error is not null)
+    {
+        <div class="alert alert-danger py-1 px-2 small">@error</div>
+    }
+
+    <nav class="editor-tabs" role="tablist">
+        @foreach (var (t, label) in Tabs)
+        {
+            <button type="button" role="tab" class="editor-tab @(tab == t ? "active" : "")" aria-selected="@(tab == t)"
+                    @onclick="() => tab = t">
+                @label
+                @if (TabBadge(t) is { } badge)
+                {
+                    <span class="tab-badge" title="@badge.Title">@badge.Text</span>
+                }
+            </button>
+        }
+    </nav>
+
+    <div class="editor-body">
+        @switch (tab)
+        {
+            case EditorTab.General:
+                <label class="form-label small mb-1" for="dev-name">Nome</label>
+                <input id="dev-name" class="form-control form-control-sm" maxlength="128" @bind="name" @bind:event="oninput" />
+
+                <label class="form-label small mb-1 mt-2" for="dev-address">Indirizzo (IP o hostname)</label>
+                <input id="dev-address" class="form-control form-control-sm font-monospace" maxlength="255"
+                       @bind="address" @bind:event="oninput" placeholder="192.0.2.1" />
+                @if (DuplicateAddressOf() is { } other)
+                {
+                    <div class="form-text text-warning-emphasis">Indirizzo già usato da @other.</div>
+                }
+
+                <div class="row g-2 mt-1">
+                    <div class="col">
+                        <label class="form-label small mb-1" for="dev-type">Tipo</label>
+                        <select id="dev-type" class="form-select form-select-sm" @bind="type">
+                            @foreach (var t in Enum.GetValues<DeviceType>())
+                            {
+                                <option value="@t">@TypeLabel(t)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label class="form-label small mb-1" for="dev-enabled">Stato</label>
+                        <select id="dev-enabled" class="form-select form-select-sm" @bind="EnabledText">
+                            <option value="@Monitored">monitorato</option>
+                            <option value="@NotMonitored">disabilitato</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label class="form-label small mb-1 mt-2" for="dev-customer">Cliente</label>
+                <select id="dev-customer" class="form-select form-select-sm" @bind="customerId">
+                    <option value="">nessuno</option>
+                    @foreach (var c in Customers)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+
+                <label class="form-label small mb-1 mt-2" for="dev-parent">Dipende da</label>
+                <select id="dev-parent" class="form-select form-select-sm" @bind="parentId">
+                    <option value="">nessuno</option>
+                    @foreach (var d in ParentCandidates())
+                    {
+                        <option value="@d.Id">@d.Name (@d.Address)</option>
+                    }
+                </select>
+                <div class="form-text">Il dispositivo a monte (es. lo switch o il router di sede): se cade il padre, i
+                    dispositivi che dipendono da lui non generano un avviso ciascuno.</div>
+
+                @if (Device is null)
+                {
+                    <label class="form-label small mb-1 mt-2" for="dev-map">Aggiungi alla mappa</label>
+                    <select id="dev-map" class="form-select form-select-sm" @bind="mapId">
+                        <option value="">nessuna (si può aggiungere dopo dalla mappa)</option>
+                        @foreach (var (m, depth) in MapHierarchy.Order(maps))
+                        {
+                            <option value="@m.Id">@MapHierarchy.Indent(depth)@m.Name</option>
+                        }
+                    </select>
+                    @if (mapId.Length > 0)
+                    {
+                        <div class="form-text">Messo sotto i nodi esistenti: poi lo si sposta in modalità Modifica.</div>
+                    }
+                }
+                break;
+
+            case EditorTab.Monitoring:
+                <label class="form-label small mb-1" for="dev-snmp">SNMP</label>
+                <select id="dev-snmp" class="form-select form-select-sm" @bind="snmpVersion">
+                    <option value="@SnmpVersion.None">nessuno (solo ping)</option>
+                    <option value="@SnmpVersion.V1">v1</option>
+                    <option value="@SnmpVersion.V2c">v2c</option>
+                    <option value="@SnmpVersion.V3">v3 (non ancora supportato)</option>
+                </select>
+                @if (snmpVersion is SnmpVersion.V1 or SnmpVersion.V2c)
+                {
+                    <label class="form-label small mb-1 mt-2" for="dev-snmp-profile">Profilo SNMP</label>
+                    <select id="dev-snmp-profile" class="form-select form-select-sm" @bind="snmpCredentialId">
+                        <option value="">@InheritedProfileText()</option>
+                        @foreach (var p in SnmpProfiles)
+                        {
+                            <option value="@p.Id">@p.Name</option>
+                        }
+                    </select>
+                }
+
+                <fieldset class="detection mt-3">
+                    <legend class="small fw-semibold mb-1">Rilevazione dello stato (vuoto = valore generale)</legend>
+                    <div class="detection-grid">
+                        <label for="dev-down" class="small">Ping persi per Down</label>
+                        <input id="dev-down" class="form-control form-control-sm" type="number" min="1" max="100"
+                               @bind="downAfterFailures" placeholder="@Placeholder(Defaults?.DownAfterFailures)" />
+                        <label for="dev-up" class="small">Ping riusciti per Up</label>
+                        <input id="dev-up" class="form-control form-control-sm" type="number" min="1" max="100"
+                               @bind="upAfterSuccesses" placeholder="@Placeholder(Defaults?.UpAfterSuccesses)" />
+                        <label for="dev-snmp-fail" class="small">Errori SNMP per Partial</label>
+                        <input id="dev-snmp-fail" class="form-control form-control-sm" type="number" min="1" max="100"
+                               @bind="snmpDegradedAfterFailures" placeholder="@Placeholder(Defaults?.SnmpDegradedAfterFailures)" />
+                    </div>
+                    <div class="form-text">Per link instabili (radio, VPN) alza i ping persi per Down; un poll ogni 30 s.</div>
+                </fieldset>
+
+                <fieldset class="detection mt-3">
+                    <legend class="small fw-semibold mb-1">Soglie delle metriche (vuoto = generale, 0 = disattivata)</legend>
+                    <div class="detection-grid">
+                        <label for="dev-rtt" class="small">Latenza max (ms)</label>
+                        <input id="dev-rtt" class="form-control form-control-sm" type="number" min="0" max="100000"
+                               @bind="rttThresholdMs" placeholder="@MetricPlaceholder(Metrics?.RttMs)" />
+                        <label for="dev-loss" class="small">Perdita max (%)</label>
+                        <input id="dev-loss" class="form-control form-control-sm" type="number" min="0" max="100" step="0.1"
+                               @bind="lossThresholdPct" placeholder="@MetricPlaceholder(Metrics?.LossPct)" />
+                    </div>
+                    <div class="form-text">Medie sugli ultimi @(Metrics?.WindowMinutes ?? 5) minuti.</div>
+                </fieldset>
+                break;
+
+            case EditorTab.RouterOs:
+                <div class="form-check">
+                    <input id="dev-ros" class="form-check-input" type="checkbox" @bind="routerOsApiEnabled" />
+                    <label class="form-check-label small" for="dev-ros">Leggi via API RouterOS (MikroTik)</label>
+                </div>
+                @if (routerOsApiEnabled)
+                {
+                    <label class="form-label small mb-1 mt-2" for="dev-ros-profile">Profilo RouterOS</label>
+                    <select id="dev-ros-profile" class="form-select form-select-sm" @bind="routerOsCredentialId">
+                        <option value="">@InheritedRouterOsText()</option>
+                        @foreach (var p in RouterOsProfiles)
+                        {
+                            <option value="@p.Id">@p.Name (@(p.UseTls ? "api-ssl" : "api") :@p.Port)</option>
+                        }
+                    </select>
+                }
+                <div class="form-text">
+                    Con un profilo l'agente legge ogni minuto CPU, memoria, temperatura, interfacce e tunnel WireGuard. I profili
+                    si gestiscono in Impostazioni → Profili RouterOS.
+                </div>
+                @if (routerOsApiEnabled)
+                {
+                    <fieldset class="detection mt-2">
+                        <legend class="small fw-semibold mb-1">Soglie (vuoto = generale, 0 = disattivata)</legend>
+                        <div class="detection-grid">
+                            <label for="dev-cpu" class="small">CPU oltre (%)</label>
+                            <input id="dev-cpu" class="form-control form-control-sm" type="number" min="0" max="100"
+                                   @bind="cpuThresholdPct" placeholder="@IntPlaceholder(Metrics?.CpuPct)" />
+                            <label for="dev-temp" class="small">Temperatura oltre (°C)</label>
+                            <input id="dev-temp" class="form-control form-control-sm" type="number" min="0" max="150"
+                                   @bind="temperatureThresholdC" placeholder="@IntPlaceholder(Metrics?.TemperatureC)" />
+                        </div>
+                    </fieldset>
+                    @if (Device is not null)
+                    {
+                        <fieldset class="detection mt-2">
+                            <legend class="small fw-semibold mb-1">Interfacce e tunnel da sorvegliare</legend>
+                            <RouterOsWatchPanel DeviceId="Device.Id" OnWatchCountChanged="n => watchCount = n" />
+                        </fieldset>
+                    }
+                }
+                break;
+
+            case EditorTab.Icon:
+                <label class="form-label small mb-1">Icona sulla mappa</label>
+                <IconPicker @bind-Value="icon" DefaultKey="@MapIcons.DefaultFor(type)" InheritedText=" del tipo" />
+                <div class="form-text">Sulla mappa un singolo nodo può comunque scegliere un'icona diversa.</div>
+                break;
+        }
+    </div>
+
+    <div class="editor-actions">
+        <button class="btn btn-sm btn-primary" disabled="@(busy || !CanSave())" @onclick="SaveAsync">
+            @(Device is null ? "Crea" : "Salva")
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="OnClose">Chiudi</button>
+        @if (!CanSave())
+        {
+            <span class="small text-muted align-self-center">nome e indirizzo (scheda Generale) obbligatori</span>
+        }
+    </div>
+</aside>

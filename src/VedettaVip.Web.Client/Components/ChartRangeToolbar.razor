@@ -1,0 +1,20 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+<div class="chart-toolbar">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Periodo">
+        @foreach (var (label, range) in Ranges)
+        {
+            <button class="btn @(range == Selected ? "btn-secondary" : "btn-outline-secondary")"
+                    @onclick="() => OnSelect.InvokeAsync(range)">@label</button>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Info))
+    {
+        <span class="chart-info">@Info</span>
+    }
+    @if (Loading)
+    {
+        <span class="chart-info">caricamento...</span>
+    }
+</div>

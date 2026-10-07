@@ -1,0 +1,123 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/settings/users"
+@page "/users"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Utenti - VedettaVip</PageTitle>
+
+<SettingsShell Title="Utenti">
+    <Actions><button class="btn btn-sm btn-primary" @onclick="New">Nuovo utente</button></Actions>
+    <ChildContent>
+    <p class="small text-muted">
+        <b>Amministratore</b>: tutto, compresi utenti, clienti, contatti e impostazioni.
+        <b>Operatore</b>: modifica mappe e dispositivi, prende in carico gli eventi.
+        <b>Sola lettura</b>: consultazione (monitor NOC). Un utente disattivato perde l'accesso entro un minuto.
+    </p>
+
+    @if (error is not null)
+    {
+        <div class="alert alert-danger py-1 px-2 small">@error</div>
+    }
+    @if (info is not null)
+    {
+        <div class="alert alert-success py-1 px-2 small">@info</div>
+    }
+
+    <div class="users-body">
+        <div class="users-table">
+            @if (users is null)
+            {
+                <p><em>Caricamento...</em></p>
+            }
+            else
+            {
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Utente</th><th>Nome</th><th>Ruolo</th><th>Stato</th><th>Ultimo accesso</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var u in users)
+                        {
+                            <tr class="@(u.Id == editing?.Id ? "table-active" : "") @(u.Disabled ? "text-muted" : "")" @key="u.Id">
+                                <td class="font-monospace">@u.UserName</td>
+                                <td>@u.DisplayName @if (u.Id == User.Value?.Id) {<span class="badge text-bg-light border ms-1">tu</span>}</td>
+                                <td>@CurrentUser.RoleName(u.Role)</td>
+                                <td class="small">
+                                    @if (u.Disabled) {<span>disattivato</span>}
+                                    else if (u.LockedOutUntil is { } until) {<span class="text-danger">bloccato fino alle @until.ToLocalTime().ToString("HH:mm")</span>}
+                                    else {<span>attivo</span>}
+                                </td>
+                                <td class="small">@(u.LastLoginAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "mai")</td>
+                                <td class="text-end text-nowrap">
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(u)">Modifica</button>
+                                    @if (u.Id != User.Value?.Id)
+                                    {
+                                        <DeleteButton Busy="busy" OnConfirmed="() => DeleteAsync(u)" />
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        @if (formOpen)
+        {
+            <aside class="user-editor">
+                <h6>@(editing is null ? "Nuovo utente" : $"Modifica {editing.UserName}")</h6>
+
+                @if (editing is null)
+                {
+                    <label class="form-label small mb-1" for="u-user">Nome utente</label>
+                    <input id="u-user" class="form-control form-control-sm" @bind="userName" autocomplete="off" />
+                }
+
+                <label class="form-label small mb-1 mt-2" for="u-name">Nome visualizzato</label>
+                <input id="u-name" class="form-control form-control-sm" @bind="displayName" />
+
+                <label class="form-label small mb-1 mt-2" for="u-email">Email (facoltativa)</label>
+                <input id="u-email" class="form-control form-control-sm" @bind="email" />
+
+                <label class="form-label small mb-1 mt-2" for="u-role">Ruolo</label>
+                <select id="u-role" class="form-select form-select-sm" @bind="role">
+                    @foreach (var r in UserRoles.All)
+                    {
+                        <option value="@r">@CurrentUser.RoleName(r)</option>
+                    }
+                </select>
+
+                @if (editing is null)
+                {
+                    <label class="form-label small mb-1 mt-2" for="u-pass">Password iniziale (almeno 10 caratteri)</label>
+                    <input id="u-pass" class="form-control form-control-sm" type="password" @bind="password" autocomplete="new-password" />
+                }
+                else
+                {
+                    <div class="form-check mt-2">
+                        <input id="u-disabled" class="form-check-input" type="checkbox" @bind="disabled" disabled="@(editing.Id == User.Value?.Id)" />
+                        <label class="form-check-label small" for="u-disabled">Disattivato</label>
+                    </div>
+                }
+
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="SaveAsync">Salva</button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="Close">Chiudi</button>
+                </div>
+
+                @if (editing is not null)
+                {
+                    <hr />
+                    <label class="form-label small mb-1" for="u-reset">Reimposta password (sblocca anche l'account)</label>
+                    <div class="d-flex gap-2">
+                        <input id="u-reset" class="form-control form-control-sm" type="password" @bind="resetPassword" autocomplete="new-password" />
+                        <button class="btn btn-sm btn-outline-primary text-nowrap" disabled="@(busy || string.IsNullOrEmpty(resetPassword))" @onclick="ResetPasswordAsync">Reimposta</button>
+                    </div>
+                }
+            </aside>
+        }
+    </div>
+    </ChildContent>
+</SettingsShell>

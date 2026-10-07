@@ -1,0 +1,46 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using ApexCharts
+@inherits TimeRangeChartBase
+
+<div class="metric-chart">
+    <ChartRangeToolbar Ranges="Ranges" Selected="SelectedRange" OnSelect="SelectRangeAsync" Info="@Info()" Loading="Loading" />
+
+    @if (Error is not null)
+    {
+        <div class="alert alert-danger py-1 px-2 small">@Error</div>
+    }
+    else if (HasData)
+    {
+        <ApexChart @key="RenderKey" TItem="ChartPoint" Options="options" Height="260">
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="@TxLabel" SeriesType="SeriesType.Area"
+                             XValue="p => p.X" YValue="p => p.Tx" />
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="@RxLabel" SeriesType="SeriesType.Area"
+                             XValue="p => p.X" YValue="p => p.Rx" />
+        </ApexChart>
+
+        <table class="table table-sm chart-stats">
+            <thead><tr><th></th><th>Media</th><th>Picco</th><th>95° perc.</th>@if (series?.SpeedBps is not null) {<th>Picco %</th>}</tr></thead>
+            <tbody>
+                @foreach (var (label, s) in new[] { (TxLabel, txStats), (RxLabel, rxStats) })
+                {
+                    <tr>
+                        <td>@label</td>
+                        <td>@Bps(s.Avg)</td>
+                        <td>@Bps(s.Peak)</td>
+                        <td>@Bps(s.P95)</td>
+                        @if (series?.SpeedBps is { } speed)
+                        {
+                            <td>@(s.Peak is { } pk ? $"{pk / speed:P0}" : "-")</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (!Loading)
+    {
+        <p class="text-muted small mb-0">Nessun dato nel periodo. Lo storico parte dal primo campione salvato (circa un minuto dopo la configurazione del link).</p>
+    }
+</div>

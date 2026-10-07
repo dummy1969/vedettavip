@@ -1,0 +1,160 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.dash-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+}
+
+.dash-top {
+    display: grid;
+    grid-template-columns: minmax(18rem, 24rem) 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .dash-top {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dash-card .card-header {
+    padding: 0.4rem 0.75rem;
+}
+
+.stats {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.donut {
+    width: 9rem;
+    height: 9rem;
+    flex: none;
+}
+
+.donut-main {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.donut-main.up { fill: #1e6b2e; }
+.donut-main.partial { fill: #8a5a00; }
+.donut-main.down { fill: #b02a37; }
+
+.donut-sub {
+    font-size: 11px;
+    fill: #6c757d;
+}
+
+.legend td {
+    padding: 0.1rem 0.35rem;
+    font-size: 0.9rem;
+}
+
+.legend .num {
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.legend tr.sep td {
+    padding-top: 0.5rem;
+}
+
+.legend tr.total td {
+    border-top: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+.state-dot {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    margin-right: 0.4rem;
+    vertical-align: baseline;
+}
+
+.state-dot.up { background: #8fd18f; }
+.state-dot.partial { background: #f5c06b; }
+.state-dot.down { background: #f08080; }
+.state-dot.unknown { background: #c8c8c8; }
+.state-dot.maintenance { background: transparent; border: 2px dashed #3a7bd5; }
+.state-dot.disabled { background: transparent; border: 2px solid #adb5bd; }
+
+.state-badge {
+    display: inline-block;
+    min-width: 4.5rem;
+    text-align: center;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.state-badge.down { background: #dc3545; color: #fff; }
+.state-badge.partial { background: #f5c06b; color: #4d3200; }
+
+.table-scroll {
+    max-height: 22rem;
+    overflow: auto;
+}
+
+.table-scroll.events {
+    max-height: 32rem;
+}
+
+.table-scroll thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6c757d;
+}
+
+.table-scroll table {
+    font-size: 0.9rem;
+}
+
+.map-link {
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.all-ok {
+    margin: 0;
+    padding: 1.5rem 1rem;
+    color: #1e6b2e;
+}
+
+.hours {
+    width: auto;
+}
+
+tr.acknowledged td {
+    color: #888;
+}
+
+.severity {
+    display: inline-block;
+    padding: 0 0.4rem;
+    border-radius: 0.6rem;
+    font-size: 0.75rem;
+}
+
+.severity.error, .severity.critical { background: #f8d7da; color: #842029; }
+.severity.warning { background: #fff3cd; color: #664d03; }
+.severity.info { background: #d1e7dd; color: #0f5132; }
+
+.col-when {
+    width: 7.5rem;
+}
+
+.col-sev {
+    width: 5rem;
+}

@@ -1,0 +1,105 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.settings-shell {
+    display: grid;
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.settings-nav {
+    position: sticky;
+    top: 1rem;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #fff;
+}
+
+.settings-nav-title {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.settings-nav a {
+    display: flex;
+    flex-direction: column;
+    padding: 0.45rem 0.75rem;
+    color: #212529;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+}
+
+.settings-nav a + a {
+    border-top: 1px solid #f1f3f5;
+}
+
+.settings-nav a small {
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+.settings-nav a:hover {
+    background: #f8f9fa;
+}
+
+.settings-nav a.active {
+    background: #e7f1ff;
+    border-left-color: #0d6efd;
+    font-weight: 600;
+}
+
+/* min-width: 0 permette alla colonna di restringersi: tabelle larghe scorrono qui dentro, non tutta la pagina */
+.settings-content {
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.settings-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Sotto i 900px il sottomenu diventa una fila di schede scorrevole sopra il contenuto */
+@media (max-width: 900px) {
+    .settings-shell {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.75rem;
+    }
+
+    .settings-nav {
+        position: static;
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .settings-nav-title,
+    .settings-nav a small {
+        display: none;
+    }
+
+    .settings-nav a {
+        white-space: nowrap;
+        border-left: none;
+        border-bottom: 3px solid transparent;
+    }
+
+    .settings-nav a + a {
+        border-top: none;
+    }
+
+    .settings-nav a.active {
+        border-bottom-color: #0d6efd;
+    }
+}

@@ -1,0 +1,54 @@
+VedettaVip
+Copyright (C) 2026 Marcello Anderlini
+
+This program is free software: you can redistribute it and/or modify it under the
+terms of the GNU Affero General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along with
+this program (file LICENSE). If not, see <https://www.gnu.org/licenses/>.
+
+
+ADDITIONAL TERM UNDER SECTION 7 OF THE GNU AGPL VERSION 3
+---------------------------------------------------------
+
+Pursuant to section 7(b) of the GNU Affero General Public License version 3, the
+following additional term applies to this program and to every work based on it,
+including modified versions:
+
+  Preservation of author attribution. Any conveyed or remotely offered version of
+  this program, modified or not, must retain the attribution
+  "VedettaVip – created by Marcello Anderlini", namely:
+
+  (a) in the footer of the web interface, visible on every page, the line
+
+      VedettaVip – © 2026 Marcello Anderlini – AGPL-3.0 – Source code
+
+      with its links to the About page, to the license and to the source code;
+
+  (b) in the About page of the web interface, the text
+
+      VedettaVip – created by Marcello Anderlini
+
+  The attribution must remain legible and unaltered. You may add your own notices
+  next to it (for example "modified by ..."), and you may give your modified
+  version a different name, but you may not remove or obscure the attribution.
+
+All other terms are those of the GNU AGPL version 3 or later. In particular,
+section 13 requires that users interacting with a modified version over a network
+be offered its Corresponding Source: the "Source code" link of the web interface
+is configured with the App:SourceUrl setting (environment variable App__SourceUrl).
+
+
+THIRD-PARTY COMPONENTS
+----------------------
+
+VedettaVip uses third-party components distributed under their own licenses.
+See THIRD-PARTY-NOTICES.md for the list, versions and licenses.
+
+"MikroTik", "The Dude" and "RouterOS" are trademarks of MikroTik. VedettaVip is not
+affiliated with or endorsed by MikroTik.

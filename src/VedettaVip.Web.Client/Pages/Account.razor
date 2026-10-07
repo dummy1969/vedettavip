@@ -1,0 +1,39 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/account"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>Account - VedettaVip</PageTitle>
+
+<h3>Il mio account</h3>
+
+@if (User.Value is { Authenticated: true } me)
+{
+    <p>
+        <b>@me.DisplayName</b> (@me.UserName) · @CurrentUser.RoleName(me.Role)
+    </p>
+
+    <section class="card account-card">
+        <div class="card-header"><strong>Cambia password</strong></div>
+        <div class="card-body">
+            <form @onsubmit="ChangePasswordAsync" @onsubmit:preventDefault>
+                <label class="form-label small mb-1" for="a-cur">Password attuale</label>
+                <input id="a-cur" class="form-control form-control-sm" type="password" @bind="current" autocomplete="current-password" />
+                <label class="form-label small mb-1 mt-2" for="a-new">Nuova password (almeno 10 caratteri)</label>
+                <input id="a-new" class="form-control form-control-sm" type="password" @bind="newPassword" autocomplete="new-password" />
+                <label class="form-label small mb-1 mt-2" for="a-new2">Ripeti la nuova password</label>
+                <input id="a-new2" class="form-control form-control-sm" type="password" @bind="newPassword2" autocomplete="new-password" />
+                <button class="btn btn-sm btn-primary mt-3" type="submit" disabled="@busy">Cambia password</button>
+            </form>
+            @if (message is not null)
+            {
+                <div class="small mt-2 @(isError ? "text-danger" : "text-success")">@message</div>
+            }
+        </div>
+    </section>
+}
+else
+{
+    <p><em>Caricamento...</em></p>
+}

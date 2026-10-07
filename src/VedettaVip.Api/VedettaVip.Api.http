@@ -1,0 +1,94 @@
+@VedettaVip.Api_HostAddress = http://localhost:5197
+@mainMap = 0198f000-0000-7000-8000-000000000001
+@coreNode = 0198f000-0000-7000-8000-000000000201
+@coreDevice = 0198f000-0000-7000-8000-000000000101
+@sw1Node = 0198f000-0000-7000-8000-000000000202
+
+### Elenco mappe
+GET {{VedettaVip.Api_HostAddress}}/api/maps
+Accept: application/json
+
+### Mappa completa (nodi + link)
+GET {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}
+Accept: application/json
+
+### Aggiornamento posizione nodo (al rilascio del drag)
+PUT {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}/nodes/{{coreNode}}/position
+Content-Type: application/json
+
+{ "x": 400, "y": 100 }
+
+### Nuovo nodo statico
+POST {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}/nodes
+Content-Type: application/json
+
+{ "kind": "Static", "x": 900, "y": 100, "labelTemplate": "Cloud provider" }
+
+### Etichetta del nodo (vuota = default; obbligatoria per i nodi Static)
+PUT {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}/nodes/{{coreNode}}
+Content-Type: application/json
+
+{ "labelTemplate": "[Name]\n[Address]\nCPU: [Cpu]%" }
+
+### Sposta un nodo su un'altra mappa (i suoi link vengono eliminati)
+# POST {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}/nodes/<nodeId>/move
+# { "targetMapId": "<mapId>", "x": 100, "y": 100 }
+
+### Nuova mappa (nasce radice; diventa sottomappa creando un nodo Submap che la punta)
+POST {{VedettaVip.Api_HostAddress}}/api/maps
+Content-Type: application/json
+
+{ "name": "Datacenter", "gridSize": 20 }
+
+### Modifica mappa (nome, sfondo, griglia; ParentMapId non si cambia qui)
+# PUT {{VedettaVip.Api_HostAddress}}/api/maps/<mapId>
+# { "name": "Datacenter Milano", "backgroundImage": "/img/dc-mi.png", "gridSize": 20 }
+
+### Elimina mappa con nodi e link; 409 se è ancora una sottomappa collegata
+# DELETE {{VedettaVip.Api_HostAddress}}/api/maps/<mapId>
+
+### Nuovo link con sorgente del traffico (tx = From -> To, letto su DeviceId/IfIndex)
+POST {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}/links
+Content-Type: application/json
+
+{
+  "fromNodeId": "{{coreNode}}",
+  "toNodeId": "{{sw1Node}}",
+  "deviceId": "{{coreDevice}}",
+  "ifIndex": 2,
+  "speedBps": 10000000000
+}
+
+### Modifica / elimina link
+# PUT {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}/links/<linkId>
+# { "fromNodeId": "...", "toNodeId": "...", "speedBps": 1000000000 }
+# DELETE {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}/links/<linkId>
+
+### Elenco dispositivi
+GET {{VedettaVip.Api_HostAddress}}/api/devices
+Accept: application/json
+
+### Nuovo dispositivo
+POST {{VedettaVip.Api_HostAddress}}/api/devices
+Content-Type: application/json
+
+{
+  "name": "router-01",
+  "address": "192.0.2.1",
+  "type": "Router",
+  "snmpVersion": "V2c",
+  "routerOsApiEnabled": true,
+  "parentDeviceId": "{{coreDevice}}"
+}
+
+### Eliminazione di un dispositivo in uso -> 409 con elenco mappe
+DELETE {{VedettaVip.Api_HostAddress}}/api/devices/{{coreDevice}}
+
+### Agenti di polling e stato online
+GET {{VedettaVip.Api_HostAddress}}/api/agents
+Accept: application/json
+
+### Target dell'agente (richiede la chiave: senza header risponde 401)
+# Chiave in user-secrets: dotnet user-secrets list --project src/VedettaVip.Api
+GET {{VedettaVip.Api_HostAddress}}/api/agent/targets
+X-Agent-Key: <chiave>

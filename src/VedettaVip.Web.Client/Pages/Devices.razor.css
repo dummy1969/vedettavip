@@ -1,0 +1,75 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.devices-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.summary {
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.devices-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0.5rem 0 0.75rem;
+}
+
+.devices-filters input { max-width: 320px; }
+.devices-filters select { max-width: 260px; }
+
+.devices-body {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.devices-table {
+    flex: 1 1 600px;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.devices-table table { font-size: 0.9rem; }
+
+/* Niente a capo nelle celle: con il pannello aperto la tabella scorre in orizzontale */
+.devices-table th,
+.devices-table td { white-space: nowrap; }
+.devices-table td.maps { white-space: normal; min-width: 8rem; }
+
+.state-dot {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    border: 1px solid #333;
+    margin-right: 0.3rem;
+    vertical-align: middle;
+}
+
+/* Stessi colori dei nodi della mappa */
+.state-dot.up { background: #8fd18f; }
+.state-dot.partial { background: #f5c06b; }
+.state-dot.down { background: #f08080; }
+.state-dot.unknown { background: #c8c8c8; }
+
+.state-text.up { color: #1e6b2e; }
+.state-text.partial { color: #8a5a00; }
+.state-text.down { color: #b02a37; }
+.state-text.unknown { color: #666; }
+
+.disabled-row td { color: #888; }
+
+::deep .device-charts {
+    margin-bottom: 0.75rem;
+}
+
+.ros-cell {
+    white-space: nowrap;
+}

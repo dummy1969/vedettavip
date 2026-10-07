@@ -1,0 +1,12 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Copyright (C) 2026 Marcello Anderlini -->
+<Project>
+  <!-- Proprietà comuni a tutti i progetti della solution -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Product>VedettaVip</Product>
+    <Authors>Marcello Anderlini</Authors>
+    <Copyright>Copyright (C) 2026 Marcello Anderlini</Copyright>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+  </PropertyGroup>
+</Project>

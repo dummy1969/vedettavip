@@ -1,0 +1,143 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/maintenance"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Manutenzione - VedettaVip</PageTitle>
+
+<div class="mw-header">
+    <h3>Manutenzione</h3>
+    @if (User.CanEdit)
+    {
+        <button class="btn btn-sm btn-primary ms-auto" @onclick="New">Nuova finestra</button>
+    }
+</div>
+<p class="small text-muted">
+    Durante una finestra attiva gli eventi dei dispositivi coinvolti vengono registrati ma <b>non notificati</b>; se al
+    termine un problema è ancora aperto, la notifica parte allora. Sulla mappa i dispositivi in manutenzione hanno il
+    bordo blu tratteggiato. Gli orari sono nel fuso delle notifiche (Impostazioni).
+</p>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger py-1 px-2 small">@error</div>
+}
+
+<div class="mw-body">
+    <div class="mw-list">
+        @if (windows is null)
+        {
+            <p><em>Caricamento...</em></p>
+        }
+        else if (windows.Count == 0)
+        {
+            <p class="text-muted small">Nessuna finestra di manutenzione.</p>
+        }
+        else
+        {
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Nome</th><th>Su</th><th>Quando</th><th>Stato</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var w in windows)
+                    {
+                        <tr class="@(w.Id == editing?.Id ? "table-active" : "") @(w.Enabled ? "" : "text-muted")" @key="w.Id">
+                            <td>@w.Name @if (w.Notes is not null) {<div class="small text-muted">@w.Notes</div>}</td>
+                            <td class="small">@ScopeText(w)</td>
+                            <td class="small">@ScheduleText(w)</td>
+                            <td class="small">
+                                @if (!w.Enabled) {<span>disattivata</span>}
+                                else if (w.ActiveNow) {<span class="badge bg-primary">attiva ora</span>}
+                                else if (w.NextStart is { } next) {<span>prossima: @next.ToLocalTime().ToString("ddd dd/MM HH:mm")</span>}
+                                else {<span>conclusa</span>}
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (User.CanEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(w)">Modifica</button>
+                                    <DeleteButton Busy="busy" OnConfirmed="() => DeleteAsync(w)" />
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @if (form is not null)
+    {
+        <aside class="mw-editor">
+            <h6>@(editing is null ? "Nuova finestra" : $"Modifica {editing.Name}")</h6>
+
+            <label class="form-label small mb-1" for="w-name">Nome</label>
+            <input id="w-name" class="form-control form-control-sm" maxlength="128" @bind="form.Name" @bind:event="oninput" placeholder="es. Aggiornamento firewall cliente X" />
+
+            <label class="form-label small mb-1 mt-2" for="w-scope">Su</label>
+            <select id="w-scope" class="form-select form-select-sm" @bind="form.Scope">
+                <option value="@MaintenanceScope.Device">Un dispositivo</option>
+                <option value="@MaintenanceScope.Customer">Tutti i dispositivi di un cliente</option>
+                <option value="@MaintenanceScope.Map">Una mappa (con le sottomappe)</option>
+                <option value="@MaintenanceScope.All">Tutto</option>
+            </select>
+            @if (form.Scope != MaintenanceScope.All)
+            {
+                <select class="form-select form-select-sm mt-1" @bind="form.TargetId" aria-label="Obiettivo">
+                    <option value="">scegli...</option>
+                    @foreach (var (id, name) in Targets(form.Scope))
+                    {
+                        <option value="@id">@name</option>
+                    }
+                </select>
+            }
+
+            <label class="form-label small mb-1 mt-2" for="w-rec">Tipo</label>
+            <select id="w-rec" class="form-select form-select-sm" @bind="form.Recurrence">
+                <option value="@MaintenanceRecurrence.Once">Singola</option>
+                <option value="@MaintenanceRecurrence.Weekly">Ogni settimana</option>
+            </select>
+
+            @if (form.Recurrence == MaintenanceRecurrence.Once)
+            {
+                <label class="form-label small mb-1 mt-2" for="w-start">Dal</label>
+                <input id="w-start" class="form-control form-control-sm" type="datetime-local" @bind="form.StartsAt" />
+                <label class="form-label small mb-1 mt-2" for="w-end">Al</label>
+                <input id="w-end" class="form-control form-control-sm" type="datetime-local" @bind="form.EndsAt" />
+            }
+            else
+            {
+                <div class="small mt-2 mb-1">Giorni</div>
+                <div class="days">
+                    @foreach (var (day, label) in Days)
+                    {
+                        <label class="form-check-label small"><input class="form-check-input me-1" type="checkbox" checked="@form.HasDay(day)" @onchange="() => form.ToggleDay(day)" />@label</label>
+                    }
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <div>
+                        <label class="form-label small mb-1" for="w-time">Ora di inizio</label>
+                        <input id="w-time" class="form-control form-control-sm" type="time" @bind="form.StartTime" />
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1" for="w-dur">Durata (min)</label>
+                        <input id="w-dur" class="form-control form-control-sm" type="number" min="1" max="10080" @bind="form.DurationMinutes" />
+                    </div>
+                </div>
+            }
+
+            <label class="form-label small mb-1 mt-2" for="w-notes">Note</label>
+            <input id="w-notes" class="form-control form-control-sm" maxlength="1024" @bind="form.Notes" />
+            <div class="form-check mt-2">
+                <input id="w-enabled" class="form-check-input" type="checkbox" @bind="form.Enabled" />
+                <label class="form-check-label small" for="w-enabled">Attiva</label>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-sm btn-primary" disabled="@(busy || string.IsNullOrWhiteSpace(form.Name))" @onclick="SaveAsync">Salva</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="Close">Chiudi</button>
+            </div>
+        </aside>
+    }
+</div>

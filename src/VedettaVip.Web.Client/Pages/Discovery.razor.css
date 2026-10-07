@@ -1,0 +1,106 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.discovery-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.discovery-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.discovery-filters input {
+    max-width: 22rem;
+}
+
+.discovery-section {
+    margin-top: 1rem;
+}
+
+.discovery-section table {
+    font-size: 0.9rem;
+}
+
+.table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.w-check {
+    width: 2rem;
+}
+
+.iface {
+    font-family: var(--bs-font-monospace);
+    font-size: 0.8rem;
+    color: #0a58ca;
+}
+
+.tiny {
+    font-size: 0.75rem;
+}
+
+.addr {
+    min-width: 9rem;
+}
+
+.discovery-actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.6rem 0;
+    background: #fff;
+    border-top: 1px solid #dee2e6;
+}
+
+.scan-card {
+    margin-bottom: 0.75rem;
+}
+
+.scan-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.scan-form input { max-width: 12rem; }
+.scan-form select { max-width: 16rem; }
+
+.scans {
+    font-size: 0.85rem;
+}
+
+.w-progress {
+    width: 10rem;
+}
+
+.discovery-filters .source {
+    max-width: 14rem;
+}
+
+.src-badge {
+    display: inline-block;
+    padding: 0 0.3rem;
+    margin-right: 0.2rem;
+    border-radius: 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: #e9ecef;
+    color: #495057;
+}
+
+.src-badge.vicini { background: #e7f1ff; color: #0a58ca; }
+.src-badge.arp { background: #fff3cd; color: #664d03; }
+.src-badge.scansione { background: #d1e7dd; color: #0f5132; }
+.src-badge.snmp { background: #f3e8ff; color: #6f42c1; }

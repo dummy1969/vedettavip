@@ -1,0 +1,152 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/map"
+@page "/map/{MapId:guid}"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>@(map?.Name ?? "Mappa") - VedettaVip</PageTitle>
+
+<div class="map-header">
+    @if (map?.ParentMapId is { } parentId)
+    {
+        <a class="map-up" href="map/@parentId" title="Torna alla mappa padre">&uarr; @parentName</a>
+    }
+    <h3>@(map?.Name ?? "Mappa")</h3>
+    @if (allMaps.Count > 1)
+    {
+        <select class="form-select form-select-sm map-select" aria-label="Apri un'altra mappa" title="Apri un'altra mappa"
+                value="@map?.Id" @onchange="OnMapSelected">
+            @if (map is null)
+            {
+                <option value="">scegli una mappa...</option>
+            }
+            @foreach (var (m, depth) in MapTree())
+            {
+                <option value="@m.Id">@Indent(depth)@m.Name (@m.NodeCount)</option>
+            }
+        </select>
+    }
+    <span class="map-live @(liveConnected ? "on" : "off")" title="Aggiornamenti di stato in tempo reale">
+        @(liveConnected ? "live" : "live non connesso")
+    </span>
+    @if (saveError is not null)
+    {
+        <span class="map-error">@saveError</span>
+    }
+
+    <div class="map-tools">
+        @if (User.CanEdit && mapAction != MapAction.New)
+        {
+            <button class="btn btn-sm btn-outline-secondary" title="Crea una mappa principale (primo livello)"
+                    @onclick="() => StartMapAction(MapAction.New)">+ Nuova mappa</button>
+        }
+        @if (map is not null)
+        {
+            @if (editMode)
+            {
+                <div class="btn-group btn-group-sm" role="group" aria-label="Strumento">
+                    <button class="btn @(tool == MapTool.Move ? "btn-secondary" : "btn-outline-secondary")"
+                            @onclick="() => tool = MapTool.Move" title="Trascina i nodi">Sposta</button>
+                    <button class="btn @(tool == MapTool.Link ? "btn-secondary" : "btn-outline-secondary")"
+                            @onclick="() => tool = MapTool.Link" title="Trascina da un nodo a un altro (anche Shift + trascina)">Collega</button>
+                </div>
+            }
+            @if (User.CanEdit)
+            {
+                <button class="btn btn-sm @(editMode ? "btn-primary" : "btn-outline-primary")" @onclick="ToggleEditMode">
+                    @(editMode ? "Fine modifica" : "Modifica")
+                </button>
+            }
+        }
+    </div>
+</div>
+
+@if (editMode && map is not null || mapAction == MapAction.New)
+{
+    <div class="map-manage">
+        <span class="small text-muted">@(mapAction == MapAction.New ? "Nuova mappa principale:" : "Questa mappa:")</span>
+        @if (mapAction == MapAction.None && map is not null)
+        {
+            <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartMapAction(MapAction.Rename)">Rinomina</button>
+            <DeleteButton Busy="mapBusy" Text="Elimina mappa" ConfirmText="@($"Conferma: elimina \"{map.Name}\" con nodi e link")"
+                          OnConfirmed="DeleteCurrentMapAsync" />
+            <span class="small text-muted">Le sottomappe di una mappa eliminata diventano mappe principali.</span>
+        }
+        else
+        {
+            <input class="form-control form-control-sm map-name" maxlength="128" @bind="mapNameInput" @bind:event="oninput"
+                   placeholder="@(mapAction == MapAction.New ? "Nome della nuova mappa principale" : "Nuovo nome")" />
+            <button class="btn btn-sm btn-primary" disabled="@(mapBusy || string.IsNullOrWhiteSpace(mapNameInput))" @onclick="SaveMapActionAsync">
+                @(mapAction == MapAction.New ? "Crea e apri" : "Salva")
+            </button>
+            <button class="btn btn-sm btn-link" @onclick="() => mapAction = MapAction.None">Annulla</button>
+        }
+    </div>
+}
+
+@if (agentWarning is not null)
+{
+    <div class="alert alert-warning py-2">@agentWarning</div>
+}
+
+@if (loadError is not null)
+{
+    <div class="alert alert-danger">
+        @loadError
+        <button class="btn btn-sm btn-outline-danger ms-2" @onclick="ReloadAsync">Riprova</button>
+    </div>
+}
+else if (map is null)
+{
+    <p><em>Caricamento mappa...</em></p>
+}
+else
+{
+    <div class="map-body @(ChartLink is not null || ChartNode is not null ? "with-chart" : "")">
+        <div class="map-canvas">
+            <NetworkMap @ref="mapView" Nodes="nodes" Links="links" GridSize="map.GridSize"
+                        Editable="editMode" Tool="tool" SelectedId="selectedId" PlacePoint="placePoint"
+                        OnNodeMoved="SavePositionAsync" OnNodeOpen="OpenNode" OnSelect="Select"
+                        OnLinkRequested="CreateLinkAsync" OnPlaceRequested="PlaceAt" OnLinkOpen="OpenChart" />
+        </div>
+        @if (editMode)
+        {
+            <MapEditPanel MapId="map.Id" Nodes="nodes"
+                          SelectedNode="SelectedNode" SelectedLink="SelectedLink" PlacePoint="placePoint"
+                          OnPlaceAtCenter="PlaceAtCenterAsync" OnPlaceCancel="() => placePoint = null"
+                          OnNodeSaved="NodeSaved" OnNodeDeleted="NodeDeleted"
+                          OnLinkSaved="LinkSaved" OnLinkDeleted="LinkDeleted" OnShowChart="OpenChart" />
+        }
+    </div>
+
+    @if (ChartNode is { DeviceId: { } chartDeviceId } chartNode)
+    {
+        <DeviceCharts @key="chartDeviceId" DeviceId="chartDeviceId" Title="@NodeName(chartNode.Id)"
+                      Address="@(chartNode.Values.GetValueOrDefault("Address"))" OnClose="() => chartNodeId = null" />
+    }
+
+    @if (ChartLink is { } chart)
+    {
+        <section class="map-chart card">
+            <div class="card-header d-flex align-items-baseline gap-2">
+                <strong>Traffico @NodeName(chart.FromId) &rarr; @NodeName(chart.ToId)</strong>
+                <button type="button" class="btn-close ms-auto" aria-label="Chiudi" @onclick="() => chartLinkId = null"></button>
+            </div>
+            <div class="card-body">
+                @if (chart is { DeviceId: { } deviceId, IfIndex: { } ifIndex })
+                {
+                    <InterfaceTrafficChart DeviceId="deviceId" IfIndex="ifIndex" TxIsIn="TxIsIn(chart)"
+                                           TxLabel="@($"tx {NodeName(chart.FromId)} → {NodeName(chart.ToId)}")"
+                                           RxLabel="@($"rx {NodeName(chart.ToId)} → {NodeName(chart.FromId)}")" />
+                }
+                else
+                {
+                    <p class="text-muted small mb-0">Il link non ha una sorgente di traffico: impostala in modalità Modifica
+                        (dispositivo e interfaccia nel pannello del link).</p>
+                }
+            </div>
+        </section>
+    }
+}

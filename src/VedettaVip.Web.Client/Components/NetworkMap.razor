@@ -1,0 +1,136 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Models
+@using VedettaVip.Web.Client.Services
+
+<svg class="vedettavip @(Editable ? "editing" : "") @(Editable && Tool == MapTool.Link ? "tool-link" : "")"
+     @ref="svg"
+     @onpointerdown="OnBackgroundDown"
+     @onpointermove="OnPointerMove"
+     @onpointerup="OnPointerUp"
+     @onpointerleave="OnPointerLeave"
+     @oncontextmenu="OnContextMenu" @oncontextmenu:preventDefault="Editable"
+     @onwheel="OnWheel" @onwheel:preventDefault>
+
+    <defs>
+        <pattern id="grid" width="@F(GridSize)" height="@F(GridSize)" patternUnits="userSpaceOnUse">
+            <path d="M @F(GridSize) 0 L 0 0 0 @F(GridSize)" fill="none" stroke="#e3e6ea" stroke-width="1" />
+        </pattern>
+        @* Icone dei nodi (Tabler, MIT): un symbol per icona usata sulla mappa, richiamato con <use> *@
+        @foreach (var icon in UsedIcons())
+        {
+            <symbol id="ni-@icon.Key" viewBox="0 0 24 24">
+                <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@((MarkupString)icon.Body)</g>
+            </symbol>
+        }
+    </defs>
+
+    <g transform="translate(@F(panX) @F(panY)) scale(@F(zoom))">
+        <rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#grid)" />
+
+        @{ var now = DateTimeOffset.UtcNow; }
+        @foreach (var link in Links)
+        {
+            var a = FindNode(link.FromId);
+            var b = FindNode(link.ToId);
+            if (a is null || b is null) continue;
+
+            var mx = (a.X + b.X) / 2;
+            var my = (a.Y + b.Y) / 2;
+            var live = link.HasTraffic(now, TrafficMaxAge);
+            var txU = Util(link.TxBps, link.SpeedBps);
+            var rxU = Util(link.RxBps, link.SpeedBps);
+
+            @* Il <g> è necessario: dentro un blocco C# Razor tratta <text> come tag speciale, non come elemento SVG *@
+            <g class="link @(link.Id == SelectedId ? "selected" : "") @(live ? "" : link.IsMeasured ? "no-data" : "not-measured")">
+                @if (link.Id == SelectedId)
+                {
+                    <line class="link-selection" x1="@F(a.X)" y1="@F(a.Y)" x2="@F(b.X)" y2="@F(b.Y)" />
+                }
+                @if (live)
+                {
+                    <line x1="@F(a.X)" y1="@F(a.Y)" x2="@F(mx)" y2="@F(my)"
+                          stroke="@LinkColor(txU)" stroke-width="@F(LinkWidth(txU))" stroke-linecap="round" />
+                    <line x1="@F(mx)" y1="@F(my)" x2="@F(b.X)" y2="@F(b.Y)"
+                          stroke="@LinkColor(rxU)" stroke-width="@F(LinkWidth(rxU))" stroke-linecap="round" />
+                }
+                else
+                {
+                    @* Senza dati recenti (o senza sorgente configurata) il link è grigio: niente colori inventati *@
+                    <line class="link-idle" x1="@F(a.X)" y1="@F(a.Y)" x2="@F(b.X)" y2="@F(b.Y)" />
+                }
+                @* Area di clic larga e trasparente: le linee del traffico sono troppo sottili da colpire *@
+                <line class="link-hit" x1="@F(a.X)" y1="@F(a.Y)" x2="@F(b.X)" y2="@F(b.Y)"
+                      @onpointerdown="e => OnLinkDown(e, link)" @onpointerdown:stopPropagation />
+                @if (live || link.IsMeasured)
+                {
+                    <g>
+                        <text class="link-label" x="@F(mx)" y="@F(my - 10)" text-anchor="middle">
+                            @(live ? $"tx {Bps(link.TxBps)} / rx {Bps(link.RxBps)}" : "n/d")
+                        </text>
+                    </g>
+                }
+            </g>
+        }
+
+        @if (linkFrom is not null)
+        {
+            <line class="link-preview" x1="@F(linkFrom.X)" y1="@F(linkFrom.Y)" x2="@F(linkEndX)" y2="@F(linkEndY)" />
+        }
+
+        @foreach (var node in Nodes)
+        {
+            var lines = LabelTemplate.Render(node.LabelTemplate, node.Values).Split('\n');
+            var hasIcon = MapIcons.Find(node.Icon) is not null;
+            var iconSpace = hasIcon ? IconSpace : 0;
+            var w = Math.Max(70, lines.Max(l => l.Length) * 7 + 20) + iconSpace;
+            var h = Math.Max(lines.Length * 15 + 12, hasIcon ? IconSize + 10 : 0);
+            var textX = iconSpace + (w - iconSpace) / 2.0;
+            var textY = h / 2.0 - (lines.Length - 1) * 7.5 + 4;
+
+            <g class="node @(node.SubmapId is not null ? "submap" : "") @(node.Id == SelectedId ? "selected" : "") @(node == linkTarget ? "link-target" : "") @(node.Maintenance is not null ? "maintenance" : "")"
+               transform="translate(@F(node.X - w / 2.0) @F(node.Y - h / 2.0))"
+               @onpointerdown="e => OnNodeDown(e, node)" @onpointerdown:stopPropagation
+               @onpointerenter="() => OnNodeEnter(node)"
+               @onpointerleave="() => OnNodeLeave(node)"
+               @ondblclick="() => OnNodeOpen.InvokeAsync(node)">
+                <rect width="@w" height="@h" rx="6" fill="@StateColor(node.State)" />
+                @if (node.Maintenance is not null)
+                {
+                    <title>In manutenzione: @node.Maintenance</title>
+                }
+                else if (node.SubmapCounts is { } counts)
+                {
+                    <title>@counts.Details()</title>
+                }
+                @if (node.SubmapCounts is { } c && c.Down + c.Partial > 0)
+                {
+                    <g class="submap-badge @(c.Down > 0 ? "down" : "partial")" transform="translate(@F(w) 0)">
+                        <circle r="10" />
+                        <text y="4" text-anchor="middle">@(c.Down + c.Partial)</text>
+                    </g>
+                }
+                @if (hasIcon)
+                {
+                    <use class="node-icon" href="#ni-@node.Icon" x="7" y="@F((h - IconSize) / 2.0)" width="@IconSize" height="@IconSize" />
+                }
+                <text x="@F(textX)" y="@F(textY)" text-anchor="middle">
+                    @for (var i = 0; i < lines.Length; i++)
+                    {
+                        <tspan x="@F(textX)" dy="@(i == 0 ? "0" : "15")">@lines[i]</tspan>
+                    }
+                </text>
+            </g>
+        }
+
+        @if (PlacePoint is { } p)
+        {
+            <g class="place-marker" transform="translate(@F(p.X) @F(p.Y))">
+                <circle r="10" />
+                <line x1="-16" y1="0" x2="16" y2="0" />
+                <line x1="0" y1="-16" x2="0" y2="16" />
+            </g>
+        }
+    </g>
+</svg>

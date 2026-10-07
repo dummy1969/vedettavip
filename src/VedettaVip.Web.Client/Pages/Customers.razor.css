@@ -1,0 +1,16 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.customer-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-width: 900px;
+    margin-bottom: 0.75rem;
+}
+
+.customer-form input:first-child { max-width: 260px; }
+
+.customers-table { max-width: 900px; }
+
+.customer-form .snmp { max-width: 240px; }

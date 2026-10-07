@@ -1,0 +1,42 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using ApexCharts
+@inherits TimeRangeChartBase
+
+<div class="metric-chart">
+    <ChartRangeToolbar Ranges="Ranges" Selected="SelectedRange" OnSelect="SelectRangeAsync" Info="@Info()" Loading="Loading" />
+
+    @if (Error is not null)
+    {
+        <div class="alert alert-danger py-1 px-2 small">@Error</div>
+    }
+    else if (HasData)
+    {
+        <ApexChart @key="RenderKey" TItem="ChartPoint" Options="options" Height="240">
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="RTT medio" SeriesType="SeriesType.Area"
+                             XValue="p => p.X" YValue="p => p.RttAvg" />
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="RTT max" SeriesType="SeriesType.Line"
+                             XValue="p => p.X" YValue="p => p.RttMax" />
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="Perdita" SeriesType="SeriesType.Bar"
+                             XValue="p => p.X" YValue="p => p.LossPct" />
+        </ApexChart>
+
+        <table class="table table-sm chart-stats">
+            <thead><tr><th>RTT medio</th><th>RTT max</th><th>RTT 95° perc.</th><th>Perdita</th><th>Disponibilità</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td>@Ms(stats.RttAvg)</td>
+                    <td>@Ms(stats.RttMax)</td>
+                    <td>@Ms(stats.RttP95)</td>
+                    <td>@Pct(stats.LossPct)</td>
+                    <td>@Pct(stats.LossPct is { } l ? 100 - l : null)</td>
+                </tr>
+            </tbody>
+        </table>
+    }
+    else if (!Loading)
+    {
+        <p class="text-muted small mb-0">Nessun dato nel periodo: lo storico dei ping parte dal primo poll salvato.</p>
+    }
+</div>

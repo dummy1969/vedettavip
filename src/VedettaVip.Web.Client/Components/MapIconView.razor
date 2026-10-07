@@ -1,0 +1,16 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Web.Client.Services
+@if (MapIcons.Find(Key) is { } icon)
+{
+    <svg class="map-icon" width="@Size" height="@Size" viewBox="0 0 24 24" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@((MarkupString)icon.Body)</g>
+    </svg>
+}
+
+@code {
+    /// <summary>Icona inline (fuori dalla mappa: tabelle, selettore). Chiave sconosciuta = niente.</summary>
+    [Parameter] public string? Key { get; set; }
+    [Parameter] public int Size { get; set; } = 18;
+}

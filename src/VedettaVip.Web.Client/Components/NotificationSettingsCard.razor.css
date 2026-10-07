@@ -1,0 +1,30 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.settings-card {
+    max-width: 760px;
+    margin-top: 1rem;
+}
+
+.section-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    gap: 0.45rem 0.75rem;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.port {
+    max-width: 7rem;
+}
+
+@media (max-width: 600px) {
+    .form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

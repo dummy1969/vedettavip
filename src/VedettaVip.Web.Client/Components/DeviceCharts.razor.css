@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.chart-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.interface-select {
+    max-width: 420px;
+}

@@ -1,0 +1,15 @@
+# Contesto di build delle immagini (deploy/docker-compose.yml): solo il codice
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/*.user
+.git/
+deploy/
+tests/
+# Configurazione locale: mai dentro le immagini
+**/.env
+**/.env.*
+**/*.env
+**/appsettings.Local.json
+**/appsettings.*.Local.json

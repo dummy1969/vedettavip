@@ -1,0 +1,46 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using ApexCharts
+@inherits TimeRangeChartBase
+
+<div class="metric-chart">
+    <ChartRangeToolbar Ranges="Ranges" Selected="SelectedRange" OnSelect="SelectRangeAsync" Info="@Info()" Loading="Loading" />
+
+    @if (Error is not null)
+    {
+        <div class="alert alert-danger py-1 px-2 small">@Error</div>
+    }
+    else if (HasData)
+    {
+        <ApexChart @key="RenderKey" TItem="ChartPoint" Options="options" Height="240">
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="CPU media" SeriesType="SeriesType.Area"
+                             XValue="p => p.X" YValue="p => p.CpuAvg" />
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="CPU picco" SeriesType="SeriesType.Line"
+                             XValue="p => p.X" YValue="p => p.CpuMax" />
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="Memoria" SeriesType="SeriesType.Line"
+                             XValue="p => p.X" YValue="p => p.Memory" />
+            <ApexPointSeries TItem="ChartPoint" Items="points" Name="Temperatura" SeriesType="SeriesType.Line"
+                             XValue="p => p.X" YValue="p => p.Temperature" />
+        </ApexChart>
+
+        <table class="table table-sm chart-stats">
+            <thead><tr><th>CPU media</th><th>CPU picco</th><th>CPU 95° perc.</th><th>Memoria media</th><th>Temperatura media</th><th>Temperatura max</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td>@Pct(stats.CpuAvg)</td>
+                    <td>@Pct(stats.CpuMax)</td>
+                    <td>@Pct(stats.CpuP95)</td>
+                    <td>@Pct(stats.MemoryAvg)</td>
+                    <td>@Celsius(stats.TemperatureAvg)</td>
+                    <td>@Celsius(stats.TemperatureMax)</td>
+                </tr>
+            </tbody>
+        </table>
+    }
+    else if (!Loading)
+    {
+        <p class="text-muted small mb-0">Nessun dato nel periodo: le letture partono quando il dispositivo ha un profilo RouterOS
+            (Impostazioni → Profili RouterOS) e l'agente riesce ad accedere all'API.</p>
+    }
+</div>

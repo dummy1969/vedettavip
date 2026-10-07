@@ -1,0 +1,15 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@if (state == State.Loading)
+{
+    <p><em>Caricamento...</em></p>
+}
+else if (state == State.Denied)
+{
+    <div class="alert alert-secondary small">Questa sezione è riservata agli amministratori.</div>
+}
+else if (state == State.Allowed)
+{
+    @ChildContent
+}

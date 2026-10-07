@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup notturno di VedettaVip
+
+[Timer]
+OnCalendar=*-*-* 02:30
+RandomizedDelaySec=10m
+# Se la VM era spenta all'ora prevista, il backup parte all'avvio
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,137 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Notifiche</strong></div>
+    <div class="card-body">
+        @if (loadError is not null)
+        {
+            <div class="alert alert-danger py-1 px-2 small">@loadError</div>
+        }
+        else if (!loaded)
+        {
+            <p><em>Caricamento...</em></p>
+        }
+        else
+        {
+            <h6 class="section-title">Email (SMTP)</h6>
+            <div class="form-check form-switch mb-2">
+                <input id="n-email" class="form-check-input" type="checkbox" @bind="emailEnabled" />
+                <label class="form-check-label" for="n-email">Invia notifiche via email</label>
+            </div>
+            <div class="form-grid">
+                <label for="n-host">Server SMTP</label>
+                <input id="n-host" class="form-control form-control-sm" @bind="smtpHost" placeholder="smtp.example.com" />
+
+                <label for="n-port">Porta</label>
+                <div class="d-flex gap-2 align-items-center">
+                    <input id="n-port" class="form-control form-control-sm port" type="number" min="1" max="65535" @bind="smtpPort" />
+                    <select class="form-select form-select-sm" @bind="smtpSecurity" @bind:after="OnSecurityChanged" aria-label="Sicurezza">
+                        <option value="@SmtpSecurity.StartTls">STARTTLS (587)</option>
+                        <option value="@SmtpSecurity.SslOnConnect">SSL/TLS implicito (465)</option>
+                        <option value="@SmtpSecurity.None">Nessuna cifratura (25)</option>
+                        <option value="@SmtpSecurity.Auto">Automatica</option>
+                    </select>
+                </div>
+
+                <label for="n-user">Utente</label>
+                <input id="n-user" class="form-control form-control-sm" @bind="smtpUsername" placeholder="vuoto = senza autenticazione" autocomplete="off" />
+
+                <label for="n-pass">Password</label>
+                <div>
+                    <input id="n-pass" class="form-control form-control-sm" type="password" @bind="smtpPassword" autocomplete="new-password"
+                           placeholder="@(hasSmtpPassword ? "impostata: lascia vuoto per non cambiarla" : "")" disabled="@removeSmtpPassword" />
+                    @if (hasSmtpPassword)
+                    {
+                        <div class="form-check small mt-1">
+                            <input id="n-pass-rm" class="form-check-input" type="checkbox" @bind="removeSmtpPassword" />
+                            <label class="form-check-label" for="n-pass-rm">rimuovi la password salvata</label>
+                        </div>
+                    }
+                </div>
+
+                <label for="n-from">Mittente</label>
+                <div class="d-flex gap-2">
+                    <input id="n-from" class="form-control form-control-sm" @bind="smtpFromAddress" placeholder="vedettavip@example.com" />
+                    <input class="form-control form-control-sm" @bind="smtpFromName" placeholder="nome (VedettaVip)" aria-label="Nome mittente" />
+                </div>
+
+                <span></span>
+                <div class="form-check small">
+                    <input id="n-cert" class="form-check-input" type="checkbox" @bind="smtpValidateCertificate" />
+                    <label class="form-check-label" for="n-cert">Verifica il certificato del server (disattiva solo per relay interni con certificato autofirmato)</label>
+                </div>
+
+                <label for="n-test-to">Prova</label>
+                <div class="d-flex gap-2">
+                    <input id="n-test-to" class="form-control form-control-sm" @bind="testEmailTo" placeholder="destinatario della prova" />
+                    <button class="btn btn-sm btn-outline-primary text-nowrap" disabled="@(busy || string.IsNullOrWhiteSpace(testEmailTo))" @onclick="TestEmailAsync">Salva e invia prova</button>
+                </div>
+            </div>
+
+            <h6 class="section-title mt-4">Telegram</h6>
+            <div class="form-check form-switch mb-2">
+                <input id="n-tg" class="form-check-input" type="checkbox" @bind="telegramEnabled" />
+                <label class="form-check-label" for="n-tg">Invia notifiche via Telegram</label>
+            </div>
+            <div class="form-grid">
+                <label for="n-token">Token del bot</label>
+                <input id="n-token" class="form-control form-control-sm" type="password" @bind="telegramToken" autocomplete="off"
+                       placeholder="@(hasTelegramToken ? "impostato: lascia vuoto per non cambiarlo" : "123456789:AA... (da @BotFather)")" />
+
+                <label for="n-test-chat">Prova</label>
+                <div class="d-flex gap-2">
+                    <input id="n-test-chat" class="form-control form-control-sm" @bind="testChatId" placeholder="chat ID (es. 123456789 o -100...)" />
+                    <button class="btn btn-sm btn-outline-primary text-nowrap" disabled="@(busy || string.IsNullOrWhiteSpace(testChatId))" @onclick="TestTelegramAsync">Salva e invia prova</button>
+                </div>
+            </div>
+            <div class="form-text">
+                Crea il bot con @@BotFather e scrivigli un messaggio (o aggiungilo al gruppo); il chat ID si legge da
+                https://api.telegram.org/bot&lt;token&gt;/getUpdates.
+            </div>
+
+            <h6 class="section-title mt-4">Invio</h6>
+            <div class="form-grid">
+                <label for="n-delay">Ritardo di invio (s)</label>
+                <div>
+                    <input id="n-delay" class="form-control form-control-sm port" type="number" min="0" max="3600" @bind="delaySeconds" />
+                    <div class="form-text">Attesa prima di notificare: se nel frattempo cade il dispositivo da cui dipende, si avvisa solo
+                        per quello; se il problema rientra (flap), non si avvisa affatto.</div>
+                </div>
+
+                <label for="n-rem">Promemoria ogni (min)</label>
+                <div>
+                    <input id="n-rem" class="form-control form-control-sm port" type="number" min="0" max="10080" @bind="reminderMinutes" />
+                    <div class="form-check small mt-1">
+                        <input id="n-rem-w" class="form-check-input" type="checkbox" @bind="reminderIncludeWarnings" />
+                        <label class="form-check-label" for="n-rem-w">anche per Partial e soglie (altrimenti solo Down e agenti offline)</label>
+                    </div>
+                    <div class="form-text">0 = disattivati. Un problema ancora aperto viene rinotificato finché non viene preso in
+                        carico o risolto.</div>
+                </div>
+
+                <label for="n-tz">Fuso orario</label>
+                <input id="n-tz" class="form-control form-control-sm" @bind="timeZoneId" list="n-tz-list" />
+                <datalist id="n-tz-list">
+                    <option value="Europe/Rome"></option>
+                    <option value="Europe/London"></option>
+                    <option value="Europe/Berlin"></option>
+                    <option value="UTC"></option>
+                </datalist>
+
+                <label for="n-url">Indirizzo di VedettaVip</label>
+                <input id="n-url" class="form-control form-control-sm" @bind="publicUrl" placeholder="https://vedettavip.example.com (per i link nei messaggi)" />
+            </div>
+
+            <div class="d-flex flex-wrap align-items-baseline gap-2 mt-3">
+                <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="SaveAsync">Salva</button>
+                @if (message is not null)
+                {
+                    <span class="small @(messageIsError ? "text-danger" : "text-success")">@message</span>
+                }
+            </div>
+        }
+    </div>
+</section>

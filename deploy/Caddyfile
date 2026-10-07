@@ -1,0 +1,34 @@
+# VedettaVip - reverse proxy HTTPS.
+# Certificato emesso dalla CA interna di Caddy ("tls internal"): per evitare l'avviso del browser, importare
+# la radice della CA nei client (vedi deploy/production/README.md, "Certificato HTTPS").
+{
+	# Rinnovo e CA interna gestiti da Caddy; nessun contatto con Let's Encrypt
+	skip_install_trust
+	# Collegandosi a un IP browser e curl non inviano il nome (SNI): senza questa riga l'handshake TLS fallisce
+	default_sni {$VEDETTAVIP_HOST}
+}
+
+https://{$VEDETTAVIP_HOST} {
+	tls internal
+
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		-Server
+	}
+
+	# API e hub SignalR (WebSocket gestiti automaticamente)
+	@api path /api/* /hubs/*
+	reverse_proxy @api api:8080
+
+	# Pagine e WebAssembly
+	reverse_proxy web:8080
+}
+
+# HTTP → HTTPS
+http://{$VEDETTAVIP_HOST} {
+	redir https://{host}{uri} permanent
+}

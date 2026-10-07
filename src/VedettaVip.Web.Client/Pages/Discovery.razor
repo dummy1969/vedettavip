@@ -1,0 +1,308 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/discovery"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Scoperta - VedettaVip</PageTitle>
+
+<div class="discovery-header">
+    <h3>Scoperta</h3>
+    @if (result is not null)
+    {
+        <span class="small text-muted">
+            vicini letti da @result.DevicesScanned dispositivi@(result.LastSeen is { } at ? $", ultima lettura alle {at.ToLocalTime():HH:mm}" : "")
+        </span>
+    }
+    @if (User.CanEdit)
+    {
+        <button class="btn btn-sm btn-outline-primary ms-auto" disabled="@(busy || refreshing)" @onclick="RefreshAsync">
+            @(refreshing ? "lettura in corso..." : "Scopri ora")
+        </button>
+    }
+</div>
+
+<p class="small text-muted">
+    Fonti: i <b>vicini</b> dei MikroTik con accesso API (/ip/neighbor: MNDP, LLDP, CDP) e degli apparati SNMP v2c (LLDP, CDP),
+    la <b>tabella ARP</b> dei router (con i nomi dei lease DHCP dei MikroTik), entrambe rilette ogni 30 minuti, e le
+    <b>scansioni</b> di rete avviate qui sotto. Niente viene aggiunto finché non lo confermi.
+</p>
+
+@if (User.CanEdit)
+{
+    <section class="scan-card card">
+        <div class="card-body">
+            <div class="scan-form">
+                <strong class="me-1">Scansiona una rete</strong>
+                <input class="form-control form-control-sm font-monospace" placeholder="192.0.2.0/24" maxlength="32" @bind="scanCidr" @bind:event="oninput" />
+                <select class="form-select form-select-sm" aria-label="Cliente" @bind="scanCustomerId">
+                    <option value="">cliente: nessuno</option>
+                    @foreach (var c in customers)
+                    {
+                        <option value="@c.Id">cliente: @c.Name</option>
+                    }
+                </select>
+                <select class="form-select form-select-sm" aria-label="Mappa" @bind="scanMapId">
+                    <option value="">mappa: nessuna</option>
+                    @foreach (var (m, depth) in MapHierarchy.Order(maps))
+                    {
+                        <option value="@m.Id">@MapHierarchy.Indent(depth)@m.Name</option>
+                    }
+                </select>
+                <button class="btn btn-sm btn-primary" disabled="@(busy || string.IsNullOrWhiteSpace(scanCidr))" @onclick="StartScanAsync">Avvia</button>
+            </div>
+            <div class="form-text">Ping di tutti gli indirizzi (da /22 a /32), poi sugli host vivi DNS inverso, SNMP v2c con le community
+                dei profili e qualche porta tipica (stampanti, telecamere, RDP, API MikroTik). Cliente e mappa diventano i suggerimenti degli host trovati.</div>
+            @if (scans.Count > 0)
+            {
+                <div class="table-scroll">
+                <table class="table table-sm align-middle mb-0 mt-2 scans">
+                    <tbody>
+                        @foreach (var sc in scans)
+                        {
+                            <tr @key="sc.Id">
+                                <td class="font-monospace">@sc.Cidr</td>
+                                <td class="small">@ScanStatus(sc)</td>
+                                <td class="w-progress">
+                                    @if (sc.Status is DiscoveryScanStatus.Pending or DiscoveryScanStatus.Running)
+                                    {
+                                        <div class="progress" role="progressbar"><div class="progress-bar" style="width:@(sc.Total > 0 ? 100 * sc.Scanned / sc.Total : 5)%"></div></div>
+                                    }
+                                </td>
+                                <td class="small text-muted">@sc.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm") @sc.CreatedBy</td>
+                                <td class="text-end"><button class="btn btn-sm btn-link text-muted p-0" disabled="@busy" @onclick="() => DeleteScanAsync(sc.Id)">elimina</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@if (error is not null)
+{
+    <div class="alert alert-danger py-1 px-2 small">@error</div>
+}
+@if (forgotten is { } f)
+{
+    <div class="alert alert-secondary alert-dismissible py-2 small">
+        Eliminate @f.ArpEntries righe ARP, @f.Neighbors vicini e @f.ScanHosts host di scansioni. Gli host ancora presenti
+        ricompaiono alla prossima lettura dei router (entro 30 minuti, o con "Scopri ora") o alla prossima scansione.
+        <button type="button" class="btn-close" @onclick="() => forgotten = null"></button>
+    </div>
+}
+@if (accepted is { } a)
+{
+    <div class="alert alert-success alert-dismissible py-2 small">
+        Aggiunti @a.DevicesCreated dispositivi e @a.LinksCreated link.
+        @foreach (var w in a.Warnings)
+        {
+            <div class="text-warning-emphasis">@w</div>
+        }
+        <button type="button" class="btn-close" @onclick="() => accepted = null"></button>
+    </div>
+}
+
+@if (result is null)
+{
+    <p><em>Caricamento...</em></p>
+}
+else if (result.DevicesScanned == 0)
+{
+    <div class="alert alert-secondary small">
+        Nessun vicino letto finora. Servono dispositivi con <b>API RouterOS</b> (profilo in Impostazioni → Profili RouterOS)
+        oppure <b>SNMP v2c</b> con LLDP o CDP attivo; poi "Scopri ora".
+    </div>
+}
+else
+{
+    <div class="discovery-filters">
+        <input class="form-control form-control-sm" type="search" placeholder="Filtra per nome, indirizzo o interfaccia" @bind="filter" @bind:event="oninput" />
+        <select class="form-select form-select-sm source" aria-label="Origine" @bind="sourceFilter">
+            <option value="">tutte le origini</option>
+            <option value="vicini">vicini (LLDP, CDP, MNDP)</option>
+            <option value="arp">tabella ARP</option>
+            <option value="scansione">scansioni</option>
+        </select>
+        <select class="form-select form-select-sm source" aria-label="Visto da" @bind="seenByFilter">
+            <option value="">visto da: tutti</option>
+            @foreach (var (value, label) in SeenByOptions())
+            {
+                <option value="@value">@label</option>
+            }
+        </select>
+        <select class="form-select form-select-sm source" aria-label="Cliente" @bind="customerFilter">
+            <option value="">cliente: tutti</option>
+            <option value="@NoCustomer">cliente: nessuno</option>
+            @foreach (var c in customers)
+            {
+                <option value="@c.Id">cliente: @c.Name</option>
+            }
+        </select>
+        @if (result.Ignored > 0 && User.CanEdit)
+        {
+            <button class="btn btn-sm btn-link" disabled="@busy" @onclick="RestoreIgnoredAsync">ripristina @result.Ignored ignorati</button>
+        }
+    </div>
+
+    <section class="discovery-section">
+        <h6>Link mancanti <span class="badge text-bg-light border">@result.Links.Count</span></h6>
+        @if (Links().Any())
+        {
+            <div class="table-scroll">
+            <table class="table table-sm align-middle">
+                <thead><tr><th class="w-check"></th><th>Collegamento</th><th>Mappa</th><th>Traffico letto da</th><th>Visto con</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var l in Links())
+                    {
+                        <tr @key="l.Key" class="@(l.Problem is not null ? "text-muted" : "")">
+                            <td><input class="form-check-input" type="checkbox" disabled="@(!User.CanEdit || l.Problem is not null)"
+                                       checked="@selectedLinks.Contains(l.Key)" @onchange="e => Toggle(selectedLinks, l.Key, (bool)e.Value!)" /></td>
+                            <td>
+                                <b>@l.FromName</b> <span class="iface">@l.FromInterface</span>
+                                <span class="mx-1">⟷</span>
+                                <b>@l.ToName</b> <span class="iface">@l.ToInterface</span>
+                                @if (l.Problem is not null)
+                                {
+                                    <div class="small text-warning-emphasis">@l.Problem</div>
+                                }
+                            </td>
+                            <td class="small">@l.MapName</td>
+                            <td class="small">@SourceText(l)</td>
+                            <td class="small text-muted">@l.Protocols</td>
+                            <td class="text-end">@IgnoreButton(l.Key)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        }
+        else
+        {
+            <p class="small text-muted">Nessun collegamento mancante fra i dispositivi già in VedettaVip.</p>
+        }
+    </section>
+
+    <section class="discovery-section">
+        <h6>
+            Dispositivi nuovi <span class="badge text-bg-light border">@(Devices().Count() is var shown && shown != result.Devices.Count ? $"{shown} di {result.Devices.Count}" : $"{shown}")</span>
+            @if (User.CanEdit && Devices().Any())
+            {
+                <button class="btn btn-sm btn-link" @onclick="() => SelectVisible(true)">seleziona i visibili</button>
+                <button class="btn btn-sm btn-link" @onclick="() => SelectVisible(false)">deseleziona</button>
+            }
+        </h6>
+        @if (Devices().Any())
+        {
+            <div class="table-scroll">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th class="w-check"></th><th>Nome</th><th>Indirizzo</th><th>Tipo</th><th>Visto da</th><th>Cliente</th><th>Mappa</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var d in Devices().Take(showAll ? int.MaxValue : MaxRows))
+                        {
+                            var row = rows[d.Key];
+                            <tr @key="d.Key">
+                                <td><input class="form-check-input" type="checkbox" disabled="@(!User.CanEdit)" checked="@row.Selected"
+                                           @onchange="e => row.Selected = (bool)e.Value!" /></td>
+                                <td>
+                                    <input class="form-control form-control-sm" maxlength="128" @bind="row.Name" />
+                                    <div class="tiny text-muted">
+                                        @foreach (var src in d.Sources.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                        {
+                                            <span class="src-badge @src">@src</span>
+                                        }
+                                        @if (d.Snmp)
+                                        {
+                                            <span class="src-badge snmp" title="Risponde a SNMP v2c: verrà aggiunto con SNMP attivo">SNMP</span>
+                                        }
+                                        @Details(d)
+                                    </div>
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm font-monospace addr" maxlength="255" placeholder="IP da inserire" @bind="row.Address" />
+                                    @if (d.MacAddress is not null)
+                                    {
+                                        <div class="tiny text-muted font-monospace">@d.MacAddress</div>
+                                    }
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" @bind="row.Type">
+                                        @foreach (var t in Enum.GetValues<DeviceType>())
+                                        {
+                                            <option value="@t">@DeviceEditor.TypeLabel(t)</option>
+                                        }
+                                    </select>
+                                    @if (d.RouterOs)
+                                    {
+                                        <label class="tiny"><input type="checkbox" class="form-check-input me-1" @bind="row.RouterOs" />API RouterOS</label>
+                                    }
+                                </td>
+                                <td class="small">
+                                    @foreach (var s in d.SeenBy)
+                                    {
+                                        <div>@s.DeviceName <span class="iface">@s.LocalInterface</span> <span class="tiny text-muted">@s.Protocol</span></div>
+                                    }
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" @bind="row.CustomerId">
+                                        <option value="">nessuno</option>
+                                        @foreach (var c in customers)
+                                        {
+                                            <option value="@c.Id">@c.Name</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" @bind="row.MapId">
+                                        <option value="">nessuna</option>
+                                        @foreach (var (m, depth) in MapHierarchy.Order(maps))
+                                        {
+                                            <option value="@m.Id">@MapHierarchy.Indent(depth)@m.Name</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td class="text-end">@IgnoreButton(d.Key)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (!showAll && Devices().Count() > MaxRows)
+            {
+                <button class="btn btn-sm btn-link" @onclick="() => showAll = true">mostra tutti i @Devices().Count() (ora @MaxRows)</button>
+            }
+            <div class="form-text">Aggiungendo un dispositivo su una mappa viene creato anche il link verso il vicino che l'ha visto, se è sulla
+                stessa mappa (non per l'ARP: non è detto che ci sia un cavo diretto). "Dipende da" è il dispositivo che l'ha visto;
+                SNMP è attivo solo se la scansione ha avuto risposta.</div>
+        }
+        else
+        {
+            <p class="small text-muted">Nessun dispositivo nuovo fra i vicini.</p>
+        }
+    </section>
+
+    @if (User.CanEdit)
+    {
+        <div class="discovery-actions">
+            <button class="btn btn-sm btn-primary" disabled="@(busy || SelectedCount == 0)" @onclick="AcceptAsync">
+                Aggiungi @SelectedCount selezionati
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" disabled="@(busy || SelectedCount == 0)" @onclick="IgnoreSelectedAsync"
+                    title="Non proporli più (si ripristinano con &quot;ripristina ignorati&quot;)">
+                Ignora selezionati
+            </button>
+            <button class="btn btn-sm btn-outline-danger" disabled="@(busy || SelectedDevices().Count == 0)" @onclick="ForgetSelectedAsync"
+                    title="Cancella le letture salvate (ARP, vicini, scansioni): se l'host c'è ancora ricompare alla prossima lettura o scansione">
+                Elimina selezionati
+            </button>
+            @if (SelectedCount > 0)
+            {
+                <span class="small text-muted">@SelectedText()</span>
+            }
+        </div>
+    }
+}

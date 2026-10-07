@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>bf2fec2e-e3ba-4d07-8f4d-928bef79ab1e</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.18.1" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VedettaVip.Shared\VedettaVip.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Produttori dai MAC (registri IEEE): generato da third-party/ieee-oui/generate.py -->
+    <EmbeddedResource Include="Resources\oui.tsv.gz" LogicalName="VedettaVip.Api.oui.tsv.gz" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- appsettings.Local.json: configurazione dell'installazione, fuori da Git -->
+    <Compile Include="..\LocalSettings.cs" Link="LocalSettings.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,32 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Web.Client.Services
+
+<div class="icon-picker">
+    <button type="button" class="icon-choice default @(Value is null ? "selected" : "")" title="Predefinita: @(MapIcons.Find(DefaultKey)?.Label ?? "nessuna")"
+            @onclick="() => SelectAsync(null)">
+        <MapIconView Key="DefaultKey" Size="20" />
+        <span>auto</span>
+    </button>
+    @foreach (var icon in MapIcons.All)
+    {
+        <button type="button" class="icon-choice @(icon.Key == Value ? "selected" : "")" title="@icon.Label" aria-label="@icon.Label"
+                @onclick="() => SelectAsync(icon.Key)">
+            <MapIconView Key="@icon.Key" Size="20" />
+        </button>
+    }
+</div>
+<div class="form-text">@(Value is null ? $"Predefinita{InheritedText}" : MapIcons.Find(Value)?.Label ?? Value)</div>
+
+@code {
+    /// <summary>Icona scelta; null = predefinita (<see cref="DefaultKey"/>).</summary>
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    /// <summary>Icona usata se non se ne sceglie una.</summary>
+    [Parameter] public string? DefaultKey { get; set; }
+    /// <summary>Da dove viene la predefinita, es. " (dal dispositivo)".</summary>
+    [Parameter] public string InheritedText { get; set; } = "";
+
+    private Task SelectAsync(string? key) => ValueChanged.InvokeAsync(key);
+}

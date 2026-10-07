@@ -1,0 +1,35 @@
+# VedettaVip - stack di sviluppo (solo il database, usato da dev.sh)
+# Uso: docker compose -f deploy/docker-compose.dev.yml --env-file deploy/.env.dev up -d
+# Variabili in deploy/.env.dev (modello: deploy/.env.dev.example). Personalizzazioni locali (es. nome del volume)
+# in deploy/docker-compose.dev.override.yml, ignorato da Git e aggiunto da dev.sh se esiste.
+
+# Progetto distinto da quello dello stack completo (deploy/docker-compose.yml, progetto "vedettavip"):
+# con lo stesso nome i due compose si contenderebbero il servizio "db".
+name: vedettavip-dev
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg17
+    container_name: vedettavip-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER non impostato in deploy/.env.dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD non impostato in deploy/.env.dev}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB non impostato in deploy/.env.dev}
+      TZ: ${TZ:-Europe/Rome}
+    ports:
+      # Esposto solo in locale: accesso remoto via tunnel SSH o rete docker interna
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  # Nome effettivo: vedettavip-dev_db-data. Per riusare un volume esistente con un altro nome:
+  #   volumes: { db-data: { name: <nome-del-volume>, external: true } }   in deploy/docker-compose.dev.override.yml
+  db-data:

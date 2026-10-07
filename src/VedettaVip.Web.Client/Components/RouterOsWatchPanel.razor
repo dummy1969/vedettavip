@@ -1,0 +1,96 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+@using VedettaVip.Shared.Models
+
+<div class="ros-watch">
+    @if (error is not null)
+    {
+        <div class="alert alert-danger py-1 px-2 small">@error</div>
+    }
+    @if (detail is null)
+    {
+        <p class="small text-muted mb-0"><em>Caricamento...</em></p>
+    }
+    else if (detail.Latest is null)
+    {
+        <p class="small text-muted mb-0">Nessuna lettura ancora: l'elenco di interfacce e tunnel compare dopo la prima lettura
+            riuscita (entro un minuto da quando il dispositivo ha un profilo RouterOS).</p>
+    }
+    else if (!detail.Latest.Ok)
+    {
+        <p class="small text-danger mb-0">Ultima lettura fallita: @detail.Latest.Error</p>
+    }
+    else
+    {
+        <div class="small text-muted mb-1">
+            Spunta cosa sorvegliare: se va giù per due letture di fila (circa 2 minuti) si apre un avviso, notificato ai
+            contatti iscritti con "Down, Partial e soglie". Lettura delle @detail.Latest.Time.ToLocalTime().ToString("HH:mm:ss").
+        </div>
+
+        <input class="form-control form-control-sm mb-1" type="search" placeholder="Filtra per nome, tipo o commento" @bind="filter" @bind:event="oninput" />
+
+        @if (Peers().Any())
+        {
+            <div class="ros-section">Tunnel WireGuard (ultimo handshake)</div>
+            <table class="table table-sm align-middle mb-2">
+                <tbody>
+                    @foreach (var p in Peers())
+                    {
+                        var watch = Watch(RouterOsWatchKindDto.WireGuardPeer, p.PublicKey);
+                        <tr @key="p.PublicKey">
+                            <td class="w-check">
+                                <input class="form-check-input" type="checkbox" checked="@(watch is not null)" disabled="@busy" title="Sorveglia"
+                                       @onchange="e => ToggleAsync(RouterOsWatchKindDto.WireGuardPeer, p.PublicKey, PeerLabel(p), (bool)e.Value!)" />
+                            </td>
+                            <td>
+                                <span class="state-dot @PeerClass(p)"></span>@PeerLabel(p)
+                                <div class="text-muted tiny">@p.Interface @(p.Endpoint is { } ep ? $"· {ep}" : "")</div>
+                            </td>
+                            <td class="text-end tiny">@PeerText(p)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        <div class="ros-section">Interfacce</div>
+        <div class="ros-list">
+            <table class="table table-sm align-middle mb-0">
+                <tbody>
+                    @foreach (var i in InterfacesFiltered())
+                    {
+                        var watch = Watch(RouterOsWatchKindDto.Interface, i.Name);
+                        <tr @key="i.Name" class="@(watch is not null ? "watched" : "")">
+                            <td class="w-check">
+                                <input class="form-check-input" type="checkbox" checked="@(watch is not null)" disabled="@busy" title="Sorveglia"
+                                       @onchange="e => ToggleAsync(RouterOsWatchKindDto.Interface, i.Name, InterfaceLabel(i), (bool)e.Value!)" />
+                            </td>
+                            <td>
+                                <span class="state-dot @(i.Disabled ? "disabled" : i.Running ? "up" : "down")"></span>@i.Name
+                                @if (i.Comment is not null)
+                                {
+                                    <span class="text-muted tiny"> · @i.Comment</span>
+                                }
+                            </td>
+                            <td class="text-end tiny text-muted">@i.Type @(i.Disabled ? "· disabilitata" : i.Running ? "" : "· giù")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Orphans().Any())
+        {
+            <div class="ros-section mt-2">Sorvegliati ma non più presenti sul router</div>
+            @foreach (var w in Orphans())
+            {
+                <div class="small d-flex align-items-center gap-2">
+                    <span class="state-dot down"></span>@w.Label
+                    <button class="btn btn-link btn-sm p-0" disabled="@busy" @onclick="() => ToggleAsync(w.Kind, w.Key, w.Label, false)">togli</button>
+                </div>
+            }
+        }
+    }
+</div>

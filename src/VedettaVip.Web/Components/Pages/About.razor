@@ -1,0 +1,56 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/about"
+
+<PageTitle>Informazioni - VedettaVip</PageTitle>
+
+<div class="about">
+    <h1>VedettaVip</h1>
+    <p class="lead">Monitoraggio di rete con mappa topologica live.</p>
+
+    <dl class="row">
+        <dt class="col-sm-3">Versione</dt>
+        <dd class="col-sm-9 font-monospace">@Version</dd>
+        <dt class="col-sm-3">Autore</dt>
+        @* Attribuzione richiesta dal NOTICE (AGPL-3.0, sezione 7(b)): va conservata nelle versioni modificate *@
+        <dd class="col-sm-9"><strong>VedettaVip – created by Marcello Anderlini</strong></dd>
+        <dt class="col-sm-3">Licenza</dt>
+        <dd class="col-sm-9">
+            <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">GNU Affero General Public License v3.0 o successiva</a>
+            (AGPL-3.0-or-later), con il termine aggiuntivo di attribuzione del file NOTICE.
+        </dd>
+        <dt class="col-sm-3">Codice sorgente</dt>
+        <dd class="col-sm-9"><a href="@SourceUrl" target="_blank" rel="noopener">@SourceUrl</a></dd>
+    </dl>
+
+    <p class="small text-muted">
+        VedettaVip è software libero: puoi redistribuirlo e modificarlo secondo i termini della GNU AGPL, versione 3 o
+        successiva. È distribuito senza alcuna garanzia. Se offri una versione modificata agli utenti attraverso la rete,
+        devi rendere disponibile a loro il suo codice sorgente.
+    </p>
+    <p class="small text-muted">
+        VedettaVip is not affiliated with or endorsed by MikroTik. The Dude and RouterOS are trademarks of MikroTik.
+    </p>
+
+    <h2 class="h5 mt-4">Componenti di terze parti</h2>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr><th>Componente</th><th>Versione</th><th>Licenza</th><th>Uso</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Credits)
+                {
+                    <tr>
+                        <td><a href="@c.Url" target="_blank" rel="noopener">@c.Name</a></td>
+                        <td class="font-monospace">@c.Version</td>
+                        <td>@c.License</td>
+                        <td>@c.Use</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <p class="small text-muted">Elenco completo, con le dipendenze indirette, in THIRD-PARTY-NOTICES.md nel codice sorgente.</p>
+</div>

@@ -1,0 +1,79 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/settings/customers"
+@page "/customers"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Clienti - VedettaVip</PageTitle>
+
+<SettingsShell Title="Clienti">
+<p class="small text-muted">
+    Il cliente si assegna ai dispositivi (pagina Dispositivi → Modifica) e serve a inviare le notifiche ai
+    contatti iscritti a quel cliente. Il profilo SNMP del cliente vale per i suoi dispositivi che non ne hanno uno proprio.
+</p>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger py-1 px-2 small">@error</div>
+}
+
+<div class="customer-form">
+    <input class="form-control form-control-sm" placeholder="Nome del cliente" maxlength="128" @bind="name" @bind:event="oninput" />
+    <input class="form-control form-control-sm" placeholder="Note (facoltative)" maxlength="1024" @bind="notes" />
+    <select class="form-select form-select-sm snmp" aria-label="Profilo SNMP" title="Profilo SNMP dei dispositivi del cliente" @bind="snmpCredentialId">
+        <option value="">SNMP: profilo predefinito</option>
+        @foreach (var p in profiles)
+        {
+            <option value="@p.Id">SNMP: @p.Name</option>
+        }
+    </select>
+    <select class="form-select form-select-sm snmp" aria-label="Profilo RouterOS" title="Profilo RouterOS dei dispositivi del cliente" @bind="routerOsCredentialId">
+        <option value="">RouterOS: profilo predefinito</option>
+        @foreach (var p in rosProfiles)
+        {
+            <option value="@p.Id">RouterOS: @p.Name</option>
+        }
+    </select>
+    <button class="btn btn-sm btn-primary text-nowrap" disabled="@(busy || string.IsNullOrWhiteSpace(name))" @onclick="SaveAsync">
+        @(editingId is null ? "Aggiungi" : "Salva")
+    </button>
+    @if (editingId is not null)
+    {
+        <button class="btn btn-sm btn-outline-secondary" @onclick="ResetForm">Annulla</button>
+    }
+</div>
+
+@if (customers is null)
+{
+    <p><em>Caricamento...</em></p>
+}
+else if (customers.Count == 0)
+{
+    <p class="text-muted small">Nessun cliente.</p>
+}
+else
+{
+    <table class="table table-sm align-middle customers-table">
+        <thead><tr><th>Nome</th><th>Note</th><th>Dispositivi</th><th>Profilo SNMP</th><th>Profilo RouterOS</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var c in customers)
+            {
+                <tr class="@(c.Id == editingId ? "table-active" : "")" @key="c.Id">
+                    <td>@c.Name</td>
+                    <td class="small text-muted">@c.Notes</td>
+                    <td>@c.DeviceCount</td>
+                    <td class="small">@(profiles.FirstOrDefault(p => p.Id == c.SnmpCredentialId)?.Name ?? "predefinito")</td>
+                    <td class="small">@(rosProfiles.FirstOrDefault(p => p.Id == c.RouterOsCredentialId)?.Name ?? "predefinito")</td>
+                    <td class="text-nowrap text-end">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(c)">Modifica</button>
+                        <DeleteButton Busy="busy" OnConfirmed="() => DeleteAsync(c)"
+                                      ConfirmText="@(c.DeviceCount > 0 ? $"Conferma ({c.DeviceCount} dispositivi restano senza cliente)" : "Conferma eliminazione")" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+</SettingsShell>

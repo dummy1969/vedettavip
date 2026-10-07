@@ -1,0 +1,12 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/settings/snmp"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Profili SNMP - Impostazioni - VedettaVip</PageTitle>
+
+<SettingsShell Title="Profili SNMP">
+    <SnmpCredentialsCard />
+</SettingsShell>

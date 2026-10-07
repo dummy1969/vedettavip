@@ -1,0 +1,44 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+<section class="device-charts card">
+    <div class="card-header d-flex align-items-baseline gap-2">
+        <strong>@Title</strong>
+        <span class="text-muted small font-monospace">@Address</span>
+        <button type="button" class="btn-close ms-auto" aria-label="Chiudi" @onclick="OnClose"></button>
+    </div>
+    <div class="card-body">
+        <h6 class="chart-title">Latenza e perdita (ping)</h6>
+        <DeviceLatencyChart DeviceId="DeviceId" />
+
+        @if (routerOsEnabled)
+        {
+            <h6 class="chart-title mt-3">RouterOS: CPU, memoria, temperatura</h6>
+            <DeviceRouterOsChart DeviceId="DeviceId" />
+        }
+
+        <h6 class="chart-title mt-3">Traffico interfacce</h6>
+        @if (interfaces is null)
+        {
+            <p class="text-muted small">Caricamento...</p>
+        }
+        else if (interfaces.Count == 0)
+        {
+            <p class="text-muted small mb-0">Nessuna interfaccia con storico: il traffico viene salvato per le interfacce
+                usate come sorgente di un link sulla mappa (dispositivo SNMP v2c).</p>
+        }
+        else
+        {
+            <select class="form-select form-select-sm interface-select mb-2" @bind="selectedIfIndex">
+                @foreach (var i in interfaces)
+                {
+                    <option value="@i.IfIndex">@InterfaceText(i)</option>
+                }
+            </select>
+            @if (selectedIfIndex is { } ifIndex)
+            {
+                <InterfaceTrafficChart DeviceId="DeviceId" IfIndex="ifIndex" TxLabel="Out (uscita)" RxLabel="In (ingresso)" />
+            }
+        }
+    </div>
+</section>

@@ -1,0 +1,124 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/events"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
+
+<PageTitle>Eventi - VedettaVip</PageTitle>
+
+<div class="events-header">
+    <h3>Eventi</h3>
+    @if (events is not null)
+    {
+        <span class="small text-muted">@OpenCount() da prendere in carico</span>
+    }
+    <div class="form-check form-switch ms-auto">
+        <input id="ev-open" class="form-check-input" type="checkbox" @bind="unacknowledgedOnly" @bind:after="ReloadAsync" />
+        <label class="form-check-label small" for="ev-open">Solo da prendere in carico</label>
+    </div>
+</div>
+
+<p class="small text-muted">
+    "Preso in carico" segnala che il problema è già gestito: sparisce dalla vista "Solo da prendere in carico".
+    Quando il dispositivo torna Up (o l'agente torna online) il problema si chiude da solo; gli eventi informativi
+    nascono già chiusi.
+</p>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger py-1 px-2 small">@error</div>
+}
+
+@if (events is null)
+{
+    <p><em>Caricamento...</em></p>
+}
+else if (events.Count == 0)
+{
+    <p class="text-muted small">Nessun evento.</p>
+}
+else
+{
+    <div class="events-table">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr><th>Quando</th><th></th><th>Oggetto</th><th>Cliente</th><th>Cambio</th><th>Notifica</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var e in events)
+                {
+                    <tr class="@(e.Acknowledged ? "acknowledged" : "")" @key="e.Id">
+                        <td class="text-nowrap small">@e.Time.ToLocalTime().ToString("dd/MM HH:mm:ss")</td>
+                        <td><span class="severity @e.Severity.ToString().ToLowerInvariant()" title="@e.Severity">@SeverityText(e.Severity)</span></td>
+                        <td>@(e.DeviceName ?? (e.AgentId is not null ? $"agente {e.AgentId}" : "?"))</td>
+                        <td class="small">@e.CustomerName</td>
+                        <td class="small change">
+                            @ChangeText(e)
+                            @if (ResolvedText(e) is { } resolved)
+                            {
+                                <div class="resolved">@resolved</div>
+                            }
+                        </td>
+                        <td class="small">
+                            <button class="btn btn-link btn-sm p-0 text-start notify" @onclick="() => ToggleDeliveriesAsync(e)"
+                                    title="Dettaglio degli invii">@NotifyText(e)</button>
+                        </td>
+                        <td class="text-end text-nowrap">
+                            @if (e.AcknowledgedBy is not null)
+                            {
+                                <div class="ack-by">da @e.AcknowledgedBy, @e.AcknowledgedAt?.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                            }
+                            @* Gli eventi informativi (ripristini, prime rilevazioni) non sono problemi da gestire: niente presa in carico *@
+                            @if (User.CanEdit && e.Severity != EventSeverity.Info)
+                            {
+                                <button class="btn btn-sm @(e.Acknowledged ? "btn-outline-secondary" : "btn-outline-primary")"
+                                        @onclick="() => AcknowledgeAsync(e)">
+                                    @(e.Acknowledged ? "Riapri" : "Preso in carico")
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                    @if (expandedId == e.Id)
+                    {
+                        <tr class="deliveries-row">
+                            <td colspan="7">
+                                @if (deliveries is null)
+                                {
+                                    <em class="small">Caricamento...</em>
+                                }
+                                else if (deliveries.Count == 0)
+                                {
+                                    <span class="small text-muted">@(e.NotifyNote ?? "Nessun invio.")</span>
+                                }
+                                else
+                                {
+                                    <table class="table table-sm mb-0 small">
+                                        <thead><tr><th>Canale</th><th>Contatto</th><th>Destinazione</th><th>Esito</th><th>Tentativi</th><th>Errore</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var d in deliveries)
+                                            {
+                                                <tr>
+                                                    <td>@d.Channel</td>
+                                                    <td>@d.ContactName</td>
+                                                    <td class="font-monospace">@d.Destination</td>
+                                                    <td>@DeliveryText(d)</td>
+                                                    <td>@d.Attempts</td>
+                                                    <td class="text-danger">@d.LastError</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (hasMore)
+    {
+        <button class="btn btn-sm btn-outline-secondary" disabled="@loading" @onclick="LoadMoreAsync">Carica i precedenti</button>
+    }
+}

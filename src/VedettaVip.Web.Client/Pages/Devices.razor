@@ -1,0 +1,221 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/devices"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
+@using VedettaVip.Shared.Models
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Dispositivi - VedettaVip</PageTitle>
+
+<div class="devices-header">
+    <h3>Dispositivi</h3>
+    @if (rows is not null)
+    {
+        <span class="summary">
+            @rows.Count totali &middot;
+            <span class="state-text up">@Count(NodeState.Up) up</span> &middot;
+            <span class="state-text partial">@Count(NodeState.Partial) partial</span> &middot;
+            <span class="state-text down">@Count(NodeState.Down) down</span> &middot;
+            <span class="state-text unknown">@Count(NodeState.Unknown) sconosciuti</span>
+            @if (DisabledCount > 0)
+            {
+                <span> &middot; @DisabledCount disabilitati</span>
+            }
+        </span>
+    }
+    @if (User.CanEdit)
+    {
+        <button class="btn btn-sm btn-outline-primary ms-auto" @onclick="() => importOpen = !importOpen">Importa CSV</button>
+        <button class="btn btn-sm btn-primary" @onclick="OpenNew">Nuovo dispositivo</button>
+    }
+</div>
+
+@if (importOpen)
+{
+    <DeviceImportPanel OnImported="LoadAsync" OnClose="() => importOpen = false" />
+}
+
+<div class="devices-filters">
+    <input class="form-control form-control-sm" type="search" placeholder="Cerca per nome o indirizzo"
+           @bind="search" @bind:event="oninput" />
+    <select class="form-select form-select-sm" @bind="filter" aria-label="Stato">
+        <option value="@StateFilter.All">Tutti gli stati</option>
+        <option value="@StateFilter.Problems">Solo problemi (Down, Partial)</option>
+        <option value="@StateFilter.Unknown">Stato sconosciuto</option>
+        <option value="@StateFilter.Disabled">Disabilitati</option>
+    </select>
+    <select class="form-select form-select-sm" aria-label="Cliente" value="@(CustomerFilter ?? "")" @onchange="e => SetFilterAsync(customer: e.Value?.ToString())">
+        <option value="">Tutti i clienti</option>
+        <option value="@NoneFilter">Senza cliente</option>
+        @foreach (var c in customers)
+        {
+            <option value="@c.Id">@c.Name</option>
+        }
+    </select>
+    <select class="form-select form-select-sm" aria-label="Mappa" value="@(MapFilter ?? "")" @onchange="e => SetFilterAsync(map: e.Value?.ToString())">
+        <option value="">Tutte le mappe</option>
+        <option value="@NoneFilter">Su nessuna mappa</option>
+        @foreach (var (m, depth) in MapHierarchy.Order(maps))
+        {
+            <option value="@m.Id">@MapHierarchy.Indent(depth)@m.Name</option>
+        }
+    </select>
+    @if (rows is not null && FiltersActive)
+    {
+        <span class="small text-muted align-self-center">@Filtered().Count() di @rows.Count</span>
+        <button class="btn btn-sm btn-link" @onclick="ClearFiltersAsync">Azzera filtri</button>
+    }
+</div>
+
+@if (loadError is not null)
+{
+    <div class="alert alert-danger">
+        @loadError
+        <button class="btn btn-sm btn-outline-danger ms-2" @onclick="LoadAsync">Riprova</button>
+    </div>
+}
+
+@if (deleteResult is not null)
+{
+    <div class="alert alert-warning alert-dismissible py-2">
+        @deleteResult.Message
+        @if (deleteResult.Maps.Count > 0)
+        {
+            <span> Mappe:</span>
+            @foreach (var m in deleteResult.Maps)
+            {
+                <a class="ms-1" href="map/@m.Id">@m.Name</a>
+            }
+        }
+        @if (deleteResult.EventCount > 0 && deleteResult.Maps.Count == 0)
+        {
+            <div class="mt-1 d-flex flex-wrap align-items-baseline gap-2">
+                <span>Per toglierlo dal monitoraggio conservando lo storico, disabilitalo; altrimenti:</span>
+                <DeleteButton Busy="deletingId == deleteResult.DeviceId"
+                              Text="@($"Elimina comunque (cancella anche {EventsText(deleteResult.EventCount)})")"
+                              ConfirmText="Conferma: elimina dispositivo e storico"
+                              OnConfirmed="() => PurgeAsync(deleteResult.DeviceId)" />
+            </div>
+        }
+        <button type="button" class="btn-close" aria-label="Chiudi" @onclick="() => deleteResult = null"></button>
+    </div>
+}
+
+@if (ChartsDevice is { } charted)
+{
+    <DeviceCharts @key="charted.Id" DeviceId="charted.Id" Title="@charted.Name" Address="@charted.Address"
+                  OnClose="() => chartsDeviceId = null" />
+}
+
+@if (rows is null && loadError is null)
+{
+    <p><em>Caricamento...</em></p>
+}
+else if (rows is not null)
+{
+    <div class="devices-body">
+        <div class="devices-table">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Stato</th>
+                        <th>Nome</th>
+                        <th>Indirizzo</th>
+                        <th>Tipo</th>
+                        <th>SNMP</th>
+                        <th>RTT</th>
+                        <th>RouterOS</th>
+                        <th>Cliente</th>
+                        <th>Dipende da</th>
+                        <th>Mappe</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Filtered())
+                    {
+                        var d = row.Device;
+                        <tr class="@(d.Id == editingId ? "table-active" : "") @(d.Enabled ? "" : "disabled-row")" @key="d.Id">
+                            <td title="@StateTitle(row)">
+                                <span class="state-dot @StateClass(row.State)"></span>
+                                <span class="small">@(d.Enabled ? row.State.ToString() : "disabilitato")</span>
+                            </td>
+                            <td>
+                                @if (User.CanEdit) {<button class="btn btn-link p-0 align-baseline" @onclick="() => OpenEdit(d)">@d.Name</button>} else {<span>@d.Name</span>}
+                                @if (d.RouterOsApiEnabled)
+                                {
+                                    <span class="badge text-bg-light border ms-1" title="RouterOS API abilitata">ROS</span>
+                                }
+                                @if (row.Maintenance is { } maintenance)
+                                {
+                                    <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle ms-1"
+                                          title="Notifiche sospese: @maintenance">manutenzione</span>
+                                }
+                                @if (CustomThresholds(d) is { } custom)
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" title="@custom">soglie</span>
+                                }
+                            </td>
+                            <td class="font-monospace small">@d.Address</td>
+                            <td class="small text-nowrap"><MapIconView Key="@MapIcons.Resolve(d.Icon, MapIcons.DefaultFor(d.Type))" Size="16" /> @DeviceEditor.TypeLabel(d.Type)</td>
+                            <td class="small">@SnmpText(row)</td>
+                            <td class="small text-end">@RttText(row)</td>
+                            <td class="small ros-cell">
+                                @if (routerOs.GetValueOrDefault(d.Id) is { } ros)
+                                {
+                                    @if (ros.Ok)
+                                    {
+                                        <span title="@RouterOsText.Details(ros)">@RouterOsText.Summary(ros)</span>
+                                        @if (ros.WatchProblems is > 0)
+                                        {
+                                            <span class="badge text-bg-danger ms-1" title="Interfacce o tunnel sorvegliati giù: dettagli nella scheda RouterOS del dispositivo">
+                                                @ros.WatchProblems giù
+                                            </span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger" title="@RouterOsText.ErrorDetails(ros)">API ko</span>
+                                    }
+                                }
+                                else if (d.RouterOsApiEnabled)
+                                {
+                                    <span class="text-muted" title="Nessuna lettura recente: profilo RouterOS mancante, dispositivo Down o agente non ancora passato">-</span>
+                                }
+                            </td>
+                            <td class="small">@CustomerName(d)</td>
+                            <td class="small">@ParentName(d)</td>
+                            <td class="small maps">
+                                @foreach (var m in row.Maps)
+                                {
+                                    <a class="me-1" href="map/@m.Id">@m.Name</a>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => chartsDeviceId = d.Id">Grafici</button>
+                                @if (User.CanEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenEdit(d)">Modifica</button>
+                                    <DeleteButton Busy="deletingId == d.Id" OnConfirmed="() => DeleteAsync(d)" />
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (!Filtered().Any())
+            {
+                <p class="text-muted small">@(rows.Count == 0 ? "Nessun dispositivo: creane uno con \"Nuovo dispositivo\"." : "Nessun dispositivo corrisponde al filtro.")</p>
+            }
+        </div>
+
+        @if (editorOpen)
+        {
+            <DeviceEditor @key="editorKey" Device="EditingDevice" AllDevices="AllDevices" Defaults="detectionDefaults" Customers="customers" Metrics="metricThresholds"
+                          SnmpProfiles="snmpProfiles" RouterOsProfiles="routerOsProfiles"
+                          OnSaved="SavedAsync" OnClose="CloseEditor" />
+        }
+    </div>
+}

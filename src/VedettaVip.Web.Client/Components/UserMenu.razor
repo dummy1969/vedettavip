@@ -1,0 +1,15 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+<div class="user-menu">
+    @if (me is { Authenticated: true })
+    {
+        <a href="account" title="@CurrentUser.RoleName(me.Role)">@me.DisplayName</a>
+        <span class="role">@CurrentUser.RoleName(me.Role)</span>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="LogoutAsync">Esci</button>
+    }
+    else if (me is not null)
+    {
+        <a href="login">Accedi</a>
+    }
+</div>

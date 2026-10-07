@@ -1,0 +1,27 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+<AdminOnly>
+    <div class="settings-shell">
+        <nav class="settings-nav" aria-label="Sezioni delle impostazioni">
+            <div class="settings-nav-title">Impostazioni</div>
+            @foreach (var s in Sections)
+            {
+                <a href="@s.Href" class="@(IsActive(s) ? "active" : "")" aria-current="@(IsActive(s) ? "page" : null)">
+                    <span>@s.Label</span>
+                    <small>@s.Hint</small>
+                </a>
+            }
+        </nav>
+        <div class="settings-content">
+            <div class="settings-header">
+                <h3>@Title</h3>
+                @if (Actions is not null)
+                {
+                    <div class="ms-auto">@Actions</div>
+                }
+            </div>
+            @ChildContent
+        </div>
+    </div>
+</AdminOnly>

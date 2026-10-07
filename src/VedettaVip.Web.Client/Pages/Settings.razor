@@ -1,0 +1,63 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/settings"
+@page "/settings/monitoring"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Monitoraggio - Impostazioni - VedettaVip</PageTitle>
+
+<SettingsShell Title="Monitoraggio">
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Rilevazione dello stato (valori generali)</strong></div>
+    <div class="card-body">
+        <p class="small text-muted">
+            Valgono per tutti i dispositivi che non hanno un valore proprio (pannello del dispositivo, sezione
+            "Rilevazione"). Ogni dispositivo viene interrogato ogni @PollSeconds secondi: le soglie contano poll
+            consecutivi, quindi determinano anche dopo quanto tempo cambia lo stato.
+        </p>
+
+        @if (loadError is not null)
+        {
+            <div class="alert alert-danger py-1 px-2 small">@loadError</div>
+        }
+        else if (!loaded)
+        {
+            <p><em>Caricamento...</em></p>
+        }
+        else
+        {
+            <div class="threshold-grid">
+                <label for="set-down">Ping persi consecutivi per <b>Down</b></label>
+                <input id="set-down" class="form-control form-control-sm" type="number" min="1" max="100" @bind="downAfterFailures" />
+                <span class="small text-muted">@Delay(downAfterFailures)</span>
+
+                <label for="set-up">Ping riusciti consecutivi per tornare <b>Up</b></label>
+                <input id="set-up" class="form-control form-control-sm" type="number" min="1" max="100" @bind="upAfterSuccesses" />
+                <span class="small text-muted">@Delay(upAfterSuccesses)</span>
+
+                <label for="set-snmp">Errori SNMP consecutivi (con ping ok) per <b>Partial</b></label>
+                <input id="set-snmp" class="form-control form-control-sm" type="number" min="1" max="100" @bind="snmpDegradedAfterFailures" />
+                <span class="small text-muted">@Delay(snmpDegradedAfterFailures)</span>
+            </div>
+
+            <div class="d-flex align-items-baseline gap-2 mt-3">
+                <button class="btn btn-sm btn-primary" disabled="@saving" @onclick="SaveAsync">Salva</button>
+                @if (saveError is not null)
+                {
+                    <span class="small text-danger">@saveError</span>
+                }
+                else if (savedAt is { } at)
+                {
+                    <span class="small text-success">Salvate alle @at.ToString("HH:mm:ss"): l'agente le applica subito.</span>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+<MetricThresholdsCard />
+
+</SettingsShell>

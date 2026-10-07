@@ -1,0 +1,144 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/settings/contacts"
+@page "/contacts"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Contatti - VedettaVip</PageTitle>
+
+<SettingsShell Title="Contatti">
+<Actions><button class="btn btn-sm btn-primary" @onclick="New">Nuovo contatto</button></Actions>
+<ChildContent>
+<p class="small text-muted">
+    Chi riceve le notifiche e per cosa: un contatto può essere iscritto a tutto, ai dispositivi di uno o più
+    clienti, o alle mappe (comprese le sottomappe). Riceve un solo messaggio per evento e canale.
+</p>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger py-1 px-2 small">@error</div>
+}
+
+<div class="contacts-body">
+    <div class="contacts-list">
+        @if (contacts is null)
+        {
+            <p><em>Caricamento...</em></p>
+        }
+        else if (contacts.Count == 0)
+        {
+            <p class="text-muted small">Nessun contatto: creane uno con "Nuovo contatto".</p>
+        }
+        else
+        {
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Nome</th><th>Canali</th><th>Iscrizioni</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var c in contacts)
+                    {
+                        <tr class="@(c.Id == editing?.Id ? "table-active" : "") @(c.Enabled ? "" : "text-muted")" @key="c.Id">
+                            <td>@c.Name @if (!c.Enabled) {<span class="badge text-bg-light border ms-1">disattivato</span>}</td>
+                            <td class="small">
+                                @if (c.Email is not null) {<div>✉ @c.Email</div>}
+                                @if (c.TelegramChatId is not null) {<div>Telegram @c.TelegramChatId</div>}
+                            </td>
+                            <td class="small">
+                                @foreach (var s in c.Subscriptions)
+                                {
+                                    <div>@SubscriptionText(s)</div>
+                                }
+                                @if (c.Subscriptions.Count == 0) {<span class="text-warning-emphasis">nessuna: non riceve nulla</span>}
+                            </td>
+                            <td class="text-nowrap text-end">
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(c)">Modifica</button>
+                                <DeleteButton Busy="busy" OnConfirmed="() => DeleteAsync(c)" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @if (form is not null)
+    {
+        <aside class="contact-editor">
+            <h6>@(editing is null ? "Nuovo contatto" : $"Modifica {editing.Name}")</h6>
+
+            <label class="form-label small mb-1" for="c-name">Nome</label>
+            <input id="c-name" class="form-control form-control-sm" maxlength="128" @bind="form.Name" @bind:event="oninput" />
+
+            <label class="form-label small mb-1 mt-2" for="c-email">Email</label>
+            <input id="c-email" class="form-control form-control-sm" maxlength="256" @bind="form.Email" placeholder="noc@example.com" />
+
+            <label class="form-label small mb-1 mt-2" for="c-tg">Chat ID Telegram</label>
+            <input id="c-tg" class="form-control form-control-sm" maxlength="64" @bind="form.TelegramChatId" placeholder="123456789, -100... (gruppo) o @@canale" />
+
+            <div class="form-check mt-2">
+                <input id="c-enabled" class="form-check-input" type="checkbox" @bind="form.Enabled" />
+                <label class="form-check-label small" for="c-enabled">Attivo</label>
+            </div>
+
+            <div class="d-flex align-items-baseline mt-3">
+                <h6 class="mb-1">Iscrizioni</h6>
+                <button class="btn btn-sm btn-link ms-auto" @onclick="AddSubscription">+ aggiungi</button>
+            </div>
+            @foreach (var s in form.Subscriptions)
+            {
+                <div class="subscription" @key="s">
+                    <div class="d-flex gap-1">
+                        <select class="form-select form-select-sm" @bind="s.Scope" aria-label="Ambito">
+                            <option value="@SubscriptionScope.All">Tutto</option>
+                            <option value="@SubscriptionScope.Customer">Cliente</option>
+                            <option value="@SubscriptionScope.Map">Mappa</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-danger" title="Rimuovi iscrizione" @onclick="() => form.Subscriptions.Remove(s)">✕</button>
+                    </div>
+                    @if (s.Scope == SubscriptionScope.Customer)
+                    {
+                        <select class="form-select form-select-sm mt-1" @bind="s.TargetId" aria-label="Cliente">
+                            <option value="">scegli il cliente...</option>
+                            @foreach (var c in customers ?? [])
+                            {
+                                <option value="@c.Id">@c.Name</option>
+                            }
+                        </select>
+                    }
+                    else if (s.Scope == SubscriptionScope.Map)
+                    {
+                        <select class="form-select form-select-sm mt-1" @bind="s.TargetId" aria-label="Mappa">
+                            <option value="">scegli la mappa...</option>
+                            @foreach (var m in maps ?? [])
+                            {
+                                <option value="@m.Id">@m.Name</option>
+                            }
+                        </select>
+                    }
+                    <select class="form-select form-select-sm mt-1" @bind="s.Filter" aria-label="Cosa notificare">
+                        <option value="@AlertFilter.DownOnly">Solo Down</option>
+                        <option value="@AlertFilter.DownAndPartial">Down e Partial (SNMP)</option>
+                        <option value="@AlertFilter.AllProblems">Down, Partial e soglie (latenza, perdita, link saturi)</option>
+                    </select>
+                    <div class="form-check small mt-1">
+                        <input id="r-@s.GetHashCode()" class="form-check-input" type="checkbox" @bind="s.NotifyRecovery" />
+                        <label class="form-check-label" for="r-@s.GetHashCode()">Avvisa anche al ripristino</label>
+                    </div>
+                </div>
+            }
+            @if (form.Subscriptions.Count == 0)
+            {
+                <p class="small text-muted">Senza iscrizioni il contatto non riceve notifiche.</p>
+            }
+
+            <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-sm btn-primary" disabled="@(busy || string.IsNullOrWhiteSpace(form.Name))" @onclick="SaveAsync">Salva</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="Close">Chiudi</button>
+            </div>
+        </aside>
+    }
+</div>
+</ChildContent>
+</SettingsShell>

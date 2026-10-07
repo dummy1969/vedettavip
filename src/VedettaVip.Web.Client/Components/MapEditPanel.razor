@@ -1,0 +1,207 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<aside class="edit-panel">
+    @if (error is not null)
+    {
+        <div class="alert alert-danger py-1 px-2 small">@error</div>
+    }
+
+    @if (SelectedNode is { } node)
+    {
+        <h6>@KindLabel(node.Kind): @NodeName(node)</h6>
+
+        <label class="form-label small mb-1" for="label-template">Etichetta (template)</label>
+        <textarea id="label-template" class="form-control form-control-sm font-monospace" rows="4"
+                  @bind="labelTemplate" placeholder="vuoto = etichetta di default"></textarea>
+        <div class="form-text">
+            @if (node.Kind == MapNodeKind.Submap)
+            {
+                <span>Variabili: [Name] [Summary] (es. "2 down su 12") [Down] [Partial] [Up] [Total].</span>
+            }
+            else
+            {
+                <span>Variabili: [Name] [Address]; RouterOS: [Cpu] [Mem] (%) [Temp] (°C) [Volt] [Uptime] [Version] [Board].</span>
+            }
+            Una riga per riga dell'etichetta.
+        </div>
+
+        <label class="form-label small mb-1 mt-2">Icona</label>
+        <IconPicker @bind-Value="nodeIcon" DefaultKey="@InheritedIcon(node).Key" InheritedText="@InheritedIcon(node).Source" />
+
+        <div class="panel-actions">
+            <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="SaveNodeAsync">Salva</button>
+            <DeleteButton @key="editedId" Busy="busy" OnConfirmed="DeleteNodeAsync" />
+        </div>
+        @if (node.Kind == MapNodeKind.Submap)
+        {
+            <div class="form-text">Eliminando il nodo la sottomappa resta, come mappa radice.</div>
+        }
+        else
+        {
+            <div class="form-text">Eliminando il nodo si eliminano anche i suoi link.</div>
+        }
+    }
+    else if (SelectedLink is { } link)
+    {
+        <h6>Link @NodeName(FindNode(link.FromId)) &rarr; @NodeName(FindNode(link.ToId))</h6>
+
+        <label class="form-label small mb-1" for="link-speed">Velocità (Mbps)</label>
+        <input id="link-speed" class="form-control form-control-sm" type="number" min="1" step="1" @bind="linkSpeedMbps" />
+        <div class="speed-presets">
+            @foreach (var preset in SpeedPresetsMbps)
+            {
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => linkSpeedMbps = preset">@SpeedText(preset)</button>
+            }
+        </div>
+
+        <label class="form-label small mb-1 mt-2" for="link-util">Avviso utilizzo oltre (%)</label>
+        <input id="link-util" class="form-control form-control-sm" type="number" min="0" max="100" @bind="linkUtilThreshold"
+               placeholder="@(metricThresholds?.LinkUtilizationPct is { } g ? $"generale: {g}" : "generale: disattivata")" />
+        <div class="form-text">Media sugli ultimi @(metricThresholds?.WindowMinutes ?? 5) minuti, sul verso più carico; 0 = nessun avviso per questo link.</div>
+
+        <label class="form-label small mb-1 mt-2" for="link-device">Traffico letto da</label>
+        <select id="link-device" class="form-select form-select-sm" @bind="linkDeviceId" @bind:after="OnLinkDeviceChangedAsync">
+            <option value="">nessuno (traffico non misurato)</option>
+            @foreach (var (id, name) in LinkDeviceOptions(link))
+            {
+                <option value="@id">@name</option>
+            }
+        </select>
+
+        <label class="form-label small mb-1 mt-2" for="link-ifindex">Interfaccia</label>
+        @if (string.IsNullOrEmpty(linkDeviceId))
+        {
+            <select id="link-ifindex" class="form-select form-select-sm" disabled><option>scegli prima il dispositivo</option></select>
+        }
+        else if (interfaces is { Interfaces.Count: > 0 } list)
+        {
+            <select id="link-ifindex" class="form-select form-select-sm" @bind="linkIfIndex">
+                <option value="">scegli...</option>
+                @if (linkIfIndex is { } current && list.Interfaces.All(i => i.IfIndex != current))
+                {
+                    <option value="@current">IfIndex @current (non più presente sul device)</option>
+                }
+                @foreach (var i in list.Interfaces)
+                {
+                    <option value="@i.IfIndex">@InterfaceText(i)</option>
+                }
+            </select>
+        }
+        else
+        {
+            <input id="link-ifindex" class="form-control form-control-sm" type="number" min="1" step="1"
+                   @bind="linkIfIndex" placeholder="IfIndex" />
+        }
+        @if (!string.IsNullOrEmpty(linkDeviceId))
+        {
+            <div class="form-text interfaces-status">
+                <span>@InterfacesStatus()</span>
+                <button class="btn btn-link btn-sm p-0" disabled="@refreshingInterfaces" @onclick="RefreshInterfacesAsync">
+                    @(refreshingInterfaces ? "lettura..." : "Aggiorna elenco")
+                </button>
+            </div>
+        }
+        <div class="form-text">tx = da @NodeName(FindNode(link.FromId)) verso @NodeName(FindNode(link.ToId)).</div>
+        @if (link.IsMeasured)
+        {
+            <div class="detected small">
+                @if (link.HasTraffic(DateTimeOffset.UtcNow, NetworkMap.TrafficMaxAge))
+                {
+                    <span>Interfaccia rilevata: <b>@(link.IfName ?? "?")</b>@(link.DetectedSpeedBps is { } sp ? $", {NetworkMap.Bps(sp)}bps" : "")</span>
+                    <span>tx @NetworkMap.Bps(link.TxBps)bps / rx @NetworkMap.Bps(link.RxBps)bps</span>
+                }
+                else
+                {
+                    <span>Nessun dato di traffico: serve SNMP v2c sul dispositivo e un IfIndex esistente. Il primo valore arriva dopo due cicli di polling (circa un minuto).</span>
+                }
+            </div>
+        }
+
+        <div class="panel-actions">
+            <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="() => SaveLinkAsync(swap: false)">Salva</button>
+            @if (link.IsMeasured)
+            {
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => OnShowChart.InvokeAsync(link)">Grafico</button>
+            }
+            <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => SaveLinkAsync(swap: true)"
+                    title="Scambia origine e destinazione (tx e rx)">Inverti</button>
+            <DeleteButton @key="editedId" Busy="busy" OnConfirmed="DeleteLinkAsync" />
+        </div>
+    }
+    else
+    {
+        <h6>Aggiungi nodo</h6>
+
+        @if (PlacePoint is null)
+        {
+            <p class="small mb-2">Clic destro sulla mappa per scegliere il punto, oppure</p>
+            <button class="btn btn-sm btn-outline-primary" @onclick="OnPlaceAtCenter">Usa il centro della vista</button>
+        }
+        else
+        {
+            <label class="form-label small mb-1" for="add-kind">Tipo</label>
+            <select id="add-kind" class="form-select form-select-sm" @bind="addKind">
+                <option value="@MapNodeKind.Device">Dispositivo</option>
+                <option value="@MapNodeKind.Submap">Sottomappa</option>
+                <option value="@MapNodeKind.Static">Nodo statico (es. Internet)</option>
+            </select>
+
+            @switch (addKind)
+            {
+                case MapNodeKind.Device:
+                    <label class="form-label small mb-1 mt-2" for="add-device">Dispositivo</label>
+                    <select id="add-device" class="form-select form-select-sm" @bind="addDeviceId">
+                        <option value="">scegli...</option>
+                        @foreach (var d in AvailableDevices())
+                        {
+                            <option value="@d.Id">@d.Name (@d.Address)</option>
+                        }
+                    </select>
+                    @if (devices.Count > 0 && !AvailableDevices().Any())
+                    {
+                        <div class="form-text">Tutti i dispositivi sono già su questa mappa.</div>
+                    }
+                    break;
+
+                case MapNodeKind.Submap:
+                    <label class="form-label small mb-1 mt-2" for="add-submap">Mappa</label>
+                    <select id="add-submap" class="form-select form-select-sm" @bind="addSubmapId">
+                        <option value="@NewMapOption">nuova mappa...</option>
+                        @foreach (var m in AvailableSubmaps())
+                        {
+                            <option value="@m.Id">@m.Name</option>
+                        }
+                    </select>
+                    @if (addSubmapId == NewMapOption)
+                    {
+                        <input class="form-control form-control-sm mt-2" placeholder="Nome della nuova mappa" maxlength="128"
+                               @bind="addName" @bind:event="oninput" />
+                    }
+                    <div class="form-text">Elencate solo le mappe radice: una sottomappa ha un solo nodo.</div>
+                    break;
+
+                case MapNodeKind.Static:
+                    <label class="form-label small mb-1 mt-2" for="add-static">Testo</label>
+                    <input id="add-static" class="form-control form-control-sm" placeholder="Internet" maxlength="512"
+                           @bind="addName" @bind:event="oninput" />
+                    break;
+            }
+
+            <div class="panel-actions">
+                <button class="btn btn-sm btn-primary" disabled="@(busy || !CanAdd())" @onclick="AddNodeAsync">Aggiungi</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="OnPlaceCancel">Annulla</button>
+            </div>
+        }
+
+        <hr />
+        <ul class="small help">
+            <li><b>Sposta</b>: trascina i nodi (snap alla griglia).</li>
+            <li><b>Collega</b>, o Shift + trascina: da un nodo a un altro crea un link.</li>
+            <li>Clic su un nodo o un link per modificarlo.</li>
+            <li>Doppio clic su una sottomappa per aprirla.</li>
+        </ul>
+    }
+</aside>

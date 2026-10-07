@@ -1,0 +1,52 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Soglie delle metriche (valori generali)</strong></div>
+    <div class="card-body">
+        <p class="small text-muted">
+            Avviso quando la media sulla finestra supera la soglia; si chiude quando scende sotto l'80% della soglia.
+            Latenza e perdita si possono cambiare sul singolo dispositivo, l'utilizzo sul singolo link (0 = disattivata).
+            Gli avvisi di soglia arrivano ai contatti iscritti con "Down, Partial e soglie".
+        </p>
+        @if (error is not null)
+        {
+            <div class="alert alert-danger py-1 px-2 small">@error</div>
+        }
+        @if (loaded)
+        {
+            <div class="threshold-grid">
+                <label for="m-rtt">Latenza media oltre (ms)</label>
+                <input id="m-rtt" class="form-control form-control-sm" type="number" min="1" @bind="rttMs" placeholder="disattivata" />
+                <span class="small text-muted">vuoto = disattivata</span>
+
+                <label for="m-loss">Perdita di ping oltre (%)</label>
+                <input id="m-loss" class="form-control form-control-sm" type="number" min="0.1" max="100" step="0.1" @bind="lossPct" placeholder="disattivata" />
+                <span class="small text-muted">vuoto = disattivata</span>
+
+                <label for="m-link">Utilizzo dei link oltre (%)</label>
+                <input id="m-link" class="form-control form-control-sm" type="number" min="1" max="100" @bind="linkPct" placeholder="disattivata" />
+                <span class="small text-muted">vuoto = disattivata</span>
+
+                <label for="m-cpu">CPU RouterOS oltre (%)</label>
+                <input id="m-cpu" class="form-control form-control-sm" type="number" min="1" max="100" @bind="cpuPct" placeholder="disattivata" />
+                <span class="small text-muted">chiusura sotto l'80%</span>
+
+                <label for="m-temp">Temperatura RouterOS oltre (°C)</label>
+                <input id="m-temp" class="form-control form-control-sm" type="number" min="1" max="150" @bind="temperatureC" placeholder="disattivata" />
+                <span class="small text-muted">chiusura 5 °C sotto</span>
+
+                <label for="m-window">Finestra di valutazione (min)</label>
+                <input id="m-window" class="form-control form-control-sm" type="number" min="1" max="60" @bind="windowMinutes" />
+                <span></span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2 mt-3">
+                <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="SaveAsync">Salva</button>
+                @if (savedAt is { } at)
+                {
+                    <span class="small text-success">Salvate alle @at.ToString("HH:mm:ss"): valgono dalla prossima valutazione (entro un minuto).</span>
+                }
+            </div>
+        }
+    </div>
+</section>

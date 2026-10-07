@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup di VedettaVip (database, segreti, CA di Caddy)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/vedettavip/src/deploy/production/backup.sh
+Nice=10
+IOSchedulingClass=idle

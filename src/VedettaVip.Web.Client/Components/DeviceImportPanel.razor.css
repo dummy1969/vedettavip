@@ -1,0 +1,50 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.import-panel {
+    margin-bottom: 0.75rem;
+}
+
+.import-source {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.import-source ::deep input[type=file] {
+    max-width: 24rem;
+}
+
+.import-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.import-options label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.import-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.import-rows {
+    max-height: 24rem;
+    overflow: auto;
+    margin-top: 0.4rem;
+    font-size: 0.9rem;
+}
+
+.import-rows thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+}

@@ -1,0 +1,112 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.vedettavip {
+    width: 100%;
+    height: 80vh;
+    background: #f7f8fa;
+    border: 1px solid #d0d4da;
+    touch-action: none;
+    user-select: none;
+    cursor: grab;
+}
+
+.vedettavip .node rect {
+    stroke: #333;
+    stroke-width: 1;
+}
+
+.vedettavip.editing .node { cursor: move; }
+.vedettavip.editing.tool-link .node { cursor: crosshair; }
+.vedettavip.editing .link-hit { cursor: pointer; }
+
+.vedettavip .node text {
+    font: 12px "Segoe UI", system-ui, sans-serif;
+    fill: #111;
+    pointer-events: none;
+}
+
+.vedettavip .node.submap rect {
+    stroke-dasharray: 5 3;
+    stroke-width: 2;
+}
+
+.vedettavip .node.selected rect {
+    stroke: #0d6efd;
+    stroke-width: 3;
+}
+
+.vedettavip .node.link-target rect {
+    stroke: #0d6efd;
+    stroke-width: 3;
+    stroke-dasharray: none;
+}
+
+.vedettavip .link-idle {
+    stroke: #9aa0a6;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.vedettavip .link.not-measured .link-idle { stroke-dasharray: 6 5; }
+
+.vedettavip .link-hit {
+    stroke: transparent;
+    stroke-width: 14;
+}
+
+.vedettavip .link-selection {
+    stroke: #0d6efd;
+    stroke-opacity: 0.35;
+    stroke-width: 18;
+    stroke-linecap: round;
+}
+
+.vedettavip .link-preview {
+    stroke: #0d6efd;
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+    pointer-events: none;
+}
+
+.vedettavip .link-label {
+    font: 10px ui-monospace, monospace;
+    fill: #444;
+    pointer-events: none;
+}
+
+.vedettavip .place-marker {
+    fill: none;
+    stroke: #0d6efd;
+    stroke-width: 2;
+    pointer-events: none;
+}
+
+/* Device in manutenzione: le notifiche sono sospese */
+.vedettavip .node.maintenance rect {
+    stroke: #0d6efd;
+    stroke-width: 2.5;
+    stroke-dasharray: 6 3;
+}
+
+/* Numero di dispositivi con problemi su un nodo-sottomappa */
+.vedettavip .submap-badge circle {
+    stroke: #fff;
+    stroke-width: 2;
+}
+
+.vedettavip .submap-badge.down circle { fill: #c62828; }
+.vedettavip .submap-badge.partial circle { fill: #e08a00; }
+
+.vedettavip .submap-badge text {
+    fill: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+/* Icona del nodo: tratto scuro sul colore di stato */
+.vedettavip .node .node-icon {
+    color: #1f2a37;
+    pointer-events: none;
+}

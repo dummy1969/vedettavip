@@ -1,0 +1,193 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
+@using VedettaVip.Shared.Models
+
+<PageTitle>Dashboard - VedettaVip</PageTitle>
+
+<div class="dash-header">
+    <h3>Dashboard</h3>
+    @if (updatedAt is { } at)
+    {
+        <span class="small text-muted">aggiornata alle @at.ToString("HH:mm:ss")</span>
+    }
+</div>
+
+@if (loadError is not null)
+{
+    <div class="alert alert-danger py-1 px-2 small">@loadError</div>
+}
+@foreach (var a in offlineAgents)
+{
+    <div class="alert alert-warning py-1 px-2 small">
+        Agente <b>@a.AgentId</b> offline: ultimo contatto @a.LastSeen.ToLocalTime().ToString("dd/MM HH:mm")
+        (@Events.Duration(DateTimeOffset.UtcNow - a.LastSeen) fa). Gli stati dei suoi dispositivi non sono aggiornati.
+    </div>
+}
+
+@if (rows is null)
+{
+    <p><em>Caricamento...</em></p>
+}
+else
+{
+    <div class="dash-top">
+        <section class="card dash-card">
+            <div class="card-header"><strong>Stato dei dispositivi</strong></div>
+            <div class="card-body stats">
+                <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="@($"{Count(NodeState.Up)} up su {MonitoredCount} dispositivi")">
+                    <circle cx="60" cy="60" r="@R" fill="none" stroke="#e9ecef" stroke-width="16" />
+                    @foreach (var s in Segments())
+                    {
+                        <circle cx="60" cy="60" r="@R" fill="none" stroke="@s.Color" stroke-width="16"
+                                stroke-dasharray="@s.DashArray" stroke-dashoffset="@s.DashOffset" transform="rotate(-90 60 60)">
+                            <title>@s.Title</title>
+                        </circle>
+                    }
+                    <text x="60" y="58" text-anchor="middle" class="donut-main @HealthClass()">@UpPercentText()</text>
+                    <text x="60" y="76" text-anchor="middle" class="donut-sub">up</text>
+                </svg>
+                <table class="legend">
+                    @foreach (var (state, label) in Legend)
+                    {
+                        <tr>
+                            <td class="num">@Count(state)</td>
+                            <td><span class="state-dot @StateClass(state)"></span>@label</td>
+                        </tr>
+                    }
+                    <tr class="sep">
+                        <td class="num">@MaintenanceCount</td>
+                        <td><span class="state-dot maintenance"></span>In manutenzione</td>
+                    </tr>
+                    <tr>
+                        <td class="num">@DisabledCount</td>
+                        <td><span class="state-dot disabled"></span>Disabilitati</td>
+                    </tr>
+                    <tr class="total">
+                        <td class="num">@rows.Count</td>
+                        <td>Totale</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <section class="card dash-card problems">
+            <div class="card-header d-flex align-items-baseline gap-2">
+                <strong>Dispositivi con problemi</strong>
+                <span class="small text-muted">@Problems().Count() (Down e Partial)</span>
+                <a class="small ms-auto" href="devices">tutti i dispositivi</a>
+            </div>
+            <div class="card-body p-0">
+                @if (!Problems().Any())
+                {
+                    <p class="all-ok">Tutti i dispositivi monitorati sono raggiungibili.</p>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Stato</th><th>Dispositivo</th><th>Cliente</th><th>Da</th><th>Mappa</th></tr></thead>
+                            <tbody>
+                                @foreach (var r in Problems())
+                                {
+                                    <tr @key="r.Device.Id">
+                                        <td><span class="state-badge @StateClass(r.State)">@r.State.ToString().ToUpperInvariant()</span></td>
+                                        <td>
+                                            <div>@r.Device.Name</div>
+                                            <div class="small text-muted font-monospace">@r.Device.Address</div>
+                                        </td>
+                                        <td class="small">@CustomerName(r.Device.CustomerId)</td>
+                                        <td class="small text-nowrap">
+                                            @if (r.Since is { } since)
+                                            {
+                                                <div>@since.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                                                <div class="text-muted">da @Events.Duration(DateTimeOffset.UtcNow - since)</div>
+                                            }
+                                            @if (r.Maintenance is not null)
+                                            {
+                                                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle"
+                                                      title="@r.Maintenance">manutenzione</span>
+                                            }
+                                        </td>
+                                        <td class="small">
+                                            @if (r.Maps.Count == 0)
+                                            {
+                                                <span class="text-muted">nessuna</span>
+                                            }
+                                            @foreach (var m in r.Maps)
+                                            {
+                                                <a class="map-link" href="@($"map/{m.Id}")">@m.Name</a>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+
+    <section class="card dash-card mt-3">
+        <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+            <strong>Eventi recenti</strong>
+            <select class="form-select form-select-sm hours" aria-label="Periodo degli eventi" @bind="eventHours" @bind:after="LoadEventsAsync">
+                @foreach (var h in HourOptions())
+                {
+                    <option value="@h">@HoursText(h)@(h == defaultEventHours ? " (predefinito)" : "")</option>
+                }
+            </select>
+            @if (events is not null)
+            {
+                <span class="small text-muted">@(events.Count == 1 ? "1 evento" : $"{events.Count} eventi")@(events.Count >= EventLimit ? $" (mostrati i {EventLimit} più recenti)" : "")</span>
+            }
+            <a class="small ms-auto" href="events">tutti gli eventi</a>
+        </div>
+        <div class="card-body p-0">
+            @if (events is null)
+            {
+                <p class="p-2 mb-0"><em>Caricamento...</em></p>
+            }
+            else if (events.Count == 0)
+            {
+                <p class="p-2 mb-0 small text-muted">Nessun evento nelle ultime @HoursText(eventHours).</p>
+            }
+            else
+            {
+                <div class="table-scroll events">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th class="col-when">Quando</th><th class="col-sev"></th><th>Oggetto</th><th>Cliente</th><th>Cambio</th></tr></thead>
+                        <tbody>
+                            @foreach (var e in events)
+                            {
+                                <tr @key="e.Id" class="@(e.Acknowledged && e.Severity != EventSeverity.Info ? "acknowledged" : "")">
+                                    <td class="text-nowrap small" title="@e.Time.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")">
+                                        <b>@Ago(e.Time)</b> <span class="text-muted">@e.Time.ToLocalTime().ToString("HH:mm")</span>
+                                    </td>
+                                    <td><span class="severity @e.Severity.ToString().ToLowerInvariant()">@Events.SeverityText(e.Severity)</span></td>
+                                    <td>@(e.DeviceName ?? (e.AgentId is not null ? $"agente {e.AgentId}" : "?"))</td>
+                                    <td class="small">@e.CustomerName</td>
+                                    <td class="small">
+                                        @Events.ChangeText(e)
+                                        @if (e.ResolvedAt is { } resolvedAt)
+                                        {
+                                            <span class="text-muted"> · risolto dopo @Events.Duration(resolvedAt - e.Time)</span>
+                                        }
+                                        else if (e.Acknowledged && e.Severity != EventSeverity.Info)
+                                        {
+                                            <span class="text-muted"> · preso in carico@(e.AcknowledgedBy is { } by ? $" da {by}" : "")</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+}
