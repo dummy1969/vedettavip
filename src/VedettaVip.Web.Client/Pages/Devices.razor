@@ -25,9 +25,11 @@
             }
         </span>
     }
+    <a class="btn btn-sm btn-outline-secondary ms-auto" href="@Api.DeviceExportUrl" download
+       title="Tutti i dispositivi in CSV (stesse colonne dell'import, mappe comprese)">Esporta CSV</a>
     @if (User.CanEdit)
     {
-        <button class="btn btn-sm btn-outline-primary ms-auto" @onclick="() => importOpen = !importOpen">Importa CSV</button>
+        <button class="btn btn-sm btn-outline-primary" @onclick="() => importOpen = !importOpen">Importa CSV</button>
         <button class="btn btn-sm btn-primary" @onclick="OpenNew">Nuovo dispositivo</button>
     }
 </div>
