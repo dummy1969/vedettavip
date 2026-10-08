@@ -244,6 +244,8 @@ public static partial class NotificationEndpoints
         db.Subscriptions.RemoveRange(contact.Subscriptions);
         contact.Subscriptions = [];
         Apply(contact, dto);
+        // Add esplicito: hanno già l'Id, scoperte dalla navigazione di un contatto tracciato EF le aggiornerebbe (UPDATE su 0 righe)
+        db.Subscriptions.AddRange(contact.Subscriptions);
         if (await db.TrySaveChangesAsync(ct) is { } problem)
             return problem;
 
