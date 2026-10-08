@@ -23,7 +23,9 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      # Via TCP: alla prima inizializzazione il server temporaneo degli script di init ascolta solo sul socket Unix,
+      # un pg_isready sul socket darebbe "healthy" prima che la porta sia aperta (migrate fallirebbe)
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
       retries: 5
