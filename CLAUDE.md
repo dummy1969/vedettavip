@@ -813,8 +813,9 @@ OID utili:
       AGPL-3.0-or-later con NOTICE 7(b), intestazioni SPDX, footer e pagina `/about`, THIRD-PARTY-NOTICES.md (Blazor-ApexCharts
       fermo a 6.0.2 per la licenza di ApexCharts.js), README in inglese e italiano con screenshot del seed, CONTRIBUTING (DCO),
       SECURITY; verificato con un clone pulito (build, test, Docker Compose da `.env.example`) e gitleaks.
-- [ ] Pubblicazione: repository pubblico con un solo commit iniziale e repository privato di deploy con `.env`,
-      `docker-compose.override.yml` e `appsettings.Local.json`.
+- [x] Pubblicazione: repository pubblico nato da un solo commit iniziale ("VedettaVip 0.1.0"); la configurazione di
+      un'installazione (`.env`, `docker-compose.override.yml`, eventuale `appsettings.Local.json`) sta in una cartella
+      esterna passata a `deploy.sh --config`, tenuta in un repository git privato e solo locale.
 - [ ] Agenti remoti e multi-tenant per cliente (scenario MSP).
 
 ## Comandi utili
