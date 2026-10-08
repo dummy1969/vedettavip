@@ -256,10 +256,11 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
   Alias(256)?, SpeedBps?, OperStatus (`Up/Down/Other`), UpdatedAt (orologio dell'API). FK → Device **`CASCADE`**
   (inventario derivato, come DeviceStatus).
 - **Device**: anche DownAfterFailures?, UpAfterSuccesses?, SnmpDegradedAfterFailures? (CHECK 1–100; null = valore
-  generale). Migration `AddDetectionThresholds`.
+  generale). Migration `AddDetectionThresholds`. Vendor (`Generic/MikroTik`, testo, default `Generic`; migration
+  `AddDeviceVendorAndWinBox`, che ha segnato MikroTik i device con `RouterOsApiEnabled`).
 - **MonitoringSettings** (riga unica, CHECK Id = 1, creata dalla migration): DownAfterFailures, UpAfterSuccesses,
   SnmpDegradedAfterFailures (1–100), soglie generali di rilevazione; DashboardEventHours (1–168, default 4, migration
-  `AddDashboardSettings`).
+  `AddDashboardSettings`); WinBoxWindowsPath?/WinBoxLinuxPath? (512, migration `AddDeviceVendorAndWinBox`).
 - **SnmpCredential** (tabella `SnmpCredentials`, migration `AddSnmpCredentials`): Id, Name(128, unico), Description(512)?,
   CommunityProtected(2048). FK **RESTRICT** da `Devices.SnmpCredentialId`, `Customers.SnmpCredentialId` e
   `MonitoringSettings.DefaultSnmpCredentialId` (l'API risponde 409 con gli utilizzi).
@@ -360,6 +361,8 @@ usare ASP.NET Core Data Protection o un secret store.
 | GET/POST, DELETE | `/api/discovery/scans`, `/api/discovery/scans/{id}` | scansioni di subnet (ultime 20 con avanzamento); Operatore per avviare/eliminare |
 | GET/POST | `/api/agent/scans/{id}` | **X-Agent-Key** + `X-Agent-Id`: presa del compito (409 se di un altro agente) e avanzamento/esito |
 | POST | `/api/discovery/accept`, `/ignore`, `/refresh` | conferma (`DiscoveryAcceptDto`), ignora/ripristina, "Scopri ora"; Operatore |
+| GET/PUT | `/api/settings/winbox` | `WinBoxSettingsDto` (percorsi di WinBox 4 per Windows e Linux, null = ricerca); GET per tutti, PUT Admin |
+| GET | `/api/winbox/handler/{windows\|linux}` | installer del gestore `winbox://` con il percorso già scritto (`.cmd` / `.sh`) |
 | GET | `/api/traffic` | `InterfaceTrafficDto[]` recenti (ultimo campione per DeviceId + IfIndex) |
 | WS | `/hubs/agent` | SignalR, **X-Agent-Key**; server → agente `TargetsChanged` (nessun argomento), `InterfacesRequested` (Guid) |
 
@@ -444,6 +447,30 @@ usare ASP.NET Core Data Protection o un secret store.
 - `GET /api/routeros` e SignalR mandano le letture **senza** interfacce e peer (pesanti), con `WatchProblems` (badge "N giù"
   nella colonna RouterOS); la lettura completa è in `GET /api/devices/{id}/routeros`.
 - Da fare: IPsec, PPP, EoIP/GRE con regole specifiche, MNDP.
+
+### Apri con WinBox (implementato)
+
+- **Produttore** `Device.Vendor` (`DeviceVendor`: Generic, MikroTik): select "Produttore" nel pannello del device; abilitare
+  l'API RouterOS lo porta a MikroTik (UI e API, `DeviceEndpoints.VendorOf`); colonna CSV `produttore` (mikrotik/generic);
+  la Scoperta propone MikroTik se la proposta è RouterOS o il MAC è MikroTik (`DiscoveryPlanner.VendorOf`).
+  `MapNodeDto.Vendor` e `DeviceDto.Vendor` lo portano al client.
+- **Link** `winbox://<indirizzo>` (`Services/WinBoxLink`), **senza credenziali**: WinBox chiede utente e password o usa i
+  suoi indirizzi salvati. Nessuna password di accesso ai router è salvata in VedettaVip (scelta voluta).
+- **Menu contestuale del nodo** (`Components/NodeMenu`, clic destro su un nodo, anche in sola visualizzazione): Apri con
+  WinBox (solo MikroTik), Copia indirizzo, Grafici / Apri la sottomappa, Proprietà del nodo (in Modifica), link alla pagina
+  del gestore. Pagina Dispositivi: bottone **WinBox** sulle righe MikroTik.
+- **Gestore sul PC** (un browser non avvia programmi): installer generati da `Services/WinBoxHandlerScripts` dai modelli in
+  `VedettaVip.Api/Resources/WinBox/` (risorse incorporate), con il percorso delle Impostazioni al posto di `__WINBOX_PATH__`
+  (quotato per PowerShell, apici tipografici compresi, o per sh). Per l'utente corrente, senza admin/sudo:
+  - Windows: un solo `.cmd` (prima riga `<# :` = etichetta batch + commento PowerShell: la parte batch esegue il resto
+    con PowerShell). Cerca WinBox (percorso impostato con variabili d'ambiente, posizioni comuni, poi finestra "Apri file"),
+    scrive `%LOCALAPPDATA%\VedettaVip\winbox-handler.ps1` e `HKCU\Software\Classes\winbox`. `/uninstall` toglie tutto.
+  - Linux: `sh vedettavip-winbox-linux.sh [percorso]` → `~/.local/bin/vedettavip-winbox`, `.desktop` con
+    `x-scheme-handler/winbox`, `xdg-mime default`. `--uninstall`.
+  - Il gestore accetta solo IP, hostname o MAC (`^[A-Za-z0-9:][A-Za-z0-9.:-]{0,252}$`): qualsiasi sito può aprire un link
+    `winbox://`. Coperto da test (anche l'installer Linux eseguito davvero con un finto WinBox).
+- **Impostazioni → WinBox** (Admin): percorsi per Windows e Linux + download. Pagina **`/winbox`** ("Gestore WinBox", per
+  tutti gli utenti, raggiungibile dal menu del nodo): download e istruzioni. macOS non ancora previsto.
 
 ### Discovery (prima tappa: vicini e link)
 
@@ -557,7 +584,7 @@ usare ASP.NET Core Data Protection o un secret store.
 
 - `Components/SettingsShell`: sottomenu a sinistra (a schede sotto i 900 px) e titolo/azioni della pagina; dentro c'è
   già `AdminOnly`. Sezioni: **Monitoraggio** (`/settings` e `/settings/monitoring`: rilevazione dello stato, soglie delle
-  metriche), **Profili SNMP**, **Notifiche** (SMTP, Telegram, invio), **Contatti**, **Clienti**, **Utenti**, **Dashboard**.
+  metriche), **Profili SNMP**, **Profili RouterOS**, **WinBox** (percorso, gestore `winbox://`), **Notifiche** (SMTP, Telegram, invio), **Contatti**, **Clienti**, **Utenti**, **Dashboard**.
 - Menu principale: Home, Mappa, Dispositivi, Eventi, Manutenzione, Impostazioni. Le vecchie route `/users`,
   `/customers`, `/contacts` restano valide e attivano la stessa voce del sottomenu.
 - Una nuova sezione: pagina con `<SettingsShell Title="...">` e voce in `SettingsShell.Sections`.
@@ -568,6 +595,7 @@ usare ASP.NET Core Data Protection o un secret store.
 - Bottone **Modifica** → strumenti **Sposta** (trascina nodi, snap e PUT della posizione al rilascio) e
   **Collega** (trascina da un nodo a un altro; in Sposta anche con **Shift + trascina**). Il link nasce a 1 Gbps
   senza sorgente di traffico e resta selezionato per completarlo.
+- **Clic destro su un nodo** (anche fuori da Modifica): menu contestuale (`NodeMenu`, vedi "Apri con WinBox").
 - **Clic destro** su un punto vuoto (o "Usa il centro della vista") → mirino e form "Aggiungi nodo":
   dispositivo non ancora sulla mappa, sottomappa (mappe radice esistenti o nuova mappa), nodo statico.
 - **Clic** su nodo o link → pannello laterale (`Components/MapEditPanel`): template dell'etichetta; per i link
@@ -575,8 +603,9 @@ usare ASP.NET Core Data Protection o un secret store.
   Inverti (scambia From/To, cioè tx/rx), Elimina con conferma al secondo clic (`DeleteButton`).
 - Errori dell'API mostrati in chiaro: `ApiProblemException` (in `VedettaVipApiClient.cs`) estrae title/detail/errori
   di validazione dal ProblemDetails.
-- Unico JS: `Components/NetworkMap.razor.js` (`getBoundingClientRect`, per convertire il clic destro in
-  coordinate mappa). Pan, drag e link usano solo i delta del puntatore.
+- JS: `Components/NetworkMap.razor.js` (`getBoundingClientRect`, per convertire il clic destro in coordinate mappa) e
+  `Components/NodeMenu.razor.js` (menu dentro la finestra, copia negli appunti). Pan, drag e link usano solo i delta del
+  puntatore.
 - Le modifiche non sono ancora propagate agli altri browser aperti sulla stessa mappa (servirà un messaggio SignalR).
 - **"+ Nuova mappa"** nell'intestazione (Admin/Operatore, anche fuori da Modifica e senza mappe): crea una mappa
   principale e la apre.
@@ -650,7 +679,7 @@ usare ASP.NET Core Data Protection o un secret store.
   N eventi)" con conferma: `DELETE ...?purgeEvents=true`, eventi e device nella stessa transazione.
 - Badge "soglie" sui device con soglie di rilevazione specifiche (tooltip con i valori).
 - **Import/export CSV** (`Components/DeviceImportPanel`, `Services/DeviceCsv` + `Endpoints/DeviceImportEndpoints` nell'API,
-  parser coperto da test): colonne nome, indirizzo, tipo, snmp, cliente, padre, profilo_snmp, abilitato, mappa (alias italiani e
+  parser coperto da test): colonne nome, indirizzo, tipo, produttore, snmp, cliente, padre, profilo_snmp, abilitato, mappa (alias italiani e
   inglesi, separatore `;` `,` o tab rilevato dall'intestazione, UTF-8 o Latin-1). Anteprima riga per riga (nessuna scrittura)
   e conferma in un unico SaveChanges; duplicati per indirizzo saltati o aggiornati (una colonna presente sovrascrive anche se
   vuota); padre per indirizzo o nome, anche di una riga del file, con controllo dei cicli; clienti mancanti creati solo se
@@ -686,7 +715,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | RouterOS API                | TCP 8728 (in chiaro), 8729 (TLS)               |
 | RouterOS REST (v7)          | HTTPS `/rest` sul servizio www-ssl             |
 | MikroTik Neighbor Discovery | UDP 5678 (MNDP, formato TLV)                   |
-| Winbox                      | TCP 8291: protocollo proprietario, **NON usare** |
+| Winbox                      | TCP 8291: protocollo proprietario, **NON usare** (si avvia solo il client WinBox 4 via `winbox://`) |
 
 OID utili:
 - `sysUpTime` 1.3.6.1.2.1.1.3.0
@@ -800,6 +829,8 @@ OID utili:
       tensione, uptime, versione; live sulla mappa, pagina Dispositivi, grafico.
 - [x] RouterOS, seconda tappa: soglie CPU/temperatura, sorveglianza di interfacce e peer WireGuard con avvisi e notifiche.
       Da fare: IPsec, MNDP.
+- [x] "Apri con WinBox": produttore dei device (MikroTik), menu contestuale del nodo, link `winbox://` senza credenziali,
+      installer del gestore per Windows e Linux con il percorso delle Impostazioni. Da fare: macOS.
 - [x] Discovery, prima tappa: vicini (RouterOS /ip/neighbor, LLDP-MIB, CDP-MIB) → link mancanti e dispositivi nuovi da
       confermare (pagina Scoperta).
 - [x] Discovery, seconda tappa: tabella ARP dei router (con lease DHCP) e scansione di subnet (ping, DNS, SNMP, porte),

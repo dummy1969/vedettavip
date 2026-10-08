@@ -1,0 +1,31 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<div class="winbox-downloads">
+    <div class="winbox-os">
+        <h6>Windows</h6>
+        <a class="btn btn-sm btn-primary" href="@Api.WinBoxHandlerUrl("windows")" download>Scarica l'installer (.cmd)</a>
+        <ol class="small mt-2 mb-1">
+            <li>Doppio clic sul file scaricato (se Windows avvisa che il file viene da internet: "Esegui comunque").</li>
+            <li>@PathText(Settings?.WindowsPath, "WinBox.exe")</li>
+        </ol>
+        <div class="form-text">
+            Nessun permesso da amministratore: vale per l'utente corrente. Per rimuoverlo:
+            <code>vedettavip-winbox-windows.cmd /uninstall</code>.
+        </div>
+    </div>
+    <div class="winbox-os">
+        <h6>Linux</h6>
+        <a class="btn btn-sm btn-primary" href="@Api.WinBoxHandlerUrl("linux")" download>Scarica l'installer (.sh)</a>
+        <ol class="small mt-2 mb-1">
+            <li>In un terminale: <code>sh ~/Downloads/vedettavip-winbox-linux.sh</code> (senza sudo).</li>
+            <li>@PathText(Settings?.LinuxPath, "WinBox")</li>
+        </ol>
+        <div class="form-text">
+            Un altro percorso: <code>sh vedettavip-winbox-linux.sh /percorso/WinBox</code>. Per rimuoverlo:
+            <code>--uninstall</code>.
+        </div>
+    </div>
+</div>

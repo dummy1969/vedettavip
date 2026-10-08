@@ -223,7 +223,7 @@ public static class DeviceEndpoints
         d.Id, d.Name, d.Address, d.Type, d.Icon, d.SnmpVersion, d.SnmpCredentialId,
         d.RouterOsApiEnabled, d.ParentDeviceId, d.Enabled,
         d.DownAfterFailures, d.UpAfterSuccesses, d.SnmpDegradedAfterFailures, d.CustomerId, d.RttThresholdMs, d.LossThresholdPct,
-        d.RouterOsCredentialId, d.CpuThresholdPct, d.TemperatureThresholdC);
+        d.RouterOsCredentialId, d.CpuThresholdPct, d.TemperatureThresholdC, d.Vendor);
 
     private static void Apply(Device d, DeviceUpsertDto dto)
     {
@@ -245,7 +245,12 @@ public static class DeviceEndpoints
         d.RouterOsCredentialId = dto.RouterOsCredentialId;
         d.CpuThresholdPct = dto.CpuThresholdPct;
         d.TemperatureThresholdC = dto.TemperatureThresholdC;
+        d.Vendor = VendorOf(dto.Vendor, dto.RouterOsApiEnabled);
     }
+
+    /// <summary>L'API RouterOS esiste solo sui MikroTik: abilitarla fissa il produttore.</summary>
+    public static DeviceVendor VendorOf(DeviceVendor vendor, bool routerOsApiEnabled) =>
+        routerOsApiEnabled ? DeviceVendor.MikroTik : vendor;
 
     /// <summary>IPv4/IPv6 o hostname DNS valido.</summary>
     internal static bool IsValidAddress(string address) =>

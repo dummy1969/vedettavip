@@ -197,6 +197,11 @@ else if (rows is not null)
                             </td>
                             <td class="text-nowrap">
                                 <button class="btn btn-sm btn-outline-secondary" @onclick="() => chartsDeviceId = d.Id">Grafici</button>
+                                @if (WinBoxLink.Href(d.Vendor, d.Address) is { } winbox)
+                                {
+                                    <a class="btn btn-sm btn-outline-secondary" href="@winbox"
+                                       title="Apre @d.Address in WinBox 4 (serve il gestore winbox:// su questo PC: vedi la pagina Gestore WinBox)">WinBox</a>
+                                }
                                 @if (User.CanEdit)
                                 {
                                     <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenEdit(d)">Modifica</button>

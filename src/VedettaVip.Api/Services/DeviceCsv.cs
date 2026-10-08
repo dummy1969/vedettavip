@@ -13,11 +13,11 @@ namespace VedettaVip.Api.Services;
 /// </summary>
 public static class DeviceCsv
 {
-    public const string Name = "name", Address = "address", Type = "type", Snmp = "snmp", Customer = "customer",
+    public const string Name = "name", Address = "address", Type = "type", Vendor = "vendor", Snmp = "snmp", Customer = "customer",
         Parent = "parent", SnmpProfile = "snmp_profile", Enabled = "enabled", Map = "map";
 
     /// <summary>Ordine delle colonne nell'export (e nel modello).</summary>
-    public static readonly string[] Columns = [Name, Address, Type, Snmp, Customer, Parent, SnmpProfile, Enabled, Map];
+    public static readonly string[] Columns = [Name, Address, Type, Vendor, Snmp, Customer, Parent, SnmpProfile, Enabled, Map];
 
     private static readonly Dictionary<string, string> Aliases = new()
     {
@@ -25,6 +25,7 @@ public static class DeviceCsv
         ["address"] = Address, ["indirizzo"] = Address, ["ip"] = Address, ["ipaddress"] = Address, ["indirizzoip"] = Address,
         ["host"] = Address, ["hostname"] = Address,
         ["type"] = Type, ["tipo"] = Type,
+        ["vendor"] = Vendor, ["produttore"] = Vendor, ["marca"] = Vendor, ["manufacturer"] = Vendor,
         ["snmp"] = Snmp, ["snmpversion"] = Snmp, ["versionesnmp"] = Snmp,
         ["customer"] = Customer, ["cliente"] = Customer,
         ["parent"] = Parent, ["padre"] = Parent, ["dipendeda"] = Parent,
@@ -199,6 +200,17 @@ public static class DeviceCsv
         return Enum.IsDefined(type);
     }
 
+    public static bool TryParseVendor(string s, out DeviceVendor vendor)
+    {
+        vendor = Key(s) switch
+        {
+            "" or "generic" or "generico" or "altro" or "other" => DeviceVendor.Generic,
+            "mikrotik" or "routeros" or "routerboard" => DeviceVendor.MikroTik,
+            _ => (DeviceVendor)(-1)
+        };
+        return Enum.IsDefined(vendor);
+    }
+
     public static bool TryParseSnmp(string s, out SnmpVersion version)
     {
         version = Key(s) switch
@@ -247,6 +259,12 @@ public static class DeviceCsv
         DeviceType.Phone => "phone",
         DeviceType.Ups => "ups",
         _ => "other"
+    };
+
+    public static string VendorText(DeviceVendor v) => v switch
+    {
+        DeviceVendor.MikroTik => "mikrotik",
+        _ => "generic"
     };
 
     public static string SnmpText(SnmpVersion v) => v switch

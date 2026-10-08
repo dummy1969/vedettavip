@@ -6,6 +6,12 @@ namespace VedettaVip.Shared.Contracts;
 /// <summary>Tipo di dispositivo (salvato come testo): decide l'icona predefinita sulla mappa. Other in fondo (ordine dei menu).</summary>
 public enum DeviceType { Router, Switch, AccessPoint, Server, Firewall, Storage, Pc, Printer, Camera, Phone, Ups, Other }
 
+/// <summary>
+/// Produttore del dispositivo (salvato come testo): abilita le azioni specifiche, es. "Apri con WinBox" per i MikroTik.
+/// Generic = qualsiasi altro.
+/// </summary>
+public enum DeviceVendor { Generic, MikroTik }
+
 public enum SnmpVersion { None, V1, V2c, V3 }
 
 /// <summary>Un nodo rappresenta un dispositivo, una sottomappa o un elemento statico (es. "Internet").</summary>

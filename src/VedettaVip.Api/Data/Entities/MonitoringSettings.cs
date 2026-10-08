@@ -28,6 +28,11 @@ public sealed class MonitoringSettings
     /// <summary>Ore di eventi recenti mostrate nella dashboard (Home).</summary>
     public int DashboardEventHours { get; set; }
 
+    /// <summary>Percorso di WinBox 4 sui PC Windows degli operatori, scritto nell'installer del gestore winbox://; null = ricerca.</summary>
+    public string? WinBoxWindowsPath { get; set; }
+    /// <summary>Percorso di WinBox 4 sui PC Linux degli operatori, scritto nell'installer del gestore winbox://; null = ricerca.</summary>
+    public string? WinBoxLinuxPath { get; set; }
+
     /// <summary>Profilo SNMP dei device senza profilo proprio né del cliente; null = community del Worker.</summary>
     public Guid? DefaultSnmpCredentialId { get; set; }
 

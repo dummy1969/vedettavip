@@ -27,6 +27,8 @@
   <ItemGroup>
     <!-- Produttori dai MAC (registri IEEE): generato da third-party/ieee-oui/generate.py -->
     <EmbeddedResource Include="Resources\oui.tsv.gz" LogicalName="VedettaVip.Api.oui.tsv.gz" />
+    <!-- Installer del gestore dei link winbox:// (WinBoxHandlerScripts): il percorso di WinBox è scritto al download -->
+    <EmbeddedResource Include="Resources\WinBox\*" LogicalName="VedettaVip.Api.WinBox.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

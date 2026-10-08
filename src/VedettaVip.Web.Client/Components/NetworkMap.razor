@@ -94,7 +94,9 @@
                @onpointerdown="e => OnNodeDown(e, node)" @onpointerdown:stopPropagation
                @onpointerenter="() => OnNodeEnter(node)"
                @onpointerleave="() => OnNodeLeave(node)"
-               @ondblclick="() => OnNodeOpen.InvokeAsync(node)">
+               @ondblclick="() => OnNodeOpen.InvokeAsync(node)"
+               @oncontextmenu="e => OnNodeMenu.InvokeAsync(new NodeMenuRequest(node, e.ClientX, e.ClientY))"
+               @oncontextmenu:preventDefault @oncontextmenu:stopPropagation>
                 <rect width="@w" height="@h" rx="6" fill="@StateColor(node.State)" />
                 @if (node.Maintenance is not null)
                 {

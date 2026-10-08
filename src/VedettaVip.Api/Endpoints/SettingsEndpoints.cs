@@ -23,6 +23,8 @@ public static class SettingsEndpoints
         settings.MapPut("/metric-thresholds", UpdateMetricThresholdsAsync).RequireAdmin();
         settings.MapGet("/dashboard", GetDashboardAsync);
         settings.MapPut("/dashboard", UpdateDashboardAsync).RequireAdmin();
+        settings.MapGet("/winbox", GetWinBoxAsync);
+        settings.MapPut("/winbox", UpdateWinBoxAsync).RequireAdmin();
         return app;
     }
 
@@ -76,6 +78,40 @@ public static class SettingsEndpoints
         if (await db.TrySaveChangesAsync(ct) is { } problem)
             return problem;
         return TypedResults.Ok(dto);
+    }
+
+    /// <summary>Percorsi di WinBox scritti negli installer del gestore winbox:// (letti da tutti: la pagina WinBox li mostra).</summary>
+    internal static async Task<WinBoxSettingsDto> LoadWinBoxAsync(VedettaVipDbContext db, CancellationToken ct) =>
+        await db.MonitoringSettings.AsNoTracking()
+            .Where(s => s.Id == MonitoringSettings.SingletonId)
+            .Select(s => new WinBoxSettingsDto(s.WinBoxWindowsPath, s.WinBoxLinuxPath))
+            .FirstOrDefaultAsync(ct)
+        ?? WinBoxSettingsDto.Default;
+
+    private static async Task<Ok<WinBoxSettingsDto>> GetWinBoxAsync(VedettaVipDbContext db, CancellationToken ct) =>
+        TypedResults.Ok(await LoadWinBoxAsync(db, ct));
+
+    /// <summary>Vuoto = nessun predefinito (l'installer cerca WinBox e, se non lo trova, chiede il percorso).</summary>
+    private static async Task<Results<Ok<WinBoxSettingsDto>, ValidationProblem, ProblemHttpResult>> UpdateWinBoxAsync(
+        WinBoxSettingsDto dto, VedettaVipDbContext db, CancellationToken ct)
+    {
+        var windows = string.IsNullOrWhiteSpace(dto.WindowsPath) ? null : dto.WindowsPath.Trim();
+        var linux = string.IsNullOrWhiteSpace(dto.LinuxPath) ? null : dto.LinuxPath.Trim();
+
+        var errors = new Dictionary<string, string[]>();
+        if (WinBoxHandlerScripts.Validate(windows, windows: true) is { } windowsError)
+            errors[nameof(dto.WindowsPath)] = [windowsError];
+        if (WinBoxHandlerScripts.Validate(linux, windows: false) is { } linuxError)
+            errors[nameof(dto.LinuxPath)] = [linuxError];
+        if (errors.Count > 0)
+            return TypedResults.ValidationProblem(errors);
+
+        var settings = await db.MonitoringSettings.FirstAsync(s => s.Id == MonitoringSettings.SingletonId, ct);
+        settings.WinBoxWindowsPath = windows;
+        settings.WinBoxLinuxPath = linux;
+        if (await db.TrySaveChangesAsync(ct) is { } problem)
+            return problem;
+        return TypedResults.Ok(new WinBoxSettingsDto(windows, linux));
     }
 
     /// <summary>Aggiorna le soglie generali e avvisa gli agenti: i device senza valori specifici le usano subito.</summary>

@@ -109,8 +109,14 @@ else
             <NetworkMap @ref="mapView" Nodes="nodes" Links="links" GridSize="map.GridSize"
                         Editable="editMode" Tool="tool" SelectedId="selectedId" PlacePoint="placePoint"
                         OnNodeMoved="SavePositionAsync" OnNodeOpen="OpenNode" OnSelect="Select"
-                        OnLinkRequested="CreateLinkAsync" OnPlaceRequested="PlaceAt" OnLinkOpen="OpenChart" />
+                        OnLinkRequested="CreateLinkAsync" OnPlaceRequested="PlaceAt" OnLinkOpen="OpenChart"
+                        OnNodeMenu="r => nodeMenu = r" />
         </div>
+        @if (nodeMenu is { } m)
+        {
+            <NodeMenu @key="m" Node="m.Node" X="m.ClientX" Y="m.ClientY" Editing="editMode"
+                      OnClose="() => nodeMenu = null" OnOpen="OpenNode" OnProperties="Select" />
+        }
         @if (editMode)
         {
             <MapEditPanel MapId="map.Id" Nodes="nodes"

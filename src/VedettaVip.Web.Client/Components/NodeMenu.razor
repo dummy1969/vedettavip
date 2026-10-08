@@ -1,0 +1,44 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+@if (HasItems)
+{
+    <div class="node-menu-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault></div>
+    <div class="node-menu" role="menu" tabindex="-1" @ref="menu" @onkeydown="OnKeyDown"
+         style="left: @Px(X); top: @Px(Y)" @oncontextmenu:preventDefault>
+        <div class="node-menu-title">
+            <span>@Name</span>
+            @if (Address is { Length: > 0 })
+            {
+                <small class="font-monospace">@Address</small>
+            }
+        </div>
+
+        @if (WinBoxHref is { } winbox)
+        {
+            <a class="node-menu-item" role="menuitem" href="@winbox" @onclick="CloseAsync">Apri con WinBox</a>
+        }
+        @if (Address is { Length: > 0 })
+        {
+            <button type="button" class="node-menu-item" role="menuitem" @onclick="CopyAddressAsync">Copia indirizzo</button>
+        }
+        @if (Node.Kind == MapNodeKind.Device && Node.DeviceId is not null)
+        {
+            <button type="button" class="node-menu-item" role="menuitem" @onclick="OpenAsync">Grafici</button>
+        }
+        else if (Node.SubmapId is not null)
+        {
+            <button type="button" class="node-menu-item" role="menuitem" @onclick="OpenAsync">Apri la sottomappa</button>
+        }
+        @if (Editing)
+        {
+            <button type="button" class="node-menu-item" role="menuitem" @onclick="PropertiesAsync">Proprietà del nodo</button>
+        }
+        @if (WinBoxHref is not null)
+        {
+            <a class="node-menu-help" href="@WinBoxLink.HelpPage" @onclick="CloseAsync">WinBox non si apre? Installa il gestore</a>
+        }
+    </div>
+}

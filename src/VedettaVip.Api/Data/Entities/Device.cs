@@ -12,6 +12,8 @@ public sealed class Device
     /// <summary>Indirizzo IP o hostname.</summary>
     public required string Address { get; set; }
     public DeviceType Type { get; set; } = DeviceType.Other;
+    /// <summary>Produttore: MikroTik abilita "Apri con WinBox". Con RouterOsApiEnabled è sempre MikroTik.</summary>
+    public DeviceVendor Vendor { get; set; } = DeviceVendor.Generic;
     public string? Icon { get; set; }
     public SnmpVersion SnmpVersion { get; set; } = SnmpVersion.None;
     /// <summary>Profilo di credenziali SNMP; null = quello del cliente o il predefinito.</summary>

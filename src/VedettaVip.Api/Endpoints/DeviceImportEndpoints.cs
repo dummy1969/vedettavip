@@ -44,6 +44,7 @@ public static class DeviceImportEndpoints
         public Device? Existing { get; set; }
         public Guid Id { get; set; }
         public DeviceType Type { get; set; }
+        public DeviceVendor Vendor { get; set; }
         public SnmpVersion Snmp { get; set; }
         public bool Enabled { get; set; } = true;
         public Guid? CustomerId { get; set; }
@@ -109,6 +110,9 @@ public static class DeviceImportEndpoints
 
             if (DeviceCsv.TryParseType(row.Get(DeviceCsv.Type), out var type)) p.Type = type;
             else p.Fail($"tipo \"{row.Get(DeviceCsv.Type)}\" sconosciuto (router, switch, accesspoint, server, firewall, storage, pc, printer, camera, phone, ups, other)");
+
+            if (DeviceCsv.TryParseVendor(row.Get(DeviceCsv.Vendor), out var vendor)) p.Vendor = vendor;
+            else p.Fail($"produttore \"{row.Get(DeviceCsv.Vendor)}\" sconosciuto (mikrotik, generic)");
 
             if (DeviceCsv.TryParseSnmp(row.Get(DeviceCsv.Snmp), out var snmp)) p.Snmp = snmp;
             else p.Fail($"SNMP \"{row.Get(DeviceCsv.Snmp)}\" sconosciuto (none, v1, v2c, v3)");
@@ -281,6 +285,7 @@ public static class DeviceImportEndpoints
             d.Address = p.Address;
             var isNew = p.Existing is null;
             if (isNew || row.Has(DeviceCsv.Type)) d.Type = p.Type;
+            if (isNew || row.Has(DeviceCsv.Vendor)) d.Vendor = DeviceEndpoints.VendorOf(p.Vendor, d.RouterOsApiEnabled);
             if (isNew || row.Has(DeviceCsv.Snmp)) d.SnmpVersion = p.Snmp;
             if (isNew || row.Has(DeviceCsv.Enabled)) d.Enabled = p.Enabled;
             if (isNew || row.Has(DeviceCsv.Customer)) d.CustomerId = p.CustomerId;
@@ -328,7 +333,7 @@ public static class DeviceImportEndpoints
             .OrderBy(d => d.Name)
             .Select(d => new
             {
-                d.Id, d.Name, d.Address, d.Type, d.SnmpVersion, d.Enabled, d.ParentDeviceId,
+                d.Id, d.Name, d.Address, d.Type, d.Vendor, d.SnmpVersion, d.Enabled, d.ParentDeviceId,
                 Customer = d.Customer != null ? d.Customer.Name : "",
                 Profile = d.SnmpCredential != null ? d.SnmpCredential.Name : ""
             })
@@ -346,7 +351,7 @@ public static class DeviceImportEndpoints
 
         var csv = DeviceCsv.Write(devices.Select(d => (IReadOnlyList<string>)
         [
-            d.Name, d.Address, DeviceCsv.TypeText(d.Type), DeviceCsv.SnmpText(d.SnmpVersion), d.Customer,
+            d.Name, d.Address, DeviceCsv.TypeText(d.Type), DeviceCsv.VendorText(d.Vendor), DeviceCsv.SnmpText(d.SnmpVersion), d.Customer,
             ParentRef(d.ParentDeviceId), d.Profile, d.Enabled ? "si" : "no",
             string.Join($" {MapReferences.ListSeparator} ", mapsByDevice[d.Id].Order(StringComparer.CurrentCultureIgnoreCase))
         ]));

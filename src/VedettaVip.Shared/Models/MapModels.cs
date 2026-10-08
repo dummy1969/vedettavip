@@ -23,6 +23,8 @@ public sealed class MapNode
     public string? Icon { get; set; }
     public string? OwnIcon { get; set; }
     public DeviceType? DeviceType { get; set; }
+    /// <summary>Produttore del dispositivo (null per sottomappe e nodi statici).</summary>
+    public DeviceVendor? Vendor { get; set; }
     /// <summary>Nome della finestra di manutenzione attiva (null = nessuna): bordo tratteggiato blu sulla mappa.</summary>
     public string? Maintenance { get; set; }
 

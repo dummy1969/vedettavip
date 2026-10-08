@@ -68,6 +68,19 @@ public partial class DeviceEditor : IDisposable
     private int? rttThresholdMs;
     private double? lossThresholdPct;
     private bool routerOsApiEnabled;
+    private DeviceVendor vendor = DeviceVendor.Generic;
+
+    /// <summary>L'API RouterOS esiste solo sui MikroTik: abilitarla fissa il produttore (l'API fa lo stesso).</summary>
+    private bool RouterOsApiEnabled
+    {
+        get => routerOsApiEnabled;
+        set
+        {
+            routerOsApiEnabled = value;
+            if (value)
+                vendor = DeviceVendor.MikroTik;
+        }
+    }
     private bool enabled = true;
     private string EnabledText { get => enabled ? Monitored : NotMonitored; set => enabled = value == Monitored; }
     private int? downAfterFailures;
@@ -115,6 +128,7 @@ public partial class DeviceEditor : IDisposable
         rttThresholdMs = Device?.RttThresholdMs;
         lossThresholdPct = Device?.LossThresholdPct;
         routerOsApiEnabled = Device?.RouterOsApiEnabled ?? false;
+        vendor = Device?.Vendor ?? DeviceVendor.Generic;
         enabled = Device?.Enabled ?? true;
         downAfterFailures = Device?.DownAfterFailures;
         upAfterSuccesses = Device?.UpAfterSuccesses;
@@ -200,7 +214,8 @@ public partial class DeviceEditor : IDisposable
                 lossThresholdPct,
                 Guid.TryParse(routerOsCredentialId, out var ros) ? ros : null,
                 routerOsApiEnabled ? cpuThresholdPct : null,
-                routerOsApiEnabled ? temperatureThresholdC : null);
+                routerOsApiEnabled ? temperatureThresholdC : null,
+                vendor);
 
             Guid id;
             if (Device is null)
@@ -271,6 +286,12 @@ public partial class DeviceEditor : IDisposable
         DeviceType.Phone => "Telefono VoIP",
         DeviceType.Ups => "UPS",
         _ => "Altro"
+    };
+
+    internal static string VendorLabel(DeviceVendor v) => v switch
+    {
+        DeviceVendor.MikroTik => "MikroTik",
+        _ => "Generico"
     };
 
     public void Dispose()

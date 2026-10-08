@@ -94,10 +94,10 @@ public class DeviceCsvTests
     [Fact]
     public void Export_round_trips_through_the_parser()
     {
-        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "v2c", "Rossi \"A\"", "", "Rossi", "si", "Sede | Rack"]]);
+        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "mikrotik", "v2c", "Rossi \"A\"", "", "Rossi", "si", "Sede | Rack"]]);
         var row = Assert.Single(DeviceCsv.Parse(csv).Rows);
-        Assert.Equal(("Core; sede", "Rossi \"A\"", "si", "Sede | Rack"),
-            (row.Get(DeviceCsv.Name), row.Get(DeviceCsv.Customer), row.Get(DeviceCsv.Enabled), row.Get(DeviceCsv.Map)));
+        Assert.Equal(("Core; sede", "mikrotik", "Rossi \"A\"", "si", "Sede | Rack"),
+            (row.Get(DeviceCsv.Name), row.Get(DeviceCsv.Vendor), row.Get(DeviceCsv.Customer), row.Get(DeviceCsv.Enabled), row.Get(DeviceCsv.Map)));
     }
 
     [Theory]

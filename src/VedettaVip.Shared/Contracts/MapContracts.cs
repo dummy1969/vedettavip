@@ -44,7 +44,9 @@ public sealed record MapNodeDto(
     /// </summary>
     IReadOnlyList<SubmapMemberDto>? SubmapMembers = null,
     /// <summary>Icona propria del nodo (null = quella del dispositivo o la predefinita); <c>Icon</c> è già quella effettiva.</summary>
-    string? OwnIcon = null);
+    string? OwnIcon = null,
+    /// <summary>Produttore del dispositivo del nodo (null per sottomappe e nodi statici): decide le voci del menu contestuale.</summary>
+    DeviceVendor? Vendor = null);
 
 public sealed record SubmapMemberDto(Guid DeviceId, NodeState State, bool InMaintenance);
 

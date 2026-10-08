@@ -51,6 +51,23 @@
                         </select>
                     </div>
                     <div class="col">
+                        <label class="form-label small mb-1" for="dev-vendor">Produttore</label>
+                        <select id="dev-vendor" class="form-select form-select-sm" @bind="vendor" disabled="@routerOsApiEnabled"
+                                title="@(routerOsApiEnabled ? "MikroTik: la lettura via API RouterOS è attiva" : null)">
+                            @foreach (var v in Enum.GetValues<DeviceVendor>())
+                            {
+                                <option value="@v">@VendorLabel(v)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                @if (vendor == DeviceVendor.MikroTik)
+                {
+                    <div class="form-text">MikroTik: sulla mappa e nella pagina Dispositivi compare "Apri con WinBox".</div>
+                }
+
+                <div class="row g-2 mt-1">
+                    <div class="col-6">
                         <label class="form-label small mb-1" for="dev-enabled">Stato</label>
                         <select id="dev-enabled" class="form-select form-select-sm" @bind="EnabledText">
                             <option value="@Monitored">monitorato</option>
@@ -148,7 +165,7 @@
 
             case EditorTab.RouterOs:
                 <div class="form-check">
-                    <input id="dev-ros" class="form-check-input" type="checkbox" @bind="routerOsApiEnabled" />
+                    <input id="dev-ros" class="form-check-input" type="checkbox" @bind="RouterOsApiEnabled" />
                     <label class="form-check-label small" for="dev-ros">Leggi via API RouterOS (MikroTik)</label>
                 </div>
                 @if (routerOsApiEnabled)

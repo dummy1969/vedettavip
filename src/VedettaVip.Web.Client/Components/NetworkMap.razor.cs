@@ -19,6 +19,9 @@ public readonly record struct MapPoint(double X, double Y);
 /// <summary>Richiesta di un nuovo link, creata trascinando da un nodo a un altro.</summary>
 public readonly record struct LinkRequest(Guid FromNodeId, Guid ToNodeId);
 
+/// <summary>Clic destro su un nodo, alla posizione del puntatore nella finestra: apre il menu contestuale.</summary>
+public readonly record struct NodeMenuRequest(MapNode Node, double ClientX, double ClientY);
+
 public partial class NetworkMap : IAsyncDisposable
 {
     // Sotto questa distanza (pixel schermo) un pointerdown/up è un clic, non un trascinamento
@@ -51,6 +54,8 @@ public partial class NetworkMap : IAsyncDisposable
     [Parameter] public EventCallback<LinkRequest> OnLinkRequested { get; set; }
     /// <summary>Clic su un link in sola visualizzazione (senza trascinamento): apre il grafico del traffico.</summary>
     [Parameter] public EventCallback<MapLink> OnLinkOpen { get; set; }
+    /// <summary>Clic destro su un nodo (anche in sola visualizzazione): menu contestuale.</summary>
+    [Parameter] public EventCallback<NodeMenuRequest> OnNodeMenu { get; set; }
     /// <summary>Clic destro sullo sfondo: punto (già allineato alla griglia) per un nuovo nodo.</summary>
     [Parameter] public EventCallback<MapPoint> OnPlaceRequested { get; set; }
 

@@ -25,7 +25,8 @@ look at on a NOC screen and quick to set up.
 - **Polling agent** (separate process, no database access): ICMP with hysteresis, SNMP v1/v2c, interface traffic from
   64-bit counters (32-bit fallback for devices without `ifXTable`), interface inventory, configurable thresholds.
 - **RouterOS**: classic API (`api`/`api-ssl`, v6 and v7) for CPU, memory, temperature, voltage, uptime, version;
-  watched interfaces and WireGuard peers; CPU and temperature thresholds.
+  watched interfaces and WireGuard peers; CPU and temperature thresholds; "Open with WinBox" from the map's right-click
+  menu (a `winbox://` link handled by a small per-user installer for Windows and Linux; no credentials stored).
 - **Discovery**: neighbours (RouterOS `/ip/neighbor`, LLDP-MIB, CDP-MIB), ARP tables with DHCP leases, subnet scans
   (ping, DNS, SNMP, TCP ports), vendor from MAC address (IEEE OUI); proposals to confirm, never added automatically.
 - **Metrics** on TimescaleDB (raw 7 days, 5-minute aggregates 90 days, hourly aggregates 2 years) with traffic,

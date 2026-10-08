@@ -199,6 +199,15 @@ public sealed class VedettaVipApiClient(HttpClient http)
     public Task<DashboardSettingsDto> UpdateDashboardSettingsAsync(DashboardSettingsDto dto, CancellationToken ct) =>
         SendAsync<DashboardSettingsDto>(HttpMethod.Put, "api/settings/dashboard", dto, ct);
 
+    public Task<WinBoxSettingsDto> GetWinBoxSettingsAsync(CancellationToken ct) =>
+        SendAsync<WinBoxSettingsDto>(HttpMethod.Get, "api/settings/winbox", null, ct);
+
+    public Task<WinBoxSettingsDto> UpdateWinBoxSettingsAsync(WinBoxSettingsDto dto, CancellationToken ct) =>
+        SendAsync<WinBoxSettingsDto>(HttpMethod.Put, "api/settings/winbox", dto, ct);
+
+    /// <summary>Download dell'installer del gestore winbox:// ("windows" o "linux"), con il percorso delle Impostazioni.</summary>
+    public string WinBoxHandlerUrl(string os) => new Uri(http.BaseAddress!, $"api/winbox/handler/{os}").ToString();
+
     public Task<MetricThresholdsDto> GetMetricThresholdsAsync(CancellationToken ct) =>
         SendAsync<MetricThresholdsDto>(HttpMethod.Get, "api/settings/metric-thresholds", null, ct);
 

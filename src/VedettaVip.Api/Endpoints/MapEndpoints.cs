@@ -53,7 +53,8 @@ public static class MapEndpoints
             : NodeState.Unknown,
         null,
         null,
-        n.Icon);
+        n.Icon,
+        n.Device != null ? (DeviceVendor?)n.Device.Vendor : null);
 
     internal static DateTimeOffset StaleBefore(TimeProvider time, AgentOptions options) =>
         time.GetUtcNow() - options.StaleAfter;

@@ -56,6 +56,8 @@ public partial class Map : IAsyncDisposable
     private MapTool tool = MapTool.Move;
     private Guid? selectedId;
     private MapPoint? placePoint;
+    // Menu contestuale del nodo (clic destro)
+    private NodeMenuRequest? nodeMenu;
 
     // Ultimo campione per interfaccia (DeviceId, IfIndex), da GET /api/traffic e dal messaggio "TrafficUpdated"
     private readonly Dictionary<(Guid DeviceId, int IfIndex), InterfaceTrafficDto> traffic = [];
@@ -107,6 +109,7 @@ public partial class Map : IAsyncDisposable
         map = null;
         selectedId = null;
         placePoint = null;
+        nodeMenu = null;
         chartLinkId = null;
         chartNodeId = null;
 
@@ -163,7 +166,8 @@ public partial class Map : IAsyncDisposable
             Maintenance = dto.Maintenance,
             Icon = MapIcons.Resolve(dto.Icon, MapIcons.DefaultFor(dto.Kind, dto.DeviceType)),
             OwnIcon = dto.OwnIcon,
-            DeviceType = dto.DeviceType
+            DeviceType = dto.DeviceType,
+            Vendor = dto.Vendor
         };
         node.Values["Name"] = dto.Name ?? "";
         node.Values["Address"] = dto.Address ?? "";
@@ -529,6 +533,7 @@ public partial class Map : IAsyncDisposable
     private void ToggleEditMode()
     {
         editMode = !editMode;
+        nodeMenu = null;
         tool = MapTool.Move;
         selectedId = null;
         placePoint = null;

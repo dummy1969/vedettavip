@@ -303,6 +303,15 @@ public static class DiscoveryPlanner
         return DeviceType.Other;
     }
 
+    /// <summary>
+    /// Produttore di un dispositivo proposto: MikroTik se la proposta lo riconosce come RouterOS (piattaforma MNDP/LLDP,
+    /// sysDescr, porte API 8728/8729) o se il MAC è registrato a MikroTik.
+    /// </summary>
+    public static DeviceVendor VendorOf(DiscoveryDeviceProposalDto proposal) =>
+        proposal.RouterOs || string.Equals(proposal.Vendor, "MikroTik", StringComparison.OrdinalIgnoreCase)
+            ? DeviceVendor.MikroTik
+            : DeviceVendor.Generic;
+
     public static bool IsRouterOs(NeighborDto n) => n.Platform?.Contains("MikroTik", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <summary>

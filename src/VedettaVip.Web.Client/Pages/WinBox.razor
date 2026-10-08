@@ -1,0 +1,34 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/winbox"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Gestore WinBox - VedettaVip</PageTitle>
+
+<h3>Apri con WinBox</h3>
+
+<div class="winbox-page">
+    <p>
+        Sulla mappa, clic destro su un dispositivo MikroTik → <b>Apri con WinBox</b> (oppure il bottone WinBox nella pagina
+        Dispositivi). Il browser non può avviare programmi da solo: apre un link <code>winbox://indirizzo</code>, che su
+        questo PC deve essere associato a WinBox 4. Basta farlo <b>una volta</b> con l'installer qui sotto.
+    </p>
+
+    @if (error is not null)
+    {
+        <div class="alert alert-warning py-1 px-2 small">@error</div>
+    }
+
+    <WinBoxHandlerDownloads Settings="settings" />
+
+    <h6 class="mt-4">Se non si apre</h6>
+    <ul class="small">
+        <li>Al primo clic il browser chiede se aprire WinBox: confermare e scegliere "Ricorda" (o "Consenti sempre").</li>
+        <li>Se non succede nulla, il gestore non è installato su questo PC (o è stato installato per un altro utente).</li>
+        <li>WinBox chiede utente e password: VedettaVip non le conosce e non le invia. WinBox 4 può ricordarle tra i suoi
+            indirizzi salvati.</li>
+        <li>Il PC deve raggiungere il router (ad esempio tramite la VPN verso il cliente): che VedettaVip lo veda non basta.</li>
+    </ul>
+</div>

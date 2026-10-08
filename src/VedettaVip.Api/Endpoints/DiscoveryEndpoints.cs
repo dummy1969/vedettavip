@@ -270,6 +270,7 @@ public static class DiscoveryEndpoints
             var device = new Device
             {
                 Id = Guid.CreateVersion7(), Name = d.Name.Trim(), Address = address, Type = d.Type, Enabled = true,
+                Vendor = DeviceEndpoints.VendorOf(DiscoveryPlanner.VendorOf(proposal), d.RouterOs),
                 SnmpVersion = d.Snmp ? SnmpVersion.V2c : SnmpVersion.None, SnmpCredentialId = d.Snmp ? d.SnmpCredentialId : null,
                 RouterOsApiEnabled = d.RouterOs, CustomerId = d.CustomerId, ParentDeviceId = d.ParentId
             };

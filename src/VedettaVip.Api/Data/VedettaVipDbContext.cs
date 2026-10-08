@@ -59,6 +59,7 @@ public sealed class VedettaVipDbContext(DbContextOptions<VedettaVipDbContext> op
         // Enum salvati come testo: leggibili da psql e stabili se si riordinano i valori
         configurationBuilder.Properties<DeviceType>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<SnmpVersion>().HaveConversion<string>().HaveMaxLength(8);
+        configurationBuilder.Properties<DeviceVendor>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<MapNodeKind>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<EventSeverity>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<NodeState>().HaveConversion<string>().HaveMaxLength(16);

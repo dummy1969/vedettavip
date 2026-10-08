@@ -23,6 +23,8 @@ public sealed class MonitoringSettingsConfiguration : IEntityTypeConfiguration<M
                 "AND \"SnmpDegradedAfterFailures\" BETWEEN 1 AND 100");
         });
         b.Property(s => s.Id).ValueGeneratedNever();
+        b.Property(s => s.WinBoxWindowsPath).HasMaxLength(WinBoxSettingsDto.MaxPathLength);
+        b.Property(s => s.WinBoxLinuxPath).HasMaxLength(WinBoxSettingsDto.MaxPathLength);
 
         // La riga esiste sempre: i valori iniziali sono quelli usati prima che fossero configurabili
         var defaults = DetectionThresholdsDto.Default;

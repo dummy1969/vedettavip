@@ -165,6 +165,7 @@ app.MapDeviceImportEndpoints();
 app.MapAgentEndpoints();
 app.MapMetricEndpoints();
 app.MapSettingsEndpoints();
+app.MapWinBoxEndpoints();
 app.MapNotificationEndpoints();
 app.MapMaintenanceEndpoints();
 app.MapSnmpCredentialEndpoints();

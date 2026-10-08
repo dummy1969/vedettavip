@@ -1,0 +1,53 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Percorso di WinBox sui PC degli operatori</strong></div>
+    <div class="card-body">
+        <p class="small text-muted">
+            "Apri con WinBox" (clic destro su un MikroTik nella mappa, bottone nella pagina Dispositivi) apre un link
+            <code>winbox://indirizzo</code>: un browser non può avviare programmi, quindi ogni PC ha bisogno una volta del
+            gestore scaricabile qui sotto. Il percorso indicato qui viene scritto negli installer: gli operatori non devono
+            inserirlo. Nessuna password passa da VedettaVip: WinBox la chiede o usa i suoi indirizzi salvati.
+        </p>
+        @if (error is not null)
+        {
+            <div class="alert alert-danger py-1 px-2 small">@error</div>
+        }
+        @if (loaded)
+        {
+            <label class="form-label small mb-1" for="wb-windows">Windows (WinBox 4)</label>
+            <input id="wb-windows" class="form-control form-control-sm font-monospace" maxlength="@WinBoxSettingsDto.MaxPathLength"
+                   @bind="windowsPath" placeholder="es. %LOCALAPPDATA%\Programs\WinBox\WinBox.exe" />
+            <div class="form-text">Ammesse le variabili d'ambiente (%LOCALAPPDATA%, %USERPROFILE%, %ProgramFiles%).</div>
+
+            <label class="form-label small mb-1 mt-2" for="wb-linux">Linux (WinBox 4)</label>
+            <input id="wb-linux" class="form-control form-control-sm font-monospace" maxlength="@WinBoxSettingsDto.MaxPathLength"
+                   @bind="linuxPath" placeholder="es. ~/WinBox/WinBox" />
+            <div class="form-text">~/ = cartella home dell'utente. Vuoto = l'installer cerca nelle posizioni comuni e, se non lo
+                trova, chiede il percorso.</div>
+
+            <div class="d-flex align-items-baseline gap-2 mt-3">
+                <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="SaveAsync">Salva</button>
+                @if (savedAt is { } at)
+                {
+                    <span class="small text-success">Salvato alle @at.ToString("HH:mm:ss"): gli installer scaricati da ora usano i
+                        nuovi percorsi.</span>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Installer del gestore winbox://</strong></div>
+    <div class="card-body">
+        <WinBoxHandlerDownloads Settings="saved" />
+        <div class="form-text mt-2">
+            Gli operatori trovano gli stessi download nella pagina <a href="@WinBoxLink.HelpPage">Gestore WinBox</a>, raggiungibile
+            dal menu del nodo sulla mappa. Dopo aver cambiato il percorso va rilanciato l'installer sui PC.
+        </div>
+    </div>
+</section>

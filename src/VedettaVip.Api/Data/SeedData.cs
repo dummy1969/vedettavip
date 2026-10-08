@@ -69,7 +69,7 @@ internal static class SeedData
 
     private static Device Device(Guid id, string name, string address, DeviceType type, Guid? parent) => new()
     {
-        Id = id, Name = name, Address = address, Type = type,
+        Id = id, Name = name, Address = address, Type = type, Vendor = DeviceVendor.MikroTik,
         SnmpVersion = SnmpVersion.V2c, RouterOsApiEnabled = true, ParentDeviceId = parent, Enabled = true
     };
 
