@@ -12,6 +12,8 @@ public partial class DeleteButton
     [Parameter] public EventCallback OnConfirmed { get; set; }
     [Parameter] public string Text { get; set; } = "Elimina";
     [Parameter] public string ConfirmText { get; set; } = "Conferma eliminazione";
+    /// <summary>Solo il cestino (Text nel tooltip); la conferma resta a parole.</summary>
+    [Parameter] public bool IconOnly { get; set; }
 
     private bool confirming;
 

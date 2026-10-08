@@ -617,9 +617,12 @@ usare ASP.NET Core Data Protection o un secret store.
 
 ### Icone (implementate)
 
-- **Tabler Icons** (MIT), sottoinsieme di 39 icone outline in `third-party/tabler-icons/` (`LICENSE`, `VERSION`, `icons/`,
+- **Tabler Icons** (MIT), sottoinsieme di 43 icone outline (39 per nodi e dispositivi, 4 per i comandi: `UiIcons`) in `third-party/tabler-icons/` (`LICENSE`, `VERSION`, `icons/`,
   `generate.py`). Lo script genera `VedettaVip.Web.Client/Services/MapIcons.g.cs` (chiave, etichetta, contenuto SVG):
   incorporate nel client, nessuna dipendenza da internet in esecuzione. Per aggiungerne una vedere il commento in `generate.py`.
+- **Icone dei comandi** (`UI_ICONS` in `generate.py` → `Services/UiIcons.g.cs`, componente `UiIcon`): bottoni a sola icona
+  (`.btn-icon` in `app.css`, testo in `title` e `aria-label`; `DeleteButton IconOnly`). Pagina Dispositivi: Grafici, WinBox
+  (posto vuoto `.btn-icon-slot` sulle righe senza, per tenere le colonne allineate), Modifica, Elimina.
 - `Services/MapIcons`: icona effettiva = quella del nodo (`MapNode.Icon`, `MapNodeDto.OwnIcon`) → del dispositivo
   (`Device.Icon`) → predefinita del tipo (`DefaultFor`; sottomappe `sitemap`, nodi statici nessuna). Chiave sconosciuta =
   predefinita. Sulla mappa solo le icone usate diventano `<symbol>` nei defs, il nodo le richiama con `<use>` a sinistra

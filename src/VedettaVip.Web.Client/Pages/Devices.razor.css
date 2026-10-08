@@ -73,3 +73,9 @@
 .ros-cell {
     white-space: nowrap;
 }
+
+.row-actions {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}

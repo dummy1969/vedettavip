@@ -61,3 +61,21 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* Bottoni a sola icona (UiIcon): quadrati, stessa altezza dei btn-sm; il testo è nel title / aria-label */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 1.9rem;
+    padding: 0;
+}
+
+.btn-icon-slot {
+    display: inline-block;
+    width: 2rem;
+}
+
+.ui-icon {
+    flex-shrink: 0;
+}

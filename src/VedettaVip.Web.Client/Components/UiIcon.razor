@@ -1,0 +1,15 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@if (UiIcons.Find(Name) is { } icon)
+{
+    <svg class="ui-icon" width="@Size" height="@Size" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@((MarkupString)icon.Body)</g>
+    </svg>
+}
+
+@code {
+    /// <summary>Icona di un comando (chiave di <see cref="UiIcons"/>); decorativa: il testo va nel title/aria-label del bottone.</summary>
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    [Parameter] public int Size { get; set; } = 18;
+}

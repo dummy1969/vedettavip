@@ -6,6 +6,12 @@
     <button class="btn btn-sm btn-danger" disabled="@Busy" @onclick="ConfirmAsync">@ConfirmText</button>
     <button class="btn btn-sm btn-link" @onclick="Cancel">no</button>
 }
+else if (IconOnly)
+{
+    <button class="btn btn-sm btn-outline-danger btn-icon" disabled="@Busy" @onclick="Ask" title="@Text" aria-label="@Text">
+        <UiIcon Name="@UiIcons.Delete" />
+    </button>
+}
 else
 {
     <button class="btn btn-sm btn-outline-danger" disabled="@Busy" @onclick="Ask">@Text</button>

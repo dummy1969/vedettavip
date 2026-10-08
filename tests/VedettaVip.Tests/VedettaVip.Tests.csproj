@@ -29,6 +29,8 @@
   <ItemGroup>
     <Compile Include="..\..\src\VedettaVip.Web.Client\Services\MapIcons.cs" Link="Linked\MapIcons.cs" />
     <Compile Include="..\..\src\VedettaVip.Web.Client\Services\MapIcons.g.cs" Link="Linked\MapIcons.g.cs" />
+    <Compile Include="..\..\src\VedettaVip.Web.Client\Services\UiIcons.cs" Link="Linked\UiIcons.cs" />
+    <Compile Include="..\..\src\VedettaVip.Web.Client\Services\UiIcons.g.cs" Link="Linked\UiIcons.g.cs" />
   </ItemGroup>
 
   <ItemGroup>

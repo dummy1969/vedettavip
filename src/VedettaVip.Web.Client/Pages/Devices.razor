@@ -196,17 +196,33 @@ else if (rows is not null)
                                 }
                             </td>
                             <td class="text-nowrap">
-                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => chartsDeviceId = d.Id">Grafici</button>
-                                @if (WinBoxLink.Href(d.Vendor, d.Address) is { } winbox)
-                                {
-                                    <a class="btn btn-sm btn-outline-secondary" href="@winbox"
-                                       title="Apre @d.Address in WinBox 4 (serve il gestore winbox:// su questo PC: vedi la pagina Gestore WinBox)">WinBox</a>
-                                }
-                                @if (User.CanEdit)
-                                {
-                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenEdit(d)">Modifica</button>
-                                    <DeleteButton Busy="deletingId == d.Id" OnConfirmed="() => DeleteAsync(d)" />
-                                }
+                                <div class="row-actions">
+                                    <button class="btn btn-sm btn-outline-secondary btn-icon" @onclick="() => chartsDeviceId = d.Id"
+                                            title="Grafici" aria-label="Grafici di @d.Name">
+                                        <UiIcon Name="@UiIcons.Charts" />
+                                    </button>
+                                    @if (WinBoxLink.Href(d.Vendor, d.Address) is { } winbox)
+                                    {
+                                        <a class="btn btn-sm btn-outline-secondary btn-icon" href="@winbox"
+                                           title="Apri con WinBox (serve il gestore winbox:// su questo PC: pagina Gestore WinBox)"
+                                           aria-label="Apri @d.Name con WinBox">
+                                            <UiIcon Name="@UiIcons.WinBox" />
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        @* Posto vuoto: le icone restano in colonna anche sulle righe senza WinBox *@
+                                        <span class="btn-icon-slot" aria-hidden="true"></span>
+                                    }
+                                    @if (User.CanEdit)
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary btn-icon" @onclick="() => OpenEdit(d)"
+                                                title="Modifica" aria-label="Modifica @d.Name">
+                                            <UiIcon Name="@UiIcons.Edit" />
+                                        </button>
+                                        <DeleteButton IconOnly Busy="deletingId == d.Id" ConfirmText="Elimina?" OnConfirmed="() => DeleteAsync(d)" />
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }

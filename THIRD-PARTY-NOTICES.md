@@ -41,7 +41,7 @@ network, so their licenses do not need to be compatible with the AGPL, but you m
 | Blazor-ApexCharts | 6.0.2 | MIT | NuGet package | compatible |
 | ApexCharts.js | 4.7.0 | MIT | bundled in Blazor-ApexCharts 6.0.2 (`apexcharts.esm.js`) | compatible |
 | Bootstrap | 5.3.3 | MIT | `src/VedettaVip.Web/wwwroot/lib/bootstrap` | compatible |
-| Tabler Icons (subset of 39 outline icons) | 3.49.0 | MIT | `third-party/tabler-icons`, compiled into `MapIcons.g.cs` | compatible |
+| Tabler Icons (subset of 43 outline icons) | 3.49.0 | MIT | `third-party/tabler-icons`, compiled into `MapIcons.g.cs` and `UiIcons.g.cs` | compatible |
 
 > **Do not upgrade Blazor-ApexCharts past 6.0.2 without checking the bundled ApexCharts.js.** ApexCharts.js 5.1.0 and
 > later (Blazor-ApexCharts 6.1.0 bundles 5.3.6, 7.0.0 bundles 6.5.0) are distributed under the "ApexCharts License",

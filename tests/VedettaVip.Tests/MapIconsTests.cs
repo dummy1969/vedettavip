@@ -43,4 +43,16 @@ public class MapIconsTests
         Assert.True(DeviceCsv.TryParseType("NAS", out var nas) && nas == DeviceType.Storage);
         Assert.True(DeviceCsv.TryParseType("telecamera", out var cam) && cam == DeviceType.Camera);
     }
+
+    /// <summary>Le icone dei comandi esistono e il catalogo si legge senza dipendere dall'ordine dei file partial.</summary>
+    [Fact]
+    public void Ui_icons_used_by_the_commands_exist_and_are_not_in_the_map_picker()
+    {
+        foreach (var key in new[] { UiIcons.Charts, UiIcons.WinBox, UiIcons.Edit, UiIcons.Delete })
+        {
+            Assert.NotNull(UiIcons.Find(key));
+            Assert.Null(MapIcons.Find(key));
+        }
+        Assert.Null(UiIcons.Find("router"));
+    }
 }
