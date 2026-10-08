@@ -111,11 +111,11 @@
 {
     <p><em>Caricamento...</em></p>
 }
-else if (result.DevicesScanned == 0)
+else if (result.DevicesScanned == 0 && result.Devices.Count == 0 && result.Links.Count == 0 && result.Ignored == 0)
 {
     <div class="alert alert-secondary small">
-        Nessun vicino letto finora. Servono dispositivi con <b>API RouterOS</b> (profilo in Impostazioni → Profili RouterOS)
-        oppure <b>SNMP v2c</b> con LLDP o CDP attivo; poi "Scopri ora".
+        Niente da proporre finora. Per i vicini servono dispositivi con <b>API RouterOS</b> (profilo in Impostazioni → Profili
+        RouterOS) oppure <b>SNMP v2c</b> con LLDP o CDP attivo, poi "Scopri ora"; in alternativa scansionare una rete qui sopra.
     </div>
 }
 else
@@ -183,7 +183,17 @@ else
         }
         else
         {
-            <p class="small text-muted">Nessun collegamento mancante fra i dispositivi già in VedettaVip.</p>
+            <p class="small text-muted">
+                @if (result.DevicesScanned == 0)
+                {
+                    <text>Nessun vicino letto finora: i link si propongono dai vicini, letti con l'<b>API RouterOS</b> o via
+                    <b>SNMP v2c</b> con LLDP o CDP attivo ("Scopri ora").</text>
+                }
+                else
+                {
+                    <text>Nessun collegamento mancante fra i dispositivi già in VedettaVip.</text>
+                }
+            </p>
         }
     </section>
 
@@ -281,7 +291,7 @@ else
         }
         else
         {
-            <p class="small text-muted">Nessun dispositivo nuovo fra i vicini.</p>
+            <p class="small text-muted">Nessun dispositivo nuovo.</p>
         }
     </section>
 
