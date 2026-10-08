@@ -94,8 +94,21 @@ public class DeviceCsvTests
     [Fact]
     public void Export_round_trips_through_the_parser()
     {
-        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "v2c", "Rossi \"A\"", "", "Rossi", "si"]]);
+        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "v2c", "Rossi \"A\"", "", "Rossi", "si", "Sede | Rack"]]);
         var row = Assert.Single(DeviceCsv.Parse(csv).Rows);
-        Assert.Equal(("Core; sede", "Rossi \"A\"", "si"), (row.Get(DeviceCsv.Name), row.Get(DeviceCsv.Customer), row.Get(DeviceCsv.Enabled)));
+        Assert.Equal(("Core; sede", "Rossi \"A\"", "si", "Sede | Rack"),
+            (row.Get(DeviceCsv.Name), row.Get(DeviceCsv.Customer), row.Get(DeviceCsv.Enabled), row.Get(DeviceCsv.Map)));
+    }
+
+    [Theory]
+    [InlineData("mappa")]
+    [InlineData("Mappe")]
+    [InlineData("map")]
+    public void Map_column_is_optional_and_may_be_empty(string header)
+    {
+        var rows = DeviceCsv.Parse($"nome;indirizzo;{header}\nr1;10.0.0.1;Sede\nr2;10.0.0.2;\nr3;10.0.0.3\n").Rows;
+        Assert.Equal(["Sede", "", ""], rows.Select(r => r.Get(DeviceCsv.Map)));
+        Assert.All(rows, r => Assert.True(r.Has(DeviceCsv.Map)));
+        Assert.False(Assert.Single(DeviceCsv.Parse("nome;indirizzo\nr1;10.0.0.1").Rows).Has(DeviceCsv.Map));
     }
 }

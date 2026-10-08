@@ -18,6 +18,7 @@ namespace VedettaVip.Api.Endpoints;
 /// (DryRun, nessuna scrittura) e conferma; le righe valide vengono salvate in un unico SaveChanges (una transazione).
 /// Duplicati riconosciuti per indirizzo. Una colonna presente nel file sovrascrive il campo anche se vuota
 /// (cliente, padre, profilo vuoti = nessuno); per non toccare un campo negli aggiornamenti si toglie la colonna.
+/// Fa eccezione la colonna mappa: aggiunge soltanto (mai toglie da una mappa) e, vuota, vale la mappa scelta nel pannello.
 /// </summary>
 public static class DeviceImportEndpoints
 {
@@ -50,6 +51,7 @@ public static class DeviceImportEndpoints
         public Guid? ProfileId { get; set; }
         public Guid? ParentId { get; set; }
         public Plan? ParentPlan { get; set; }
+        public List<MapReferences.MapInfo> Maps { get; set; } = [];
         public bool Valid => Action is ImportRowAction.Create or ImportRowAction.Update;
 
         public void Fail(string message)
@@ -79,8 +81,9 @@ public static class DeviceImportEndpoints
         if (table.Rows.Count == 0)
             return TypedResults.Ok(Empty(request.DryRun, "Nessuna riga di dati dopo l'intestazione."));
 
-        Map? map = null;
-        if (request.MapId is { } mapId && (map = await db.Maps.FirstOrDefaultAsync(m => m.Id == mapId, ct)) is null)
+        var mapRefs = await LoadMapReferencesAsync(db, ct);
+        MapReferences.MapInfo? defaultMap = null;
+        if (request.MapId is { } mapId && (defaultMap = mapRefs.Find(mapId)) is null)
             return TypedResults.ValidationProblem(new Dictionary<string, string[]> { [nameof(request.MapId)] = ["La mappa non esiste."] });
 
         var devices = await db.Devices.ToListAsync(ct); // tracciati: aggiornati sul posto alla conferma
@@ -127,6 +130,17 @@ public static class DeviceImportEndpoints
                 if (profiles.TryGetValue(profile, out var pid)) p.ProfileId = pid;
                 else p.Fail($"profilo SNMP \"{profile}\" inesistente (Impostazioni → Profili SNMP)");
             }
+
+            // Mappe della riga; cella vuota (o colonna assente) = mappa scelta nel pannello, se c'è
+            var mapCell = row.Get(DeviceCsv.Map);
+            if (mapCell.Trim().Length > 0)
+            {
+                var (rowMaps, mapError) = mapRefs.ResolveList(mapCell);
+                if (mapError is not null) p.Fail(mapError);
+                else p.Maps = [.. rowMaps];
+            }
+            else if (defaultMap is not null)
+                p.Maps = [defaultMap];
 
             var existing = p.Address.Length > 0 ? byAddress[p.Address].ToList() : [];
             if (existing.Count > 1)
@@ -205,19 +219,23 @@ public static class DeviceImportEndpoints
             }
         }
 
-        // ---------- 4. Mappa: dispositivi validi non ancora presenti ----------
-        var onMap = map is null ? [] : (await db.MapNodes.AsNoTracking().Where(n => n.MapId == map.Id && n.DeviceId != null)
-            .Select(n => n.DeviceId!.Value).ToListAsync(ct)).ToHashSet();
-        var toMap = map is null ? [] : plans.Where(p => p.Valid && !onMap.Contains(p.Id)).ToList();
-        foreach (var p in toMap)
-            p.Notes.Add($"aggiunto alla mappa \"{map!.Name}\"");
+        // ---------- 4. Mappe: dispositivi validi non ancora presenti ----------
+        var mapIds = plans.Where(p => p.Valid).SelectMany(p => p.Maps).Select(m => m.Id).Distinct().ToList();
+        var onMap = (await db.MapNodes.AsNoTracking().Where(n => mapIds.Contains(n.MapId) && n.DeviceId != null)
+                .Select(n => new { n.MapId, DeviceId = n.DeviceId!.Value }).ToListAsync(ct))
+            .Select(n => (n.MapId, n.DeviceId)).ToHashSet();
+        var toMap = plans.Where(p => p.Valid)
+            .SelectMany(p => p.Maps.Where(m => !onMap.Contains((m.Id, p.Id))).Select(m => (Map: m, Plan: p)))
+            .ToList();
+        foreach (var (m, p) in toMap)
+            p.Notes.Add($"aggiunto alla mappa \"{mapRefs.Reference(m.Id)}\"");
         foreach (var p in plans.Where(p => p.Valid && p.NewCustomerName is not null))
             p.Notes.Add($"nuovo cliente \"{p.NewCustomerName}\"");
 
         if (!request.DryRun)
         {
             Apply(db, plans);
-            await PlaceAsync(db, map, toMap, ct);
+            await PlaceAsync(db, toMap, ct);
             if (await db.TrySaveChangesAsync(ct) is { } problem)
                 return problem;
             await agents.TargetsChangedAsync();
@@ -271,29 +289,37 @@ public static class DeviceImportEndpoints
         }
     }
 
-    /// <summary>Nodi a griglia sotto quelli esistenti (8 per riga), allineati alla griglia della mappa.</summary>
-    private static async Task PlaceAsync(VedettaVipDbContext db, Map? map, List<Plan> toMap, CancellationToken ct)
+    /// <summary>Su ogni mappa, nodi a griglia sotto quelli esistenti (8 per riga), allineati alla griglia della mappa.</summary>
+    private static async Task PlaceAsync(VedettaVipDbContext db, List<(MapReferences.MapInfo Map, Plan Plan)> toMap, CancellationToken ct)
     {
-        if (map is null || toMap.Count == 0)
-            return;
-        var maxY = await db.MapNodes.Where(n => n.MapId == map.Id).MaxAsync(n => (double?)n.Y, ct);
-        var startY = maxY is { } y ? y + MapPlacement.CellHeight : MapPlacement.Margin;
-
-        for (var i = 0; i < toMap.Count; i++)
+        foreach (var group in toMap.GroupBy(x => x.Map.Id))
         {
-            var (x, cy) = MapPlacement.Cell(i, startY, map.GridSize);
-            db.MapNodes.Add(new MapNode
+            var mapId = group.Key;
+            if (await db.Maps.Where(m => m.Id == mapId).Select(m => (int?)m.GridSize).FirstOrDefaultAsync(ct) is not { } gridSize)
+                continue; // eliminata nel frattempo
+            var maxY = await db.MapNodes.Where(n => n.MapId == mapId).MaxAsync(n => (double?)n.Y, ct);
+            var startY = maxY is { } y ? y + MapPlacement.CellHeight : MapPlacement.Margin;
+
+            var i = 0;
+            foreach (var (_, plan) in group)
             {
-                Id = Guid.CreateVersion7(),
-                MapId = map.Id,
-                Kind = MapNodeKind.Device,
-                DeviceId = toMap[i].Id,
-                X = x,
-                Y = cy,
-                LabelTemplate = MapNode.DefaultLabelTemplate
-            });
+                var (x, cy) = MapPlacement.Cell(i++, startY, gridSize);
+                db.MapNodes.Add(new MapNode
+                {
+                    Id = Guid.CreateVersion7(),
+                    MapId = mapId,
+                    Kind = MapNodeKind.Device,
+                    DeviceId = plan.Id,
+                    X = x,
+                    Y = cy,
+                    LabelTemplate = MapNode.DefaultLabelTemplate
+                });
+            }
         }
     }
+
+    private static async Task<MapReferences> LoadMapReferencesAsync(VedettaVipDbContext db, CancellationToken ct) =>
+        new(await db.Maps.AsNoTracking().Select(m => new MapReferences.MapInfo(m.Id, m.Name, m.ParentMapId)).ToListAsync(ct));
 
     /// <summary>Tutti i dispositivi nel formato dell'import (padre per nome se univoco, altrimenti per indirizzo).</summary>
     private static async Task<FileContentHttpResult> ExportAsync(VedettaVipDbContext db, TimeProvider time, CancellationToken ct)
@@ -308,6 +334,10 @@ public static class DeviceImportEndpoints
             })
             .ToListAsync(ct);
         var byId = devices.ToDictionary(d => d.Id);
+        var mapRefs = await LoadMapReferencesAsync(db, ct);
+        var mapsByDevice = (await db.MapNodes.AsNoTracking().Where(n => n.DeviceId != null)
+                .Select(n => new { DeviceId = n.DeviceId!.Value, n.MapId }).ToListAsync(ct))
+            .ToLookup(n => n.DeviceId, n => mapRefs.Reference(n.MapId));
         var nameCount = devices.GroupBy(d => d.Name, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
         string ParentRef(Guid? id) => id is { } p && byId.TryGetValue(p, out var parent)
@@ -317,7 +347,8 @@ public static class DeviceImportEndpoints
         var csv = DeviceCsv.Write(devices.Select(d => (IReadOnlyList<string>)
         [
             d.Name, d.Address, DeviceCsv.TypeText(d.Type), DeviceCsv.SnmpText(d.SnmpVersion), d.Customer,
-            ParentRef(d.ParentDeviceId), d.Profile, d.Enabled ? "si" : "no"
+            ParentRef(d.ParentDeviceId), d.Profile, d.Enabled ? "si" : "no",
+            string.Join($" {MapReferences.ListSeparator} ", mapsByDevice[d.Id].Order(StringComparer.CurrentCultureIgnoreCase))
         ]));
         var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray(); // BOM: Excel riconosce l'UTF-8
         return TypedResults.File(bytes, "text/csv; charset=utf-8", $"vedettavip-dispositivi-{time.GetLocalNow():yyyyMMdd}.csv");

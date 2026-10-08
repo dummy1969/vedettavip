@@ -14,7 +14,8 @@
         <p class="small text-muted mb-2">
             Intestazione obbligatoria con almeno <b>nome</b> e <b>indirizzo</b>; facoltative <b>tipo</b> (router, switch,
             accesspoint, server, firewall, storage, pc, printer, camera, phone, ups, other), <b>snmp</b> (none, v1, v2c, v3), <b>cliente</b>, <b>padre</b> (nome o indirizzo, anche
-            di una riga del file), <b>profilo_snmp</b>, <b>abilitato</b> (si/no). Separatore ; , o tab. I duplicati si riconoscono
+            di una riga del file), <b>profilo_snmp</b>, <b>abilitato</b> (si/no), <b>mappa</b> (nome, o percorso "Padre/Figlia" se il nome non è
+            univoco; più mappe separate da |; vuota = la mappa scelta qui sotto, o nessuna). Separatore ; , o tab. I duplicati si riconoscono
             dall'indirizzo; negli aggiornamenti una colonna presente sovrascrive il campo anche se vuota.
         </p>
 
@@ -36,7 +37,7 @@
                     <option value="@ImportDuplicateMode.Update">aggiorna il dispositivo</option>
                 </select>
             </label>
-            <label class="small">Aggiungi alla mappa
+            <label class="small">Mappa per le righe senza mappa
                 <select class="form-select form-select-sm" @bind="mapId" @bind:after="Invalidate">
                     <option value="">nessuna</option>
                     @foreach (var m in maps)
@@ -78,7 +79,7 @@
                     <span class="badge @(r.Errors > 0 ? "text-bg-danger" : "text-bg-light border")">@r.Errors con errori</span>
                     @if (r.AddedToMap > 0)
                     {
-                        <span class="small">@r.AddedToMap @(r.DryRun ? "da aggiungere" : "aggiunti") alla mappa</span>
+                        <span class="small">@r.AddedToMap @(r.DryRun ? "nodi da aggiungere" : "nodi aggiunti") sulle mappe</span>
                     }
                     @if (r.Errors > 0)
                     {

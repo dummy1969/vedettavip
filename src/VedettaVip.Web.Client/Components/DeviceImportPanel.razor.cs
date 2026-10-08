@@ -23,9 +23,9 @@ public partial class DeviceImportPanel : IDisposable
     [Parameter] public EventCallback OnClose { get; set; }
 
     private const string Template =
-        "nome;indirizzo;tipo;snmp;cliente;padre;profilo_snmp;abilitato\r\n" +
-        "Router sede;192.0.2.1;router;v2c;Cliente Esempio;;;si\r\n" +
-        "Switch piano 1;192.0.2.2;switch;v2c;Cliente Esempio;Router sede;;si\r\n";
+        "nome;indirizzo;tipo;snmp;cliente;padre;profilo_snmp;abilitato;mappa\r\n" +
+        "Router sede;192.0.2.1;router;v2c;Cliente Esempio;;;si;\r\n" +
+        "Switch piano 1;192.0.2.2;switch;v2c;Cliente Esempio;Router sede;;si;\r\n";
 
     private static readonly string TemplateHref =
         "data:text/csv;charset=utf-8," + Uri.EscapeDataString("﻿" + Template);

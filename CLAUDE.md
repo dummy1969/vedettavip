@@ -650,11 +650,15 @@ usare ASP.NET Core Data Protection o un secret store.
   N eventi)" con conferma: `DELETE ...?purgeEvents=true`, eventi e device nella stessa transazione.
 - Badge "soglie" sui device con soglie di rilevazione specifiche (tooltip con i valori).
 - **Import/export CSV** (`Components/DeviceImportPanel`, `Services/DeviceCsv` + `Endpoints/DeviceImportEndpoints` nell'API,
-  parser coperto da test): colonne nome, indirizzo, tipo, snmp, cliente, padre, profilo_snmp, abilitato (alias italiani e
+  parser coperto da test): colonne nome, indirizzo, tipo, snmp, cliente, padre, profilo_snmp, abilitato, mappa (alias italiani e
   inglesi, separatore `;` `,` o tab rilevato dall'intestazione, UTF-8 o Latin-1). Anteprima riga per riga (nessuna scrittura)
   e conferma in un unico SaveChanges; duplicati per indirizzo saltati o aggiornati (una colonna presente sovrascrive anche se
   vuota); padre per indirizzo o nome, anche di una riga del file, con controllo dei cicli; clienti mancanti creati solo se
-  Admin lo chiede; device aggiunti alla mappa scelta a griglia sotto i nodi esistenti. Massimo 2000 righe / 2 MB.
+  Admin lo chiede. **Mappa** per riga (`Services/MapReferences`, coperto da test): nome senza distinzione di maiuscole, o
+  percorso `Padre/Figlia` se il nome non è univoco, più mappe separate da `|`; cella vuota o colonna assente = mappa scelta
+  nel pannello (o nessuna); mappa inesistente = errore della riga (le mappe non si creano dall'import). Aggiunge soltanto,
+  mai toglie: un device già sulla mappa non viene duplicato. Nodi a griglia sotto quelli esistenti, mappa per mappa.
+  L'export scrive le mappe di ogni device (nome, o percorso se ambiguo). Massimo 2000 righe / 2 MB.
 
 ## Requisiti della mappa (priorità massima)
 
