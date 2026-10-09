@@ -37,12 +37,16 @@ Restano volutamente "netmap"/"NetMap" (non cambiarli):
 - Guide passo-passo verificabili per i task complessi.
 - Prima di modifiche ampie, spiega brevemente il piano; poi esegui.
 - Dopo ogni modifica significativa esegui `dotnet build` e verifica che compili.
+- **Versione**: prima di **ogni commit** incrementa `<Version>` in `Directory.Build.props` (mostrata nella pagina
+  About `/about`, voce "About" del menu): di norma la patch (0.1.1 → 0.1.2); minor o major solo quando lo chiede
+  l'utente. Nel repository privato MyTheDude lo stesso commit porta la stessa versione.
 
 ## Licenza
 
 - **AGPL-3.0-or-later** (`LICENSE`, testo integrale e non modificato da gnu.org), con il termine aggiuntivo 7(b) in
   `NOTICE`: le versioni modificate conservano l'attribuzione nel footer (`MainLayout`: "VedettaVip – © 2026 Marcello
-  Anderlini – AGPL-3.0 – Source code") e nella pagina `/about` ("VedettaVip – created by Marcello Anderlini").
+  Anderlini – AGPL-3.0 – Source code") e nella pagina `/about` ("VedettaVip – created by Marcello Anderlini"; voce "About" del menu, con autori, versione e
+  copyright).
 - **Ogni nuovo file sorgente** (.cs, .razor, .razor.cs, .js, .css, .sh, Dockerfile) inizia con
   `SPDX-License-Identifier: AGPL-3.0-or-later` e `Copyright (C) 2026 Marcello Anderlini` nel commento del linguaggio
   (`//`, `@* *@`, `/* */`, `#` dopo lo shebang). Esclusi file generati (`*.g.cs`), migration EF e `wwwroot/lib`.

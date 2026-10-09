@@ -13,6 +13,9 @@ public partial class About
     private string SourceUrl => App.Value.EffectiveSourceUrl;
     private static string Version => AppOptions.Version;
 
+    /// <summary>Autori e contributori (in ordine di ingresso nel progetto).</summary>
+    private static readonly string[] Authors = ["Marcello Anderlini — ideazione e sviluppo"];
+
     /// <summary>Componente di terze parti mostrato nei crediti (elenco completo in THIRD-PARTY-NOTICES.md).</summary>
     private sealed record Credit(string Name, string Version, string License, string Url, string Use);
 
