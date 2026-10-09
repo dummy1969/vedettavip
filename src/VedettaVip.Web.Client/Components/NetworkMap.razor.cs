@@ -78,6 +78,12 @@ public partial class NetworkMap : IAsyncDisposable
 
     protected override void OnParametersSet() => needsRender = true;
 
+    /// <summary>
+    /// Trascinamento di un nodo o creazione di un link in corso: il componente tiene un riferimento al nodo, quindi
+    /// la pagina non deve sostituire l'elenco dei nodi finché il puntatore non viene rilasciato.
+    /// </summary>
+    public bool IsInteracting => dragNode is not null || linkFrom is not null;
+
     protected override bool ShouldRender()
     {
         var render = needsRender;

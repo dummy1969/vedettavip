@@ -21,7 +21,8 @@ schermo di un NOC e veloce da configurare.
 - **Mappa topologica** (SVG scritto a mano, Blazor WebAssembly): Up verde, Partial arancione, Down rosso, Unknown
   grigio; etichette a template con valori live (`[Name]`, `[Address]`, `[Cpu]`, `[Temp]`, `[Uptime]`…); link disegnati
   come due metà tx/rx, colore e spessore in base all'utilizzo; snap alla griglia, pan, zoom; modalità sola
-  visualizzazione per il NOC e modalità modifica (nodi aggiunti con il clic destro, link tracciati trascinando).
+  visualizzazione per il NOC e modalità modifica (nodi aggiunti con il clic destro, link tracciati trascinando); le
+  modifiche compaiono dal vivo in tutti i browser che hanno la mappa aperta.
 - **Sottomappe** con stato aggregato (il peggiore di tutte le discendenti, aggiornato dal vivo) e badge riassuntivo.
 - **Agente di polling** (processo separato, senza accesso al database): ICMP con isteresi, SNMP v1/v2c, traffico delle
   interfacce dai contatori a 64 bit (ripiego a 32 bit per gli apparati senza `ifXTable`), inventario delle interfacce,
@@ -133,7 +134,7 @@ Blazor-ApexCharts, Caddy. In Docker il Worker ha bisogno solo della capability `
 - Agenti remoti installati nelle reti dei clienti, accesso multi-tenant per cliente (scenario MSP)
 - Accesso esterno (OIDC: Entra ID, Keycloak)
 - Sfondi delle mappe (planimetrie, mappe geografiche) e auto-layout force-directed per i nodi scoperti
-- Propagazione live delle modifiche della mappa agli altri browser aperti; link fra mappe diverse
+- Link fra mappe diverse
 - RouterOS: IPsec, PPP, EoIP/GRE, MNDP; SNMPv3
 - Notifiche via webhook
 

@@ -159,7 +159,7 @@ public static class MapEndpoints
     }
 
     private static async Task<Results<Created<MapDto>, ValidationProblem, ProblemHttpResult>> CreateMapAsync(
-        MapUpsertDto dto, VedettaVipDbContext db, CancellationToken ct)
+        MapUpsertDto dto, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
         if (Validate(dto) is { } errors)
             return TypedResults.ValidationProblem(errors);
@@ -172,12 +172,13 @@ public static class MapEndpoints
         if (await db.TrySaveChangesAsync(ct) is { } saveProblem)
             return saveProblem;
 
+        await notifier.MapsChangedAsync(db, [map.Id]); // selettore delle mappe degli altri browser
         return TypedResults.Created($"/api/maps/{map.Id}",
             new MapDto(map.Id, map.Name, map.ParentMapId, map.BackgroundImage, map.GridSize, [], []));
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateMapAsync(
-        Guid id, MapUpsertDto dto, VedettaVipDbContext db, CancellationToken ct)
+        Guid id, MapUpsertDto dto, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
         var map = await db.Maps.FirstOrDefaultAsync(m => m.Id == id, ct);
         if (map is null)
@@ -191,6 +192,7 @@ public static class MapEndpoints
         if (await db.TrySaveChangesAsync(ct) is { } saveProblem)
             return saveProblem;
 
+        await notifier.MapsChangedAsync(db, [id]); // con la mappa padre: il nome è anche quello del nodo Submap
         return TypedResults.NoContent();
     }
 
@@ -200,7 +202,7 @@ public static class MapEndpoints
     /// nello stesso SaveChanges (i loro nodi Submap stanno su questa mappa e cadono in CASCADE).
     /// </summary>
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteMapAsync(
-        Guid id, VedettaVipDbContext db, CancellationToken ct)
+        Guid id, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
         var map = await db.Maps.FirstOrDefaultAsync(m => m.Id == id, ct);
         if (map is null)
@@ -224,6 +226,8 @@ public static class MapEndpoints
         if (await db.TrySaveChangesAsync(ct) is { } saveProblem)
             return saveProblem;
 
+        // Chi la guarda viene avvisato che non esiste più; le sottomappe perdono il collegamento alla mappa padre
+        await notifier.MapsChangedAsync(db, [id, .. children.Select(c => c.Id)]);
         return TypedResults.NoContent();
     }
 

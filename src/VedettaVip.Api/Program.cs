@@ -45,6 +45,8 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<StatusProcessingLock>();
 builder.Services.AddScoped<DeviceStatusService>();
 builder.Services.AddSingleton<AgentNotifier>();
+builder.Services.AddSingleton<MapNotifier>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<TrafficCache>();
 builder.Services.AddSingleton<RouterOsCache>();
 builder.Services.AddSingleton<MetricWriter>();
@@ -142,12 +144,13 @@ builder.Services.AddValidation();
 builder.Services.AddOpenApi();
 
 // X-Agent-Key non è tra gli header ammessi: il browser non può chiamare gli endpoint agent.
-// AllowCredentials (cookie di sessione) e gli header X-SignalR-* servono al client; X-VedettaVip-Request è la difesa CSRF.
+// AllowCredentials (cookie di sessione) e gli header X-SignalR-* servono al client; X-VedettaVip-Request è la difesa CSRF;
+// X-VedettaVip-Client identifica la scheda del browser nei messaggi MapsChanged.
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddPolicy(WebCorsPolicy, policy => policy
     .WithOrigins(corsOrigins)
     .WithMethods("GET", "POST", "PUT", "DELETE")
-    .WithHeaders("Content-Type", "X-Requested-With", "X-SignalR-User-Agent", CsrfHeaderMiddleware.HeaderName)
+    .WithHeaders("Content-Type", "X-Requested-With", "X-SignalR-User-Agent", CsrfHeaderMiddleware.HeaderName, MapClientHeaders.ClientId)
     .WithExposedHeaders("Location")
     .AllowCredentials()));
 

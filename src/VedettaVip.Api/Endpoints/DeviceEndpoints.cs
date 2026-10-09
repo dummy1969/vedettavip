@@ -89,7 +89,7 @@ public static class DeviceEndpoints
     /// nello stesso SaveChanges: o nascono entrambi o nessuno dei due.
     /// </summary>
     private static async Task<Results<Created<DeviceDto>, ValidationProblem, ProblemHttpResult>> CreateDeviceAsync(
-        DeviceUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, CancellationToken ct, Guid? mapId = null)
+        DeviceUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, CancellationToken ct, Guid? mapId = null)
     {
         var id = Guid.CreateVersion7();
         var errors = await ValidateAsync(db, dto, id, ct) ?? [];
@@ -119,11 +119,13 @@ public static class DeviceEndpoints
             return saveProblem;
 
         await agents.TargetsChangedAsync();
+        if (map is not null)
+            await notifier.MapsChangedAsync(db, [map.Id]);
         return TypedResults.Created($"/api/devices/{device.Id}", ToDto(device));
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateDeviceAsync(
-        Guid id, DeviceUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, CancellationToken ct)
+        Guid id, DeviceUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, CancellationToken ct)
     {
         var device = await db.Devices.FirstOrDefaultAsync(d => d.Id == id, ct);
         if (device is null)
@@ -138,6 +140,7 @@ public static class DeviceEndpoints
             return saveProblem;
 
         await agents.TargetsChangedAsync();
+        await notifier.DevicesChangedAsync(db, [id]); // nome, indirizzo, icona e abilitazione si vedono sulle mappe
         return TypedResults.NoContent();
     }
 

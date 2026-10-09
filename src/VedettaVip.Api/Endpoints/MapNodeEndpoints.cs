@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using VedettaVip.Api.Data;
 using VedettaVip.Api.Security;
 using VedettaVip.Api.Options;
+using VedettaVip.Api.Services;
 using VedettaVip.Shared.Contracts;
 using MapNode = VedettaVip.Api.Data.Entities.MapNode;
 
@@ -48,7 +49,8 @@ public static class MapNodeEndpoints
     }
 
     private static async Task<Results<Created<MapNodeDto>, NotFound, ProblemHttpResult>> CreateNodeAsync(
-        Guid mapId, CreateMapNodeDto dto, VedettaVipDbContext db, TimeProvider time, IOptions<AgentOptions> agentOptions, CancellationToken ct)
+        Guid mapId, CreateMapNodeDto dto, VedettaVipDbContext db, TimeProvider time, IOptions<AgentOptions> agentOptions,
+        MapNotifier notifier, CancellationToken ct)
     {
         if (!await db.Maps.AnyAsync(m => m.Id == mapId, ct))
             return TypedResults.NotFound();
@@ -95,12 +97,15 @@ public static class MapNodeEndpoints
             .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value)))
             .FirstAsync(ct);
 
+        // La sottomappa agganciata cambia mappa padre (collegamento "torna alla mappa padre")
+        await notifier.MapsChangedAsync(db, [mapId, .. Submap(node)]);
         return TypedResults.Created($"/api/maps/{mapId}/nodes/{node.Id}", created);
     }
 
     /// <summary>Modifica etichetta e icona. Tipo, riferimenti e mappa non cambiano (per la mappa: .../move).</summary>
     private static async Task<Results<Ok<MapNodeDto>, NotFound, ProblemHttpResult>> UpdateNodeAsync(
-        Guid mapId, Guid nodeId, UpdateMapNodeDto dto, VedettaVipDbContext db, TimeProvider time, IOptions<AgentOptions> agentOptions, CancellationToken ct)
+        Guid mapId, Guid nodeId, UpdateMapNodeDto dto, VedettaVipDbContext db, TimeProvider time, IOptions<AgentOptions> agentOptions,
+        MapNotifier notifier, CancellationToken ct)
     {
         var node = await db.MapNodes.FirstOrDefaultAsync(n => n.Id == nodeId && n.MapId == mapId, ct);
         if (node is null)
@@ -120,24 +125,29 @@ public static class MapNodeEndpoints
             .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value)))
             .FirstAsync(ct);
 
+        await notifier.MapsChangedAsync(db, [mapId]);
         return TypedResults.Ok(updated);
     }
 
     private static async Task<Results<NoContent, NotFound>> UpdatePositionAsync(
-        Guid mapId, Guid nodeId, NodePositionDto dto, VedettaVipDbContext db, CancellationToken ct)
+        Guid mapId, Guid nodeId, NodePositionDto dto, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
         var updated = await db.MapNodes
             .Where(n => n.Id == nodeId && n.MapId == mapId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(n => n.X, dto.X)
                 .SetProperty(n => n.Y, dto.Y), ct);
+        if (updated == 0)
+            return TypedResults.NotFound();
 
-        return updated == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
+        await notifier.MapsChangedAsync(db, [mapId]);
+        return TypedResults.NoContent();
     }
 
     /// <summary>Sposta il nodo su un'altra mappa. I link del nodo appartengono alla mappa di origine e vengono eliminati.</summary>
     private static async Task<Results<Ok<MapNodeDto>, NotFound, ProblemHttpResult>> MoveNodeAsync(
-        Guid mapId, Guid nodeId, MoveMapNodeDto dto, VedettaVipDbContext db, TimeProvider time, IOptions<AgentOptions> agentOptions, CancellationToken ct)
+        Guid mapId, Guid nodeId, MoveMapNodeDto dto, VedettaVipDbContext db, TimeProvider time, IOptions<AgentOptions> agentOptions,
+        MapNotifier notifier, CancellationToken ct)
     {
         var node = await db.MapNodes.FirstOrDefaultAsync(n => n.Id == nodeId && n.MapId == mapId, ct);
         if (node is null)
@@ -181,11 +191,12 @@ public static class MapNodeEndpoints
             .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value)))
             .FirstAsync(ct);
 
+        await notifier.MapsChangedAsync(db, [mapId, targetMapId, .. Submap(node)]);
         return TypedResults.Ok(moved);
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteNodeAsync(
-        Guid mapId, Guid nodeId, VedettaVipDbContext db, CancellationToken ct)
+        Guid mapId, Guid nodeId, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
         var node = await db.MapNodes.FirstOrDefaultAsync(n => n.Id == nodeId && n.MapId == mapId, ct);
         if (node is null)
@@ -205,8 +216,11 @@ public static class MapNodeEndpoints
         if (await db.TrySaveChangesAsync(ct) is { } saveProblem)
             return saveProblem;
 
+        await notifier.MapsChangedAsync(db, [mapId, .. Submap(node)]);
         return TypedResults.NoContent();
     }
+
+    private static IEnumerable<Guid> Submap(MapNode node) => node.SubmapId is { } id ? [id] : [];
 
     private static string? ValidateKind(MapNodeKind kind, Guid? deviceId, Guid? submapId) => kind switch
     {

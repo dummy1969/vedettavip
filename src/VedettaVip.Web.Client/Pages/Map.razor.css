@@ -17,6 +17,18 @@
     font-size: 0.9rem;
 }
 
+.map-notice {
+    color: #055160;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.map-notice .btn-close {
+    font-size: 0.6rem;
+}
+
 .map-live {
     font-size: 0.8rem;
     padding: 0 0.5rem;

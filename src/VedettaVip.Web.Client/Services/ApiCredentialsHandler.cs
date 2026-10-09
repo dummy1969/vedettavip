@@ -3,21 +3,27 @@
 
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Http;
+using VedettaVip.Shared.Contracts;
 
 namespace VedettaVip.Web.Client.Services;
 
 /// <summary>
 /// Per ogni chiamata all'API: invia il cookie di sessione (credentials: include, l'API è su un'altra origine in
-/// sviluppo) e l'header anti-CSRF X-VedettaVip-Request. Su 401 porta alla pagina di accesso, tornando poi alla pagina corrente.
+/// sviluppo), l'header anti-CSRF X-VedettaVip-Request e l'id della scheda (X-VedettaVip-Client, riportato nei messaggi
+/// MapsChanged). Su 401 porta alla pagina di accesso, tornando poi alla pagina corrente.
 /// </summary>
 public sealed class ApiCredentialsHandler(NavigationManager navigation) : DelegatingHandler(new HttpClientHandler())
 {
     public const string CsrfHeader = "X-VedettaVip-Request";
 
+    /// <summary>Id casuale di questa scheda del browser (un'istanza WebAssembly per scheda).</summary>
+    public static readonly string ClientId = Guid.NewGuid().ToString("N");
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
         request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
         request.Headers.TryAddWithoutValidation(CsrfHeader, "1");
+        request.Headers.TryAddWithoutValidation(MapClientHeaders.ClientId, ClientId);
 
         var response = await base.SendAsync(request, ct);
 

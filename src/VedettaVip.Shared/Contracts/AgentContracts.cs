@@ -188,6 +188,8 @@ public static class StatusHubMessages
     public const string RouterOsUpdated = "RouterOsUpdated";
     /// <summary>Argomento: IReadOnlyList&lt;InterfaceTrafficDto&gt; (i campioni dell'ultimo report di un agente).</summary>
     public const string TrafficUpdated = "TrafficUpdated";
+    /// <summary>Argomento: MapsChangedDto (mappe modificate da ricaricare).</summary>
+    public const string MapsChanged = "MapsChanged";
 }
 
 /// <summary>

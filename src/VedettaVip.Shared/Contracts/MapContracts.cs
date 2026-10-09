@@ -104,3 +104,17 @@ public sealed record MapLinkUpsertDto(
     [property: Range(1L, long.MaxValue, ErrorMessage = "SpeedBps deve essere maggiore di 0.")] long SpeedBps = 1_000_000_000,
     /// <summary>Soglia di utilizzo in %: null = generale, 0 = disattivata.</summary>
     [property: Range(0, 100, ErrorMessage = "Soglia di utilizzo: tra 0 (disattivata) e 100 %.")] int? UtilizationThresholdPct = null);
+
+/// <summary>
+/// Messaggio SignalR "MapsChanged" sull'hub /hubs/status: mappe modificate (nodi, link, nome, device mostrati, manutenzione).
+/// I browser che le hanno aperte le ricaricano. MapIds null = tutte le mappe.
+/// </summary>
+/// <param name="ClientId">Header <see cref="MapClientHeaders.ClientId"/> della richiesta che ha fatto la modifica:
+/// la scheda del browser che l'ha fatta la riconosce e non ricarica (ha già il risultato).</param>
+public sealed record MapsChangedDto(IReadOnlyList<Guid>? MapIds, string? ClientId);
+
+public static class MapClientHeaders
+{
+    /// <summary>Id casuale della scheda del browser, inviato con ogni chiamata all'API e riportato in <see cref="MapsChangedDto"/>.</summary>
+    public const string ClientId = "X-VedettaVip-Client";
+}

@@ -37,7 +37,8 @@ public static class MaintenanceEndpoints
     }
 
     private static async Task<Results<Created<MaintenanceWindowDto>, ValidationProblem>> CreateAsync(
-        MaintenanceWindowUpsertDto dto, VedettaVipDbContext db, NotificationSettingsService settings, TimeProvider time, CancellationToken ct)
+        MaintenanceWindowUpsertDto dto, VedettaVipDbContext db, NotificationSettingsService settings, TimeProvider time,
+        MapNotifier notifier, CancellationToken ct)
     {
         if (await ValidateAsync(db, dto, ct) is { } errors)
             return TypedResults.ValidationProblem(errors);
@@ -46,11 +47,13 @@ public static class MaintenanceEndpoints
         Apply(window, dto);
         db.MaintenanceWindows.Add(window);
         await db.SaveChangesAsync(ct);
+        await notifier.AllMapsChangedAsync(); // bordo dei nodi in manutenzione
         return TypedResults.Created($"/api/maintenance/{window.Id}", await LoadDtoAsync(db, settings, time, window.Id, ct));
     }
 
     private static async Task<Results<Ok<MaintenanceWindowDto>, NotFound, ValidationProblem>> UpdateAsync(
-        Guid id, MaintenanceWindowUpsertDto dto, VedettaVipDbContext db, NotificationSettingsService settings, TimeProvider time, CancellationToken ct)
+        Guid id, MaintenanceWindowUpsertDto dto, VedettaVipDbContext db, NotificationSettingsService settings, TimeProvider time,
+        MapNotifier notifier, CancellationToken ct)
     {
         var window = await db.MaintenanceWindows.FirstOrDefaultAsync(w => w.Id == id, ct);
         if (window is null)
@@ -60,13 +63,18 @@ public static class MaintenanceEndpoints
 
         Apply(window, dto);
         await db.SaveChangesAsync(ct);
+        await notifier.AllMapsChangedAsync();
         return TypedResults.Ok(await LoadDtoAsync(db, settings, time, id, ct));
     }
 
-    private static async Task<Results<NoContent, NotFound>> DeleteAsync(Guid id, VedettaVipDbContext db, CancellationToken ct)
+    private static async Task<Results<NoContent, NotFound>> DeleteAsync(Guid id, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
         var deleted = await db.MaintenanceWindows.Where(w => w.Id == id).ExecuteDeleteAsync(ct);
-        return deleted == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
+        if (deleted == 0)
+            return TypedResults.NotFound();
+
+        await notifier.AllMapsChangedAsync();
+        return TypedResults.NoContent();
     }
 
     private static void Apply(MaintenanceWindow w, MaintenanceWindowUpsertDto dto)

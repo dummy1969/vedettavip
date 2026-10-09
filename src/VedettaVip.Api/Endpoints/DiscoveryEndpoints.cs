@@ -215,7 +215,7 @@ public static class DiscoveryEndpoints
     /// è ancora valido (es. un link già disegnato nel frattempo viene saltato con un avviso).
     /// </summary>
     private static async Task<Results<Ok<DiscoveryAcceptResultDto>, ValidationProblem, ProblemHttpResult>> AcceptAsync(
-        DiscoveryAcceptDto dto, VedettaVipDbContext db, AgentNotifier agents, CancellationToken ct)
+        DiscoveryAcceptDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, CancellationToken ct)
     {
         var (plan, _, _) = await PlanAsync(db, ct);
         var proposals = plan.Devices.ToDictionary(d => d.Key);
@@ -316,10 +316,14 @@ public static class DiscoveryEndpoints
 
         if (errors.Count > 0)
             return TypedResults.ValidationProblem(errors);
+        var changedMaps = db.ChangeTracker.Entries<Data.Entities.MapNode>().Where(e => e.State == EntityState.Added).Select(e => e.Entity.MapId)
+            .Concat(db.ChangeTracker.Entries<MapLink>().Where(e => e.State == EntityState.Added).Select(e => e.Entity.MapId))
+            .ToList();
         if (await db.TrySaveChangesAsync(ct) is { } problem)
             return problem;
         if (devicesCreated > 0 || linksCreated > 0)
             await agents.TargetsChangedAsync();
+        await notifier.MapsChangedAsync(db, changedMaps);
         return TypedResults.Ok(new DiscoveryAcceptResultDto(devicesCreated, linksCreated, warnings));
     }
 

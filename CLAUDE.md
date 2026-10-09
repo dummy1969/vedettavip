@@ -351,7 +351,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | POST | `/api/auth/login`, `/login-2fa`, `/login-recovery` | password → `LoginResultDto` (RequiresTwoFactor); codice dell'app o di recupero |
 | GET/POST | `/api/auth/2fa`, `/2fa/setup`, `/enable`, `/recovery-codes`, `/disable`, `/forget-browser` | verifica in due passaggi dell'utente corrente |
 | POST | `/api/users/{id}/reset-2fa` | azzera la verifica in due passaggi di un altro utente; Admin |
-| WS | `/hubs/status` | SignalR, server → client `DeviceStateChanged` (`DeviceStateChangedDto`), `TrafficUpdated` (`InterfaceTrafficDto[]`) |
+| WS | `/hubs/status` | SignalR, server → client `DeviceStateChanged` (`DeviceStateChangedDto`), `TrafficUpdated` (`InterfaceTrafficDto[]`), `RouterOsUpdated`, `MapsChanged` (`MapsChangedDto`) |
 | POST | `/api/agent/traffic` | **X-Agent-Key**; `AgentTrafficReportDto` → 204 |
 | GET | `/api/metrics/interface` | `?deviceId&ifIndex&from&to` (ISO 8601, default ultime 6 h, max 731 giorni) → `InterfaceSeriesDto` (Source, BucketSeconds, punti avg/max in/out) |
 | GET | `/api/metrics/device` | `?deviceId&from&to` → `DeviceLatencySeriesDto` (RTT medio/max, perdita %) |
@@ -632,7 +632,22 @@ usare ASP.NET Core Data Protection o un secret store.
 - JS: `Components/NetworkMap.razor.js` (`getBoundingClientRect`, per convertire il clic destro in coordinate mappa) e
   `Components/NodeMenu.razor.js` (menu dentro la finestra, copia negli appunti). Pan, drag e link usano solo i delta del
   puntatore.
-- Le modifiche non sono ancora propagate agli altri browser aperti sulla stessa mappa (servirà un messaggio SignalR).
+- **Modifiche dal vivo negli altri browser** (`Services/MapNotifier` nell'API, coperto da test): dopo ogni scrittura riuscita
+  su mappe (crea, rinomina, elimina), nodi (crea, etichetta/icona, posizione, sposta, elimina) e link, l'API invia
+  `MapsChanged` (`MapsChangedDto`: MapIds + ClientId) su `/hubs/status`. Alle mappe toccate si aggiungono le **antenate**
+  (i loro nodi Submap mostrano stato aggregato e membri); spostare o agganciare/staccare una sottomappa include anche la
+  sottomappa (cambia la mappa padre). Lo inviano anche: modifica di un device (mappe in cui è un nodo), creazione con
+  `?mapId=`, Scoperta "Aggiungi selezionati", import CSV (mappe dei device creati o aggiornati) e finestre di
+  manutenzione (MapIds null = tutte le mappe, bordo dei nodi in manutenzione).
+  - **Mittente**: ogni scheda del browser genera un id (`ApiCredentialsHandler.ClientId`) e lo manda in ogni chiamata con
+    l'header `X-VedettaVip-Client` (ammesso dal CORS; nel messaggio solo se `[A-Za-z0-9-]{1,64}`). La scheda che ha fatto
+    la modifica la ignora: ha già il risultato.
+  - **Client** (`Pages/Map`): il selettore delle mappe si aggiorna sempre; la mappa aperta, se è tra quelle cambiate, con
+    una ricarica "morbida" (`RefreshFromServerAsync`) che conserva vista, zoom, selezione, pannello di modifica (il form
+    si azzera solo se cambia la selezione) e grafici, se nodo o link esistono ancora. Attesa di 300 ms per raccogliere i
+    messaggi di una stessa operazione; durante il trascinamento di un nodo o di un link (`NetworkMap.IsInteracting`) la
+    ricarica aspetta il rilascio. Mappa eliminata da un altro utente: si apre la mappa iniziale con un avviso.
+  - Una notifica persa non è grave: alla riconnessione dell'hub la mappa viene comunque ricaricata.
 - **"+ Nuova mappa"** nell'intestazione (Admin/Operatore, anche fuori da Modifica e senza mappe): crea una mappa
   principale e la apre.
 - **Selettore delle mappe** nell'intestazione: tutte le mappe ad albero (radici per nome, sottomappe rientrate, numero
@@ -841,7 +856,7 @@ OID utili:
       di nodi sono ammessi (uplink ridondanti).
 - [x] Modalità modifica / sola visualizzazione sulla mappa: aggiunta nodi (clic destro), link trascinando tra
       nodi, proprietà ed eliminazione dal pannello laterale, `PUT` di etichetta e icona del nodo.
-      Manca: propagazione live delle modifiche agli altri client.
+      Modifiche propagate dal vivo agli altri browser (`MapsChanged`).
 - [x] Pagina di gestione dispositivi `/devices` (elenco con stato, ricerca, filtri, crea/modifica/elimina).
 - [x] Autenticazione utenti (account locali, ruoli Admin/Operatore/Lettura, setup del primo admin con codice nel
       log, blocco tentativi, CSRF, gestione utenti), verifica in due passaggi TOTP facoltativa con codici di recupero.

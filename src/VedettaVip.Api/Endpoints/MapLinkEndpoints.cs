@@ -41,7 +41,7 @@ public static class MapLinkEndpoints
     }
 
     private static async Task<Results<Created<MapLinkDto>, NotFound, ValidationProblem, ProblemHttpResult>> CreateLinkAsync(
-        Guid mapId, MapLinkUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, CancellationToken ct)
+        Guid mapId, MapLinkUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, CancellationToken ct)
     {
         if (!await db.Maps.AnyAsync(m => m.Id == mapId, ct))
             return TypedResults.NotFound();
@@ -58,11 +58,12 @@ public static class MapLinkEndpoints
 
         if (link.IfIndex is not null)
             await agents.TargetsChangedAsync();
+        await notifier.MapsChangedAsync(db, [mapId]);
         return TypedResults.Created($"/api/maps/{mapId}/links/{link.Id}", ToDto(link));
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateLinkAsync(
-        Guid mapId, Guid linkId, MapLinkUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, CancellationToken ct)
+        Guid mapId, Guid linkId, MapLinkUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, CancellationToken ct)
     {
         var link = await db.MapLinks.FirstOrDefaultAsync(l => l.Id == linkId && l.MapId == mapId, ct);
         if (link is null)
@@ -79,17 +80,22 @@ public static class MapLinkEndpoints
 
         if (interfaceChanged)
             await agents.TargetsChangedAsync();
+        await notifier.MapsChangedAsync(db, [mapId]);
         return TypedResults.NoContent();
     }
 
     private static async Task<Results<NoContent, NotFound>> DeleteLinkAsync(
-        Guid mapId, Guid linkId, VedettaVipDbContext db, CancellationToken ct)
+        Guid mapId, Guid linkId, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
         var deleted = await db.MapLinks
             .Where(l => l.Id == linkId && l.MapId == mapId)
             .ExecuteDeleteAsync(ct);
 
-        return deleted == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
+        if (deleted == 0)
+            return TypedResults.NotFound();
+
+        await notifier.MapsChangedAsync(db, [mapId]);
+        return TypedResults.NoContent();
     }
 
     private static MapLinkDto ToDto(MapLink l) => new(l.Id, l.FromNodeId, l.ToNodeId, l.DeviceId, l.IfIndex, l.SpeedBps, l.UtilizationThresholdPct);

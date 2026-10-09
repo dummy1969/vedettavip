@@ -17,6 +17,8 @@ namespace VedettaVip.Web.Client.Pages;
 public partial class Map : IAsyncDisposable
 {
     private static readonly TimeSpan AgentCheckInterval = TimeSpan.FromSeconds(60);
+    /// <summary>Attesa prima di ricaricare dopo un MapsChanged: i messaggi di una stessa operazione arrivano insieme.</summary>
+    private static readonly TimeSpan MapRefreshDelay = TimeSpan.FromMilliseconds(300);
 
     [Inject] private VedettaVipApiClient Api { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
@@ -49,6 +51,12 @@ public partial class Map : IAsyncDisposable
     private bool backgroundStarted;
     private HubConnection? hub;
     private bool liveConnected;
+
+    // Modifiche fatte da altri browser (MapsChanged): ricarica in attesa, e se riguarda anche la mappa aperta
+    private bool mapRefreshScheduled;
+    private bool mapRefreshCurrent;
+    // Avviso informativo nell'intestazione (es. mappa eliminata da un altro utente)
+    private string? mapNotice;
 
     // Modalità modifica (default: sola visualizzazione, adatta ai monitor NOC)
     private NetworkMap? mapView;
@@ -228,6 +236,7 @@ public partial class Map : IAsyncDisposable
 
     private void OnMapSelected(ChangeEventArgs e)
     {
+        mapNotice = null;
         if (Guid.TryParse(e.Value?.ToString(), out var id) && id != map?.Id)
             Navigation.NavigateTo($"map/{id}");
     }
@@ -425,6 +434,8 @@ public partial class Map : IAsyncDisposable
             StateHasChanged();
         }));
 
+        hub.On<MapsChangedDto>(StatusHubMessages.MapsChanged, change => InvokeAsync(() => OnMapsChangedAsync(change)));
+
         hub.Reconnecting += _ => SetLiveAsync(false);
         hub.Reconnected += async _ =>
         {
@@ -452,6 +463,100 @@ public partial class Map : IAsyncDisposable
                 await Task.Delay(policy.Delay(attempt), ct);
             }
         }
+    }
+
+    /// <summary>
+    /// Mappe modificate da un altro browser (o da Dispositivi, Scoperta, import, Manutenzione). Le modifiche fatte da
+    /// questa scheda sono già applicate e vengono ignorate. Il selettore delle mappe si aggiorna sempre, la mappa
+    /// aperta solo se è tra quelle cambiate (null = tutte).
+    /// </summary>
+    private async Task OnMapsChangedAsync(MapsChangedDto change)
+    {
+        if (change.ClientId == ApiCredentialsHandler.ClientId)
+            return;
+
+        if (map is not null && (change.MapIds is null || change.MapIds.Contains(map.Id)))
+            mapRefreshCurrent = true;
+        if (mapRefreshScheduled)
+            return; // la ricarica già in attesa raccoglie anche questo messaggio
+
+        mapRefreshScheduled = true;
+        try
+        {
+            await Task.Delay(MapRefreshDelay, cts.Token);
+            // Durante un trascinamento la mappa tiene il riferimento al nodo: si aspetta il rilascio
+            while (mapView?.IsInteracting == true)
+                await Task.Delay(MapRefreshDelay, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // Azzerati prima delle chiamate: un messaggio che arriva durante il caricamento programma un'altra ricarica
+        var current = mapRefreshCurrent;
+        mapRefreshScheduled = mapRefreshCurrent = false;
+        await RefreshFromServerAsync(current);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Ricarica "morbida": a differenza di <see cref="ReloadAsync"/> conserva vista, zoom, selezione, pannello di modifica
+    /// e grafici aperti (se nodo o link esistono ancora). Se la mappa aperta è stata eliminata apre quella iniziale.
+    /// </summary>
+    private async Task RefreshFromServerAsync(bool current)
+    {
+        try
+        {
+            allMaps = await Api.GetMapsAsync(cts.Token);
+            if (!current || map is null)
+                return;
+
+            var dto = await Api.GetMapAsync(map.Id, cts.Token);
+            if (dto is null)
+            {
+                await MapDeletedElsewhereAsync(map.Name);
+                return;
+            }
+
+            parentName = dto.ParentMapId is { } parentId ? allMaps.FirstOrDefault(m => m.Id == parentId)?.Name : null;
+            nodes = dto.Nodes.Select(ToModel).ToList();
+            foreach (var node in nodes)
+                ApplyRouterOs(node);
+            links = dto.Links.Select(ToModel).ToList();
+            ApplyTraffic();
+            map = dto;
+
+            bool Exists(Guid id) => nodes.Exists(n => n.Id == id) || links.Exists(l => l.Id == id);
+            if (selectedId is { } s && !Exists(s))
+                selectedId = null;
+            if (chartLinkId is { } cl && !Exists(cl))
+                chartLinkId = null;
+            if (chartNodeId is { } cn && !Exists(cn))
+                chartNodeId = null;
+            if (nodeMenu is { } menu)
+                nodeMenu = nodes.Find(n => n.Id == menu.Node.Id) is { } menuNode ? menu with { Node = menuNode } : null;
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        catch (HttpRequestException ex)
+        {
+            // Non si tocca la mappa mostrata: la prossima modifica o la riconnessione dell'hub la riallineano
+            Logger.LogWarning("Mappa non ricaricata dopo una modifica esterna: {Message}", ex.Message);
+        }
+    }
+
+    private async Task MapDeletedElsewhereAsync(string name)
+    {
+        editMode = false;
+        loadedMapId = null;
+        try { await JS.InvokeVoidAsync("localStorage.removeItem", LastMapKey); } catch (JSException) { }
+        if (MapId is null)
+            await ReloadAsync(); // già su /map: si ricarica la mappa iniziale
+        else
+            Navigation.NavigateTo("map");
+        mapNotice = $"La mappa \"{name}\" è stata eliminata da un altro utente: aperta la mappa iniziale.";
     }
 
     private Task SetLiveAsync(bool connected) => InvokeAsync(() =>
@@ -532,6 +637,7 @@ public partial class Map : IAsyncDisposable
 
     private void ToggleEditMode()
     {
+        mapNotice = null;
         editMode = !editMode;
         nodeMenu = null;
         tool = MapTool.Move;

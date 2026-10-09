@@ -20,7 +20,7 @@ look at on a NOC screen and quick to set up.
 - **Topology map** (hand-written SVG, Blazor WebAssembly): Up green, Partial orange, Down red, Unknown grey; label
   templates with live values (`[Name]`, `[Address]`, `[Cpu]`, `[Temp]`, `[Uptime]`…); links drawn as tx/rx halves,
   coloured and sized by utilisation; snap to grid, pan, zoom; view-only mode for NOC screens and edit mode (add nodes
-  with right click, draw links by dragging).
+  with right click, draw links by dragging); edits appear live in every browser that has the map open.
 - **Submaps** with aggregated state (worst state of all descendants, updated live) and a summary badge.
 - **Polling agent** (separate process, no database access): ICMP with hysteresis, SNMP v1/v2c, interface traffic from
   64-bit counters (32-bit fallback for devices without `ifXTable`), interface inventory, configurable thresholds.
@@ -130,7 +130,7 @@ Blazor-ApexCharts, Caddy. In Docker the Worker needs only the `NET_RAW` capabili
 - Remote agents installed in customer networks, multi-tenant access per customer (MSP scenario)
 - External login (OIDC: Entra ID, Keycloak)
 - Map backgrounds (floor plans, geographic maps) and force-directed auto-layout for discovered nodes
-- Live propagation of map edits to other open browsers; links between different maps
+- Links between different maps
 - RouterOS: IPsec, PPP, EoIP/GRE, MNDP; SNMPv3
 - Webhook notifications
 

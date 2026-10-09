@@ -35,6 +35,11 @@
     {
         <span class="map-error">@saveError</span>
     }
+    @if (mapNotice is not null)
+    {
+        <span class="map-notice">@mapNotice <button type="button" class="btn-close" aria-label="Chiudi"
+                                                    @onclick="() => mapNotice = null"></button></span>
+    }
 
     <div class="map-tools">
         @if (User.CanEdit && mapAction != MapAction.New)
