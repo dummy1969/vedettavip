@@ -333,7 +333,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | POST | `/api/settings/notifications/test-email`, `/test-telegram` | prova con le impostazioni salvate; 502 con l'errore del server |
 | GET/POST, PUT/DELETE | `/api/customers`, `/api/customers/{id}` | clienti (DELETE: device senza cliente, iscrizioni eliminate) |
 | GET/POST, PUT/DELETE | `/api/contacts`, `/api/contacts/{id}` | contatti con iscrizioni (sostituite per intero nel PUT) |
-| GET | `/api/events` | `?unacknowledgedOnly&since&before&limit&deviceId&customerId&noCustomer` (max 1000; `noCustomer` = device senza cliente ed eventi degli agenti) → `EventDto[]` con esito delle notifiche |
+| GET | `/api/events` | `?unacknowledgedOnly&since&before&limit&deviceId&customerId&noCustomer&severity` (max 1000; `noCustomer` = device senza cliente ed eventi degli agenti) → `EventDto[]` con esito delle notifiche |
 | GET/POST, PUT/DELETE | `/api/snmp-credentials`, `/api/snmp-credentials/{id}` | profili SNMP (`SnmpCredentialDto` senza community; upsert con community write-only, vuota = invariata); DELETE 409 se in uso; scritture Admin |
 | PUT | `/api/snmp-credentials/default` | `SnmpDefaultDto` (profilo predefinito, null = community del Worker) |
 | GET/PUT | `/api/settings/dashboard` | `DashboardSettingsDto` (ore di eventi recenti nella Home, 1–168, default 4); PUT Admin |
@@ -577,7 +577,7 @@ usare ASP.NET Core Data Protection o un secret store.
   Gli eventi Info nascono già presi in carico e nella pagina non hanno il bottone. "Riapri" azzera anche ResolvedAt. Non ferma le notifiche (non ci
   sono ancora promemoria) e non registra chi l'ha presa in carico (manca l'autenticazione).
 - **UI**: Impostazioni → Notifiche (SMTP, Telegram, ritardo, fuso, indirizzo di VedettaVip, "Salva e invia prova");
-  pagine **Contatti** (con iscrizioni), **Clienti**, **Eventi** (filtri per cliente, dispositivo, periodo e "da prendere in carico", presa in carico,
+  pagine **Contatti** (con iscrizioni), **Clienti**, **Eventi** (filtri per cliente, dispositivo, tipo, periodo e "da prendere in carico", presa in carico,
   esito degli invii con dettaglio per canale, tentativi ed errore); campo Cliente nel pannello del device.
 
 ### Impostazioni (solo Admin, `/settings/...`)

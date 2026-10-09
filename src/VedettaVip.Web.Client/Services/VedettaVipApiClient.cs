@@ -175,14 +175,17 @@ public sealed class VedettaVipApiClient(HttpClient http)
 
     /// <summary>
     /// Eventi più recenti; <paramref name="before"/> per caricare i precedenti. Filtri facoltativi per device, cliente
-    /// (<paramref name="noCustomer"/> = device senza cliente ed eventi degli agenti) e inizio del periodo.
+    /// (<paramref name="noCustomer"/> = device senza cliente ed eventi degli agenti), tipo e inizio del periodo.
     /// </summary>
     public async Task<IReadOnlyList<EventDto>> GetEventsAsync(bool unacknowledgedOnly, DateTimeOffset? before, int limit, CancellationToken ct,
-        DateTimeOffset? since = null, Guid? deviceId = null, Guid? customerId = null, bool noCustomer = false)
+        DateTimeOffset? since = null, Guid? deviceId = null, Guid? customerId = null, bool noCustomer = false,
+        EventSeverity? severity = null)
     {
         var url = $"api/events?unacknowledgedOnly={(unacknowledgedOnly ? "true" : "false")}&limit={limit}";
         if (deviceId is { } d)
             url += $"&deviceId={d}";
+        if (severity is { } sev)
+            url += $"&severity={sev}";
         if (customerId is { } c)
             url += $"&customerId={c}";
         else if (noCustomer)

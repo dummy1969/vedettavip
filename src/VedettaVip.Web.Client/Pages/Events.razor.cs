@@ -50,6 +50,11 @@ public partial class Events : IDisposable
     private IReadOnlyList<DeviceDto> devices = [];
     private string customerFilter = "";
     private Guid? deviceFilter;
+    private string severityFilter = ""; // stringa: il select legato a un enum nullable non è affidabile
+
+    /// <summary>Tipi del filtro, dal più grave.</summary>
+    private static readonly EventSeverity[] Severities =
+        [EventSeverity.Critical, EventSeverity.Error, EventSeverity.Warning, EventSeverity.Info];
     private string range = AllRange;
     private DateTime? customFrom; // ora locale del browser (input datetime-local)
     private DateTime? customTo;   // vuoto = fino ad adesso
@@ -143,12 +148,13 @@ public partial class Events : IDisposable
         await ReloadAsync();
     }
 
-    private bool FiltersActive => customerFilter.Length > 0 || deviceFilter is not null || range != AllRange;
+    private bool FiltersActive => customerFilter.Length > 0 || deviceFilter is not null || severityFilter.Length > 0 || range != AllRange;
 
     private async Task ClearFiltersAsync()
     {
         customerFilter = "";
         deviceFilter = null;
+        severityFilter = "";
         range = AllRange;
         customFrom = customTo = null;
         await ReloadAsync();
@@ -175,7 +181,8 @@ public partial class Events : IDisposable
         {
             Guid? customerId = Guid.TryParse(customerFilter, out var cid) ? cid : null;
             var page = await Api.GetEventsAsync(unacknowledgedOnly, replace ? before ?? Until() : before, limit, cts.Token,
-                since: Since(), deviceId: deviceFilter, customerId: customerId, noCustomer: customerFilter == NoneFilter);
+                since: Since(), deviceId: deviceFilter, customerId: customerId, noCustomer: customerFilter == NoneFilter,
+                severity: Enum.TryParse<EventSeverity>(severityFilter, out var sev) ? sev : null);
             if (generation != loadGeneration)
                 return;
             if (replace || events is null)

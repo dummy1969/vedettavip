@@ -41,6 +41,13 @@
             <option value="@d.Id">@d.Name (@d.Address)</option>
         }
     </select>
+    <select class="form-select form-select-sm" aria-label="Tipo" @bind="severityFilter" @bind:after="ReloadAsync">
+        <option value="">Tutti i tipi</option>
+        @foreach (var s in Severities)
+        {
+            <option value="@s">@SeverityText(s)</option>
+        }
+    </select>
     <select class="form-select form-select-sm" aria-label="Periodo" @bind="range" @bind:after="SetRangeAsync">
         @foreach (var r in Ranges)
         {
@@ -78,7 +85,7 @@ else
     <div class="events-table">
         <table class="table table-sm align-middle">
             <thead>
-                <tr><th>Quando</th><th></th><th>Dispositivo</th><th>Cliente</th><th>Cambio</th><th>Notifica</th><th></th></tr>
+                <tr><th>Quando</th><th>Tipo</th><th>Dispositivo</th><th>Cliente</th><th>Cambio</th><th>Notifica</th><th></th></tr>
             </thead>
             <tbody>
                 @foreach (var e in events)
