@@ -578,8 +578,7 @@ usare ASP.NET Core Data Protection o un secret store.
   è la lista di lavoro del NOC. **Chiusura automatica al ripristino**: quando un device torna Up da Down/Partial,
   `DeviceStatusService` chiude i suoi eventi di problema aperti (Acknowledged + `ResolvedAt`), nella stessa transazione
   del salvataggio (chiude anche un Down arrivato nello stesso report); idem per `AgentOffline` al ritorno online.
-  Gli eventi Info nascono già presi in carico e nella pagina non hanno il bottone. "Riapri" azzera anche ResolvedAt. Non ferma le notifiche (non ci
-  sono ancora promemoria) e non registra chi l'ha presa in carico (manca l'autenticazione).
+  Gli eventi Info nascono già presi in carico e nella pagina non hanno il bottone. "Riapri" azzera anche ResolvedAt.
 - **UI**: Impostazioni → Notifiche (SMTP, Telegram, ritardo, fuso, indirizzo di VedettaVip, "Salva e invia prova");
   pagine **Contatti** (con iscrizioni), **Clienti**, **Eventi** (filtri per cliente, dispositivo, tipo, periodo e "da prendere in carico", presa in carico,
   esito degli invii con dettaglio per canale, tentativi ed errore); campo Cliente nel pannello del device.
