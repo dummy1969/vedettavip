@@ -25,6 +25,41 @@
     nascono già chiusi.
 </p>
 
+<div class="events-filters">
+    <select class="form-select form-select-sm" aria-label="Cliente" value="@customerFilter" @onchange="SetCustomerAsync">
+        <option value="">Tutti i clienti</option>
+        <option value="@NoneFilter">Senza cliente</option>
+        @foreach (var c in customers)
+        {
+            <option value="@c.Id">@c.Name</option>
+        }
+    </select>
+    <select class="form-select form-select-sm" aria-label="Dispositivo" value="@(deviceFilter?.ToString() ?? "")" @onchange="SetDeviceAsync">
+        <option value="">Tutti i dispositivi</option>
+        @foreach (var d in DeviceChoices())
+        {
+            <option value="@d.Id">@d.Name (@d.Address)</option>
+        }
+    </select>
+    <select class="form-select form-select-sm" aria-label="Periodo" @bind="range" @bind:after="SetRangeAsync">
+        @foreach (var r in Ranges)
+        {
+            <option value="@r.Key">@r.Label</option>
+        }
+    </select>
+    @if (range == CustomRange)
+    {
+        <label class="small align-self-center" for="ev-from">Dal</label>
+        <input id="ev-from" class="form-control form-control-sm" type="datetime-local" @bind="customFrom" @bind:after="ReloadAsync" />
+        <label class="small align-self-center" for="ev-to">al</label>
+        <input id="ev-to" class="form-control form-control-sm" type="datetime-local" @bind="customTo" @bind:after="ReloadAsync" />
+    }
+    @if (FiltersActive)
+    {
+        <button class="btn btn-sm btn-link" @onclick="ClearFiltersAsync">Azzera filtri</button>
+    }
+</div>
+
 @if (error is not null)
 {
     <div class="alert alert-danger py-1 px-2 small">@error</div>
@@ -36,14 +71,14 @@
 }
 else if (events.Count == 0)
 {
-    <p class="text-muted small">Nessun evento.</p>
+    <p class="text-muted small">@(FiltersActive || unacknowledgedOnly ? "Nessun evento con questi filtri." : "Nessun evento.")</p>
 }
 else
 {
     <div class="events-table">
         <table class="table table-sm align-middle">
             <thead>
-                <tr><th>Quando</th><th></th><th>Oggetto</th><th>Cliente</th><th>Cambio</th><th>Notifica</th><th></th></tr>
+                <tr><th>Quando</th><th></th><th>Dispositivo</th><th>Cliente</th><th>Cambio</th><th>Notifica</th><th></th></tr>
             </thead>
             <tbody>
                 @foreach (var e in events)

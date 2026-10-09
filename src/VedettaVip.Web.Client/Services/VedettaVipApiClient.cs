@@ -173,11 +173,20 @@ public sealed class VedettaVipApiClient(HttpClient http)
     public Task DeleteContactAsync(Guid id, CancellationToken ct) =>
         SendAsync(HttpMethod.Delete, $"api/contacts/{id}", null, ct);
 
-    /// <summary>Eventi più recenti; <paramref name="before"/> per caricare i precedenti.</summary>
+    /// <summary>
+    /// Eventi più recenti; <paramref name="before"/> per caricare i precedenti. Filtri facoltativi per device, cliente
+    /// (<paramref name="noCustomer"/> = device senza cliente ed eventi degli agenti) e inizio del periodo.
+    /// </summary>
     public async Task<IReadOnlyList<EventDto>> GetEventsAsync(bool unacknowledgedOnly, DateTimeOffset? before, int limit, CancellationToken ct,
-        DateTimeOffset? since = null)
+        DateTimeOffset? since = null, Guid? deviceId = null, Guid? customerId = null, bool noCustomer = false)
     {
         var url = $"api/events?unacknowledgedOnly={(unacknowledgedOnly ? "true" : "false")}&limit={limit}";
+        if (deviceId is { } d)
+            url += $"&deviceId={d}";
+        if (customerId is { } c)
+            url += $"&customerId={c}";
+        else if (noCustomer)
+            url += "&noCustomer=true";
         if (before is { } b)
             url += $"&before={Uri.EscapeDataString(b.UtcDateTime.ToString("O"))}";
         if (since is { } s)

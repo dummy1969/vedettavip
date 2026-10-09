@@ -8,6 +8,16 @@
     flex-wrap: wrap;
 }
 
+.events-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0 0 0.75rem;
+}
+
+.events-filters select { max-width: 260px; }
+.events-filters input { max-width: 210px; }
+
 .events-table {
     overflow-x: auto;
 }

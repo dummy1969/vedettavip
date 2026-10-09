@@ -322,10 +322,13 @@ public static partial class NotificationEndpoints
     /// </summary>
     private static async Task<Ok<List<EventDto>>> GetEventsAsync(
         VedettaVipDbContext db, CancellationToken ct, Guid? deviceId = null, bool unacknowledgedOnly = false,
-        DateTimeOffset? before = null, DateTimeOffset? since = null, int limit = 200)
+        DateTimeOffset? before = null, DateTimeOffset? since = null, int limit = 200, Guid? customerId = null, bool noCustomer = false)
     {
         var query = db.Events.AsNoTracking();
         if (deviceId is { } id) query = query.Where(e => e.DeviceId == id);
+        // Cliente del device; "senza cliente" comprende anche gli eventi degli agenti (nessun device, nessun cliente)
+        if (customerId is { } cid) query = query.Where(e => e.Device != null && e.Device.CustomerId == cid);
+        else if (noCustomer) query = query.Where(e => e.Device == null || e.Device.CustomerId == null);
         if (unacknowledgedOnly) query = query.Where(e => !e.Acknowledged);
         if (before is { } b) query = query.Where(e => e.Time < b.ToUniversalTime());
         if (since is { } s) query = query.Where(e => e.Time >= s.ToUniversalTime());
