@@ -25,6 +25,7 @@ public partial class About
         new("Npgsql / Npgsql.EntityFrameworkCore.PostgreSQL", "10.0.3", "PostgreSQL License", "https://www.npgsql.org/", "driver PostgreSQL"),
         new("Lextm.SharpSnmpLib", "12.5.7", "MIT", "https://github.com/lextudio/sharpsnmplib", "SNMP"),
         new("MailKit / MimeKit", "4.18.1", "MIT", "https://github.com/jstedfast/MailKit", "notifiche email"),
+        new("Net.Codecrete.QrCodeGenerator", "3.2.1", "MIT", "https://github.com/manuelbl/QrCodeGenerator", "QR code della verifica in due passaggi"),
         new("BouncyCastle.Cryptography", "2.7.0", "MIT", "https://www.bouncycastle.org/", "crittografia (dipendenza di MimeKit)"),
         new("Blazor-ApexCharts", "6.0.2", "MIT", "https://github.com/apexcharts/Blazor-ApexCharts", "grafici"),
         new("ApexCharts.js", "4.7.0", "MIT", "https://github.com/apexcharts/apexcharts.js", "grafici (incluso in Blazor-ApexCharts)"),

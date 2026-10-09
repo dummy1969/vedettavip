@@ -12,8 +12,9 @@ using VedettaVip.Shared.Contracts;
 namespace VedettaVip.Api.Endpoints;
 
 /// <summary>
-/// Login con cookie (ASP.NET Core Identity), utente corrente, primo amministratore con codice di setup,
-/// cambio password; gestione utenti (solo Admin).
+/// Login con cookie (ASP.NET Core Identity), secondo passo con la verifica in due passaggi, utente corrente, primo
+/// amministratore con codice di setup, cambio password; gestione utenti (solo Admin). Gestione della verifica in due
+/// passaggi dell'utente corrente in <see cref="TwoFactorEndpoints"/>.
 /// </summary>
 public static class AuthEndpoints
 {
@@ -22,6 +23,8 @@ public static class AuthEndpoints
         var auth = app.MapGroup("/api/auth").WithTags("Auth");
         auth.MapGet("/me", GetMeAsync).AllowAnonymous();
         auth.MapPost("/login", LoginAsync).AllowAnonymous();
+        auth.MapPost("/login-2fa", LoginTwoFactorAsync).AllowAnonymous();
+        auth.MapPost("/login-recovery", LoginRecoveryCodeAsync).AllowAnonymous();
         auth.MapPost("/logout", LogoutAsync).AllowAnonymous();
         auth.MapPost("/setup", SetupAsync).AllowAnonymous();
         auth.MapPost("/change-password", ChangePasswordAsync);
@@ -31,6 +34,7 @@ public static class AuthEndpoints
         users.MapPost("/", CreateUserAsync);
         users.MapPut("/{id:guid}", UpdateUserAsync);
         users.MapPost("/{id:guid}/reset-password", ResetPasswordAsync);
+        users.MapPost("/{id:guid}/reset-2fa", ResetTwoFactorAsync);
         users.MapDelete("/{id:guid}", DeleteUserAsync);
 
         return app;
@@ -43,13 +47,17 @@ public static class AuthEndpoints
         if (principal.Identity?.IsAuthenticated == true && await users.GetUserAsync(principal) is { Disabled: false } user)
         {
             var role = (await users.GetRolesAsync(user)).FirstOrDefault();
-            return TypedResults.Ok(new CurrentUserDto(true, false, user.Id, user.UserName, user.DisplayName, role));
+            return TypedResults.Ok(new CurrentUserDto(true, false, user.Id, user.UserName, user.DisplayName, role, user.TwoFactorEnabled));
         }
 
         return TypedResults.Ok(new CurrentUserDto(false, !await users.Users.AnyAsync(), null, null, null, null));
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> LoginAsync(
+    /// <summary>
+    /// Primo passo: la password. Con la verifica in due passaggi attiva (e il browser non ricordato) Identity emette solo il
+    /// cookie temporaneo Identity.TwoFactorUserId (5 minuti, nessun accesso all'API) e serve il codice: login-2fa o login-recovery.
+    /// </summary>
+    private static async Task<Results<Ok<LoginResultDto>, ProblemHttpResult>> LoginAsync(
         LoginDto dto, UserManager<AppUser> users, SignInManager<AppUser> signIn, TimeProvider time, ILoggerFactory loggers)
     {
         var log = loggers.CreateLogger("VedettaVip.Auth");
@@ -69,21 +77,84 @@ public static class AuthEndpoints
 
         var result = await signIn.PasswordSignInAsync(user, dto.Password, dto.RememberMe, lockoutOnFailure: true);
         if (result.IsLockedOut)
-        {
-            log.LogWarning("Utente {UserName} bloccato per troppi tentativi", user.UserName);
-            return DbProblems.Problem(StatusCodes.Status401Unauthorized, "Account bloccato",
-                $"Troppi tentativi errati: riprovare dopo le {user.LockoutEnd?.ToLocalTime():HH:mm} o chiedere a un amministratore.");
-        }
+            return LockedOut(user, log);
+        if (result.RequiresTwoFactor)
+            return TypedResults.Ok(new LoginResultDto(true));
         if (!result.Succeeded)
         {
             log.LogWarning("Password errata per l'utente {UserName}", user.UserName);
             return invalid;
         }
 
+        await LoggedInAsync(users, user, time, log, "");
+        return TypedResults.Ok(new LoginResultDto(false));
+    }
+
+    /// <summary>Secondo passo con il codice dell'app. I codici errati contano per il blocco dell'account come le password.</summary>
+    private static async Task<Results<Ok<LoginResultDto>, ProblemHttpResult>> LoginTwoFactorAsync(
+        TwoFactorLoginDto dto, UserManager<AppUser> users, SignInManager<AppUser> signIn, TimeProvider time, ILoggerFactory loggers)
+    {
+        var log = loggers.CreateLogger("VedettaVip.Auth");
+        if (await TwoFactorUserAsync(signIn) is not { } user)
+            return TwoFactorExpired();
+
+        var result = await signIn.TwoFactorAuthenticatorSignInAsync(TwoFactorText.NormalizeCode(dto.Code), dto.RememberMe, dto.RememberBrowser);
+        if (result.IsLockedOut)
+            return LockedOut(user, log);
+        if (!result.Succeeded)
+        {
+            log.LogWarning("Codice di verifica errato per l'utente {UserName}", user.UserName);
+            return DbProblems.Problem(StatusCodes.Status401Unauthorized, "Codice non valido",
+                "Usare il codice attuale dell'app di autenticazione (controllare che l'ora del telefono sia esatta).");
+        }
+
+        await LoggedInAsync(users, user, time, log, dto.RememberBrowser ? " (verifica in due passaggi, browser ricordato)" : " (verifica in due passaggi)");
+        return TypedResults.Ok(new LoginResultDto(false));
+    }
+
+    /// <summary>Secondo passo con un codice di recupero: monouso, sessione non persistente.</summary>
+    private static async Task<Results<Ok<LoginResultDto>, ProblemHttpResult>> LoginRecoveryCodeAsync(
+        RecoveryCodeLoginDto dto, UserManager<AppUser> users, SignInManager<AppUser> signIn, TimeProvider time, ILoggerFactory loggers)
+    {
+        var log = loggers.CreateLogger("VedettaVip.Auth");
+        if (await TwoFactorUserAsync(signIn) is not { } user)
+            return TwoFactorExpired();
+
+        var result = await signIn.TwoFactorRecoveryCodeSignInAsync(TwoFactorText.NormalizeRecoveryCode(dto.RecoveryCode));
+        if (result.IsLockedOut)
+            return LockedOut(user, log);
+        if (!result.Succeeded)
+        {
+            log.LogWarning("Codice di recupero errato per l'utente {UserName}", user.UserName);
+            return DbProblems.Problem(StatusCodes.Status401Unauthorized, "Codice di recupero non valido",
+                "Il codice non esiste o è già stato usato.");
+        }
+
+        var left = await users.CountRecoveryCodesAsync(user);
+        await LoggedInAsync(users, user, time, log, $" con un codice di recupero (ne restano {left})");
+        return TypedResults.Ok(new LoginResultDto(false));
+    }
+
+    /// <summary>Utente del cookie temporaneo del primo passo; null se scaduto o se l'utente è stato disattivato nel frattempo.</summary>
+    private static async Task<AppUser?> TwoFactorUserAsync(SignInManager<AppUser> signIn) =>
+        await signIn.GetTwoFactorAuthenticationUserAsync() is { Disabled: false } user ? user : null;
+
+    private static ProblemHttpResult TwoFactorExpired() =>
+        DbProblems.Problem(StatusCodes.Status401Unauthorized, "Accesso scaduto",
+            "Sono passati più di 5 minuti dall'inserimento della password: ripetere l'accesso.");
+
+    private static ProblemHttpResult LockedOut(AppUser user, ILogger log)
+    {
+        log.LogWarning("Utente {UserName} bloccato per troppi tentativi", user.UserName);
+        return DbProblems.Problem(StatusCodes.Status401Unauthorized, "Account bloccato",
+            $"Troppi tentativi errati: riprovare dopo le {user.LockoutEnd?.ToLocalTime():HH:mm} o chiedere a un amministratore.");
+    }
+
+    private static async Task LoggedInAsync(UserManager<AppUser> users, AppUser user, TimeProvider time, ILogger log, string how)
+    {
         user.LastLoginAt = time.GetUtcNow();
         await users.UpdateAsync(user);
-        log.LogInformation("Accesso di {UserName}", user.UserName);
-        return TypedResults.NoContent();
+        log.LogInformation("Accesso di {UserName}{How}", user.UserName, how);
     }
 
     private static async Task<NoContent> LogoutAsync(SignInManager<AppUser> signIn)
@@ -212,6 +283,25 @@ public static class AuthEndpoints
         return TypedResults.NoContent();
     }
 
+    /// <summary>
+    /// Azzera la verifica in due passaggi di un altro utente (telefono perso senza codici di recupero): chiave e codici
+    /// cancellati, sessioni e browser ricordati invalidati entro un minuto (security stamp). La riattiva lui da Account.
+    /// </summary>
+    private static async Task<Results<NoContent, NotFound, ValidationProblem>> ResetTwoFactorAsync(
+        Guid id, ClaimsPrincipal principal, UserManager<AppUser> users, ILoggerFactory loggers)
+    {
+        if (await users.FindByIdAsync(id.ToString()) is not { } user)
+            return TypedResults.NotFound();
+        if (users.GetUserId(principal) == id.ToString())
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                { ["Id"] = ["Per il tuo utente usa la pagina Il mio account."] });
+
+        await TwoFactorEndpoints.TurnOffAsync(users, user);
+        loggers.CreateLogger("VedettaVip.Auth").LogWarning("Verifica in due passaggi di {UserName} azzerata da {Admin}",
+            user.UserName, principal.Identity?.Name);
+        return TypedResults.NoContent();
+    }
+
     private static async Task<Results<NoContent, NotFound, ValidationProblem>> DeleteUserAsync(
         Guid id, ClaimsPrincipal principal, UserManager<AppUser> users)
     {
@@ -242,7 +332,7 @@ public static class AuthEndpoints
 
     private static async Task<UserDto> ToDtoAsync(UserManager<AppUser> users, AppUser u) => new(
         u.Id, u.UserName!, u.DisplayName, u.Email, (await users.GetRolesAsync(u)).FirstOrDefault() ?? Roles.Viewer, u.Disabled,
-        u.LockoutEnd is { } end && end > DateTimeOffset.UtcNow ? end : null, u.CreatedAt, u.LastLoginAt);
+        u.LockoutEnd is { } end && end > DateTimeOffset.UtcNow ? end : null, u.CreatedAt, u.LastLoginAt, u.TwoFactorEnabled);
 
     /// <summary>Errori di Identity (policy password, nome duplicato) tradotti in italiano.</summary>
     private static Dictionary<string, string[]> Errors(IdentityResult result, string field) =>

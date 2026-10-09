@@ -348,6 +348,9 @@ usare ASP.NET Core Data Protection o un secret store.
 | GET/PUT | `/api/settings/detection` | `DetectionThresholdsDto` (soglie generali); il PUT notifica gli agenti |
 | POST | `/api/agent/status` | **X-Agent-Key**; `AgentStatusReportDto` → `AgentStatusAckDto` |
 | GET | `/api/agents` | `AgentDto[]` (AgentId, LastSeen, IsOnline) |
+| POST | `/api/auth/login`, `/login-2fa`, `/login-recovery` | password → `LoginResultDto` (RequiresTwoFactor); codice dell'app o di recupero |
+| GET/POST | `/api/auth/2fa`, `/2fa/setup`, `/enable`, `/recovery-codes`, `/disable`, `/forget-browser` | verifica in due passaggi dell'utente corrente |
+| POST | `/api/users/{id}/reset-2fa` | azzera la verifica in due passaggi di un altro utente; Admin |
 | WS | `/hubs/status` | SignalR, server → client `DeviceStateChanged` (`DeviceStateChangedDto`), `TrafficUpdated` (`InterfaceTrafficDto[]`) |
 | POST | `/api/agent/traffic` | **X-Agent-Key**; `AgentTrafficReportDto` → 204 |
 | GET | `/api/metrics/interface` | `?deviceId&ifIndex&from&to` (ISO 8601, default ultime 6 h, max 731 giorni) → `InterfaceSeriesDto` (Source, BucketSeconds, punti avg/max in/out) |
@@ -379,7 +382,7 @@ usare ASP.NET Core Data Protection o un secret store.
   - cookie `VedettaVip.Auth` emesso dall'API: HttpOnly, SameSite=Lax, Secure in produzione (`Auth:SecureCookies`,
     default true fuori da Development), scadenza 8 h scorrevole ("Ricordami" = cookie persistente). Chiavi Data
     Protection nel DB: le sessioni sopravvivono ai riavvii. API senza redirect: 401/403.
-  - **fallback policy = utente autenticato** su tutto; `AllowAnonymous` solo su `/api/auth/me|login|logout|setup`,
+  - **fallback policy = utente autenticato** su tutto; `AllowAnonymous` solo su `/api/auth/me|login|login-2fa|login-recovery|logout|setup`,
     `/api/agent/*` (chiave `X-Agent-Key`), hub agent, OpenAPI in sviluppo.
   - **Ruoli** (uno per utente, creati dalla migration `AddIdentity`): `Viewer` (lettura), `Operator` (+ scritture
     su mappe, nodi, link, device, refresh interfacce, presa in carico: `.RequireOperator()`), `Admin` (+ clienti,
@@ -392,11 +395,31 @@ usare ASP.NET Core Data Protection o un secret store.
     nuovo a ogni avvio); la pagina Accedi lo chiede per creare l'admin. Mai due setup (409 se esistono utenti).
   - **CSRF**: le scritture su `/api/*` (escluso `/api/agent`) richiedono l'header `X-VedettaVip-Request`
     (`CsrfHeaderMiddleware`), ammesso dal CORS solo per le origini di VedettaVip.
+  - **Verifica in due passaggi** (facoltativa, per utente; `Endpoints/TwoFactorEndpoints`, coperta da test anche end-to-end):
+    TOTP RFC 6238 (SHA-1, 6 cifre, 30 s, ±1 passo) con il provider Authenticator di Identity; qualsiasi app (Google/Microsoft
+    Authenticator, Aegis, 2FAS, Bitwarden…). Niente SMS né codici via email/Telegram.
+    - Attivazione da `/account`: `POST /api/auth/2fa/setup` (chiave nuova, URI `otpauth://`, QR come data URI SVG con
+      Net.Codecrete.QrCodeGenerator), `enable` con il primo codice → 10 codici di recupero `XXXXX-XXXXX` mostrati una volta
+      (copia/scarica .txt); `recovery-codes` (col codice dell'app) li rigenera; `disable` con la password; `forget-browser`.
+    - Login: `POST /api/auth/login` → `LoginResultDto.RequiresTwoFactor`; Identity emette solo il cookie temporaneo
+      `VedettaVip.TwoFactor` (5 min, nessun accesso all'API) e il client chiede il codice: `login-2fa` (con "non chiedere su
+      questo browser per 7 giorni", cookie `VedettaVip.TwoFactorRemember`, `TwoFactorDefaults.RememberBrowserDays`) oppure
+      `login-recovery` (monouso, maiuscole/spazi normalizzati). I codici errati contano per il blocco (5 tentativi).
+    - **Chiave e codici cifrati** con Data Protection da `Security/ProtectedUserStore` (override di Get/SetTokenAsync per il
+      provider interno `[AspNetUserStore]`; Identity li salverebbe in chiaro); valore non decifrabile = assente.
+    - Le operazioni che cambiano il security stamp (setup, enable, disable) chiamano `RefreshSignInAsync`: la sessione
+      corrente resta, le altre dell'utente e i browser ricordati cadono entro 1 minuto.
+    - Promemoria: `Components/TwoFactorReminder` (isola WASM nel `MainLayout`) mostra a chi non l'ha attiva un avviso con le
+      istruzioni (`CurrentUserDto.TwoFactorEnabled`), nascosto su `/account` e `/login`; "Più tardi" = sessionStorage,
+      "Non mostrare più" = localStorage (`vedettavip.tfaReminder.<userId>`); sparisce all'attivazione (`CurrentUser.Changed`).
+      Nel pannello "Nuovo utente" una nota spiega che la attiva l'utente (la chiave deve stare sul suo telefono).
+    - Admin: colonna 2FA in `/settings/users` e `POST /api/users/{id}/reset-2fa` (telefono perso; non su sé stessi), che
+      cancella chiave e codici e chiude le sessioni dell'utente.
   - Non si può disattivare/eliminare sé stessi né togliere l'ultimo admin attivo. La presa in carico registra
     `AcknowledgedBy` (nome visualizzato) e `AcknowledgedAt`.
   - Client: `ApiCredentialsHandler` (credentials: include, header CSRF, su 401 → `/login?returnUrl=`),
     `IncludeCredentialsHandler` per la negotiate SignalR, `CurrentUser` (ruolo, per mostrare/nascondere i comandi),
-    `AdminOnly` (sezioni riservate). Pagine `/login` (con setup), `/account` (cambio password), `/settings/users` (admin),
+    `AdminOnly` (sezioni riservate). Pagine `/login` (con setup e secondo passo 2FA), `/account` (cambio password, verifica in due passaggi), `/settings/users` (admin),
     `UserMenu` in alto. La UI nasconde soltanto: i permessi li applica l'API.
   - API e Web restano in ascolto solo su localhost in sviluppo; in produzione dietro reverse proxy HTTPS.
 - Connection string `ConnectionStrings:VedettaVip`, **mai in appsettings**: in sviluppo negli user-secrets
@@ -821,7 +844,8 @@ OID utili:
       Manca: propagazione live delle modifiche agli altri client.
 - [x] Pagina di gestione dispositivi `/devices` (elenco con stato, ricerca, filtri, crea/modifica/elimina).
 - [x] Autenticazione utenti (account locali, ruoli Admin/Operatore/Lettura, setup del primo admin con codice nel
-      log, blocco tentativi, CSRF, gestione utenti). Da fare: 2FA TOTP, login esterno OIDC (Entra ID/Keycloak),
+      log, blocco tentativi, CSRF, gestione utenti), verifica in due passaggi TOTP facoltativa con codici di recupero.
+      Da fare: login esterno OIDC (Entra ID/Keycloak),
       limitazione per cliente (multi-tenant).
 - [x] Poller ICMP + SNMP base (Worker senza accesso al DB, API key agent, isteresi, buffer e backoff),
       DeviceStatus + Event a ogni cambio, stato live via SignalR sulla mappa, tracciamento agenti con

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Marcello Anderlini
 
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -86,6 +87,8 @@ builder.Services.AddIdentityCore<AppUser>(options =>
     })
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<VedettaVipDbContext>()
+    // Chiave TOTP e codici di recupero cifrati con Data Protection (Identity li salverebbe in chiaro)
+    .AddUserStore<ProtectedUserStore>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
@@ -104,6 +107,20 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
     options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
 });
+// Verifica in due passaggi: cookie temporaneo tra password e codice (5 minuti) e "ricorda questo browser"
+// (invalidato dal cambio del security stamp: password, azzeramento o disattivazione della verifica)
+foreach (var scheme in new[] { IdentityConstants.TwoFactorUserIdScheme, IdentityConstants.TwoFactorRememberMeScheme })
+{
+    builder.Services.Configure<CookieAuthenticationOptions>(scheme, options =>
+    {
+        options.Cookie.Name = scheme == IdentityConstants.TwoFactorUserIdScheme ? "VedettaVip.TwoFactor" : "VedettaVip.TwoFactorRemember";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = secureCookies ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+        if (scheme == IdentityConstants.TwoFactorRememberMeScheme)
+            options.ExpireTimeSpan = TimeSpan.FromDays(TwoFactorDefaults.RememberBrowserDays);
+    });
+}
 // Utente disattivato o ruolo cambiato: il security stamp cambia e le sessioni aperte vengono rivalidate entro un minuto
 builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(1));
 
@@ -157,6 +174,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapAuthEndpoints();
+app.MapTwoFactorEndpoints();
 app.MapMapEndpoints();
 app.MapMapNodeEndpoints();
 app.MapMapLinkEndpoints();

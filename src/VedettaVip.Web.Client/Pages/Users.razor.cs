@@ -7,7 +7,10 @@ using VedettaVip.Web.Client.Services;
 
 namespace VedettaVip.Web.Client.Pages;
 
-/// <summary>Gestione utenti (solo amministratori): crea, modifica ruolo, disattiva, reimposta password, elimina.</summary>
+/// <summary>
+/// Gestione utenti (solo amministratori): crea, modifica ruolo, disattiva, reimposta password, azzera la verifica in due
+/// passaggi, elimina.
+/// </summary>
 public partial class Users : IDisposable
 {
     [Inject] private VedettaVipApiClient Api { get; set; } = default!;
@@ -28,6 +31,7 @@ public partial class Users : IDisposable
     private string? password;
     private bool disabled;
     private string? resetPassword;
+    private bool confirmTwoFactorReset;
 
     protected override async Task OnInitializedAsync()
     {
@@ -43,11 +47,11 @@ public partial class Users : IDisposable
 
     private void Edit(UserDto u)
     {
-        (editing, formOpen, displayName, email, role, disabled, resetPassword) =
-            (u, true, u.DisplayName, u.Email, u.Role, u.Disabled, null);
+        (editing, formOpen, displayName, email, role, disabled, resetPassword, confirmTwoFactorReset) =
+            (u, true, u.DisplayName, u.Email, u.Role, u.Disabled, null, false);
     }
 
-    private void Close() => (editing, formOpen) = (null, false);
+    private void Close() => (editing, formOpen, confirmTwoFactorReset) = (null, false, false);
 
     private Task SaveAsync() => RunAsync(async () =>
     {
@@ -71,6 +75,22 @@ public partial class Users : IDisposable
         info = $"Password di {editing.UserName} reimpostata.";
         resetPassword = null;
     });
+
+    /// <summary>Primo clic: chiede conferma; secondo clic: azzera.</summary>
+    private Task ResetTwoFactorAsync()
+    {
+        if (!confirmTwoFactorReset)
+        {
+            confirmTwoFactorReset = true;
+            return Task.CompletedTask;
+        }
+        return RunAsync(async () =>
+        {
+            await Api.ResetUserTwoFactorAsync(editing!.Id, cts.Token);
+            info = $"Verifica in due passaggi di {editing.UserName} azzerata.";
+            Close();
+        });
+    }
 
     private Task DeleteAsync(UserDto u) => RunAsync(async () =>
     {

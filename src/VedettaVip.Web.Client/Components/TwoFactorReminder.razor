@@ -1,0 +1,23 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@if (visible)
+{
+    <div class="alert alert-warning tfa-reminder" role="status">
+        <div class="tfa-text">
+            <strong>Proteggi il tuo account con la verifica in due passaggi.</strong>
+            Oltre alla password, all'accesso verrà chiesto un codice a 6 cifre generato dal tuo telefono: chi scopre la password
+            da solo non basta per entrare.
+            <ol class="mb-0 mt-1">
+                <li>installa un'app di autenticazione (Google o Microsoft Authenticator, Aegis, 2FAS, Bitwarden…);</li>
+                <li>apri <b>Il mio account</b> (il tuo nome in alto a destra) e premi <b>Configura</b>;</li>
+                <li>inquadra il QR code con l'app, inserisci il codice mostrato e salva i codici di recupero.</li>
+            </ol>
+        </div>
+        <div class="tfa-actions">
+            <a class="btn btn-sm btn-primary" href="account">Attiva ora</a>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="LaterAsync">Più tardi</button>
+            <button class="btn btn-sm btn-link text-muted" @onclick="NeverAsync">Non mostrare più</button>
+        </div>
+    </div>
+}

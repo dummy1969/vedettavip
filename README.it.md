@@ -35,8 +35,8 @@ schermo di un NOC e veloce da configurare.
   traffico, latenza/perdita e RouterOS.
 - **Notifiche** via email (SMTP) e Telegram: destinatari per cliente, mappa o tutto; dipendenze padre/figlio contro le
   tempeste di avvisi; soppressione dei flap; finestre di manutenzione (singole e settimanali); promemoria; presa in carico.
-- **Utenti e ruoli** (Admin, Operatore, Lettura), account locali, protezione CSRF, segreti cifrati con ASP.NET Core
-  Data Protection.
+- **Utenti e ruoli** (Admin, Operatore, Lettura), account locali, verifica in due passaggi facoltativa (app TOTP, codici di
+  recupero), protezione CSRF, segreti cifrati con ASP.NET Core Data Protection.
 - **Gestione dei dispositivi**: pagina riepilogativa con filtri, import/export CSV.
 
 ## Avvio rapido (Docker Compose)
@@ -131,7 +131,7 @@ Blazor-ApexCharts, Caddy. In Docker il Worker ha bisogno solo della capability `
 ## Roadmap
 
 - Agenti remoti installati nelle reti dei clienti, accesso multi-tenant per cliente (scenario MSP)
-- Autenticazione a due fattori (TOTP) e accesso esterno (OIDC: Entra ID, Keycloak)
+- Accesso esterno (OIDC: Entra ID, Keycloak)
 - Sfondi delle mappe (planimetrie, mappe geografiche) e auto-layout force-directed per i nodi scoperti
 - Propagazione live delle modifiche della mappa agli altri browser aperti; link fra mappe diverse
 - RouterOS: IPsec, PPP, EoIP/GRE, MNDP; SNMPv3

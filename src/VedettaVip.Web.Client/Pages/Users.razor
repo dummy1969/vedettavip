@@ -36,7 +36,7 @@
             else
             {
                 <table class="table table-sm align-middle">
-                    <thead><tr><th>Utente</th><th>Nome</th><th>Ruolo</th><th>Stato</th><th>Ultimo accesso</th><th></th></tr></thead>
+                    <thead><tr><th>Utente</th><th>Nome</th><th>Ruolo</th><th>Stato</th><th title="Verifica in due passaggi">2FA</th><th>Ultimo accesso</th><th></th></tr></thead>
                     <tbody>
                         @foreach (var u in users)
                         {
@@ -49,6 +49,7 @@
                                     else if (u.LockedOutUntil is { } until) {<span class="text-danger">bloccato fino alle @until.ToLocalTime().ToString("HH:mm")</span>}
                                     else {<span>attivo</span>}
                                 </td>
+                                <td class="small">@(u.TwoFactorEnabled ? "attiva" : "—")</td>
                                 <td class="small">@(u.LastLoginAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "mai")</td>
                                 <td class="text-end text-nowrap">
                                     <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(u)">Modifica</button>
@@ -93,6 +94,11 @@
                 {
                     <label class="form-label small mb-1 mt-2" for="u-pass">Password iniziale (almeno 10 caratteri)</label>
                     <input id="u-pass" class="form-control form-control-sm" type="password" @bind="password" autocomplete="new-password" />
+                    <div class="tfa-note mt-3">
+                        <b>Verifica in due passaggi.</b> Non si attiva da qui: la chiave deve finire sul telefono dell'utente.
+                        Al primo accesso l'utente vede un avviso con le istruzioni; la attiva da <b>Il mio account</b>
+                        (il suo nome in alto a destra) → <b>Configura</b>, inquadrando il QR code con un'app di autenticazione.
+                    </div>
                 }
                 else
                 {
@@ -115,6 +121,25 @@
                         <input id="u-reset" class="form-control form-control-sm" type="password" @bind="resetPassword" autocomplete="new-password" />
                         <button class="btn btn-sm btn-outline-primary text-nowrap" disabled="@(busy || string.IsNullOrEmpty(resetPassword))" @onclick="ResetPasswordAsync">Reimposta</button>
                     </div>
+
+                    @if (!editing.TwoFactorEnabled)
+                    {
+                        <hr />
+                        <div class="small text-muted">
+                            Verifica in due passaggi non attiva: l'utente la attiva da <b>Il mio account</b> → <b>Configura</b>.
+                        </div>
+                    }
+                    else if (editing.Id != User.Value?.Id)
+                    {
+                        <hr />
+                        <div class="small mb-1">
+                            Verifica in due passaggi attiva. Se l'utente ha perso il telefono e i codici di recupero, azzerala:
+                            le sue sessioni si chiudono e la riattiverà da "Il mio account".
+                        </div>
+                        <button class="btn btn-sm @(confirmTwoFactorReset ? "btn-danger" : "btn-outline-danger")" disabled="@busy" @onclick="ResetTwoFactorAsync">
+                            @(confirmTwoFactorReset ? "Conferma azzeramento" : "Azzera verifica in due passaggi")
+                        </button>
+                    }
                 }
             </aside>
         }

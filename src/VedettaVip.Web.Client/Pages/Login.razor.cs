@@ -9,6 +9,7 @@ namespace VedettaVip.Web.Client.Pages;
 
 /// <summary>
 /// Accesso. Senza utenti mostra la creazione del primo amministratore (codice di setup dal log dell'API).
+/// Con la verifica in due passaggi attiva, dopo la password chiede il codice dell'app (o un codice di recupero).
 /// Dopo l'accesso ricarica l'app alla pagina di partenza: stato e connessioni ripartono con la sessione nuova.
 /// </summary>
 public partial class Login
@@ -26,6 +27,11 @@ public partial class Login
     private string? password;
     private string? password2;
     private bool rememberMe;
+    private bool twoFactor;
+    private bool useRecoveryCode;
+    private bool rememberBrowser;
+    private string? code;
+    private string? recoveryCode;
     private bool busy;
     private string? error;
 
@@ -44,8 +50,32 @@ public partial class Login
         }
     }
 
-    private Task LoginAsync() => RunAsync(() =>
-        Api.LoginAsync(new LoginDto(userName?.Trim() ?? "", password ?? "", rememberMe), CancellationToken.None));
+    private Task LoginAsync() => RunAsync(async () =>
+    {
+        var result = await Api.LoginAsync(new LoginDto(userName?.Trim() ?? "", password ?? "", rememberMe), CancellationToken.None);
+        password = null;
+        if (!result.RequiresTwoFactor)
+            return true;
+        (twoFactor, useRecoveryCode, code, recoveryCode) = (true, false, null, null);
+        return false;
+    });
+
+    private Task TwoFactorAsync() => RunAsync(async () =>
+    {
+        await Api.LoginTwoFactorAsync(new TwoFactorLoginDto(code ?? "", rememberMe, rememberBrowser), CancellationToken.None);
+        return true;
+    });
+
+    private Task RecoveryCodeAsync() => RunAsync(async () =>
+    {
+        await Api.LoginRecoveryCodeAsync(new RecoveryCodeLoginDto(recoveryCode ?? ""), CancellationToken.None);
+        return true;
+    });
+
+    private void SwitchCode(bool recovery) => (useRecoveryCode, error, code, recoveryCode) = (recovery, null, null, null);
+
+    /// <summary>Codice scaduto (oltre 5 minuti) o utente sbagliato: si riparte dalla password.</summary>
+    private void Restart() => (twoFactor, error, code, recoveryCode) = (false, null, null, null);
 
     private Task SetupAsync()
     {
@@ -54,23 +84,29 @@ public partial class Login
             error = "Le due password non coincidono.";
             return Task.CompletedTask;
         }
-        return RunAsync(() => Api.SetupAsync(
-            new SetupDto(setupCode ?? "", userName?.Trim() ?? "", (displayName ?? userName)?.Trim() ?? "", password ?? ""), CancellationToken.None));
+        return RunAsync(async () =>
+        {
+            await Api.SetupAsync(
+                new SetupDto(setupCode ?? "", userName?.Trim() ?? "", (displayName ?? userName)?.Trim() ?? "", password ?? ""), CancellationToken.None);
+            return true;
+        });
     }
 
-    private async Task RunAsync(Func<Task> action)
+    /// <summary>Esegue un passo dell'accesso; true = accesso completato, si torna alla pagina di partenza.</summary>
+    private async Task RunAsync(Func<Task<bool>> action)
     {
         busy = true;
         error = null;
         try
         {
-            await action();
-            GoBack();
+            if (await action())
+                GoBack();
         }
         catch (HttpRequestException ex)
         {
-            error = ex.Message; // credenziali errate, account bloccato, codice di setup errato, password troppo corta
-            password = password2 = null;
+            // credenziali o codice errati, account bloccato, codice di setup errato, password troppo corta
+            error = ex.Message;
+            password = password2 = code = recoveryCode = null;
         }
         finally
         {

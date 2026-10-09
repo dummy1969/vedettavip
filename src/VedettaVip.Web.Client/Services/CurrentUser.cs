@@ -15,6 +15,9 @@ public sealed class CurrentUser(VedettaVipApiClient api)
 
     public CurrentUserDto? Value { get; private set; }
 
+    /// <summary>Dati dell'utente cambiati senza ricaricare (es. verifica in due passaggi attivata da Account).</summary>
+    public event Action? Changed;
+
     public bool IsAuthenticated => Value?.Authenticated == true;
     public bool IsAdmin => Value?.Role == UserRoles.Admin;
     /// <summary>Admin o Operatore: modifica mappe e dispositivi, prende in carico gli eventi.</summary>
@@ -32,6 +35,14 @@ public sealed class CurrentUser(VedettaVipApiClient api)
             loading = null; // errore di rete: si riprova alla prossima richiesta
             throw;
         }
+    }
+
+    public void SetTwoFactorEnabled(bool enabled)
+    {
+        if (Value is null || Value.TwoFactorEnabled == enabled)
+            return;
+        Value = Value with { TwoFactorEnabled = enabled };
+        Changed?.Invoke();
     }
 
     /// <summary>Dopo login, logout o cambio di ruolo.</summary>

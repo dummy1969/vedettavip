@@ -29,6 +29,7 @@ network, so their licenses do not need to be compatible with the AGPL, but you m
 | MailKit | 4.18.1 | MIT | Api | compatible |
 | MimeKit | 4.18.1 | MIT | Api | compatible |
 | BouncyCastle.Cryptography | 2.7.0 | MIT | Api (via MimeKit) | compatible |
+| Net.Codecrete.QrCodeGenerator | 3.2.1 | MIT | Api (two-factor setup QR code) | compatible |
 | Lextm.SharpSnmpLib | 12.5.7 | MIT | Worker | compatible |
 | System.Security.Cryptography.Pkcs | 10.0.0 | MIT | Api | compatible |
 | System.Diagnostics.EventLog | 10.0.12 | MIT | Worker | compatible |
@@ -88,6 +89,7 @@ complying with the TSL.
 | xunit.abstractions | 2.0.3 | Apache-2.0 (license URL in the package metadata) |
 | Microsoft.NET.Test.Sdk, Microsoft.TestPlatform.*, Microsoft.CodeCoverage | 17.14.1 | MIT |
 | coverlet.collector | 6.0.4 | MIT |
+| Microsoft.EntityFrameworkCore.InMemory | 10.0.12 | MIT |
 
 ## License texts
 

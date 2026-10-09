@@ -3,6 +3,7 @@
 
 @page "/login"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
 
 <PageTitle>Accedi - VedettaVip</PageTitle>
 
@@ -32,6 +33,40 @@
                 <input id="s-pass2" class="form-control" type="password" @bind="password2" autocomplete="new-password" />
                 <button class="btn btn-primary w-100 mt-3" type="submit" disabled="@busy">Crea e accedi</button>
             </form>
+        }
+        else if (twoFactor)
+        {
+            <h4>Verifica in due passaggi</h4>
+            @if (!useRecoveryCode)
+            {
+                <p class="small text-muted">Inserisci il codice a 6 cifre mostrato dall'app di autenticazione per <b>@userName</b>.</p>
+                <form @onsubmit="TwoFactorAsync" @onsubmit:preventDefault>
+                    <label class="form-label small mb-1" for="t-code">Codice</label>
+                    <input id="t-code" class="form-control font-monospace code-input" @bind="code" inputmode="numeric"
+                           autocomplete="one-time-code" maxlength="9" placeholder="123456" autofocus />
+                    <div class="form-check mt-2">
+                        <input id="t-remember" class="form-check-input" type="checkbox" @bind="rememberBrowser" />
+                        <label class="form-check-label small" for="t-remember">
+                            Non chiedere il codice su questo browser per @TwoFactorDefaults.RememberBrowserDays giorni
+                        </label>
+                    </div>
+                    <button class="btn btn-primary w-100 mt-3" type="submit" disabled="@busy">Verifica</button>
+                </form>
+                <button class="btn btn-link btn-sm px-0 mt-2" @onclick="() => SwitchCode(true)">Telefono non disponibile? Usa un codice di recupero</button>
+            }
+            else
+            {
+                <p class="small text-muted">
+                    Inserisci uno dei codici di recupero salvati all'attivazione (formato XXXXX-XXXXX). Ogni codice vale una volta sola.
+                </p>
+                <form @onsubmit="RecoveryCodeAsync" @onsubmit:preventDefault>
+                    <label class="form-label small mb-1" for="t-recovery">Codice di recupero</label>
+                    <input id="t-recovery" class="form-control font-monospace" @bind="recoveryCode" autocomplete="off" autofocus />
+                    <button class="btn btn-primary w-100 mt-3" type="submit" disabled="@busy">Accedi</button>
+                </form>
+                <button class="btn btn-link btn-sm px-0 mt-2" @onclick="() => SwitchCode(false)">Usa il codice dell'app</button>
+            }
+            <button class="btn btn-link btn-sm px-0 d-block" @onclick="Restart">Torna all'inserimento della password</button>
         }
         else
         {

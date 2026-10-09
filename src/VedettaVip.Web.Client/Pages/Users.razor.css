@@ -29,3 +29,10 @@
         flex-basis: 100%;
     }
 }
+
+.tfa-note {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.6rem;
+    border-left: 3px solid var(--bs-info);
+    background: var(--bs-info-bg-subtle);
+}

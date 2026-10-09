@@ -5,3 +5,9 @@
     max-width: 420px;
     margin: 3rem auto;
 }
+
+.code-input {
+    font-size: 1.4rem;
+    letter-spacing: 0.3em;
+    text-align: center;
+}

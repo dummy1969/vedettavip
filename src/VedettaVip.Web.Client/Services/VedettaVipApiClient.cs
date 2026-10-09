@@ -89,7 +89,14 @@ public sealed class VedettaVipApiClient(HttpClient http)
     public Task<CurrentUserDto> GetMeAsync(CancellationToken ct) =>
         SendAsync<CurrentUserDto>(HttpMethod.Get, "api/auth/me", null, ct);
 
-    public Task LoginAsync(LoginDto dto, CancellationToken ct) => SendAsync(HttpMethod.Post, "api/auth/login", dto, ct);
+    public Task<LoginResultDto> LoginAsync(LoginDto dto, CancellationToken ct) =>
+        SendAsync<LoginResultDto>(HttpMethod.Post, "api/auth/login", dto, ct);
+
+    public Task<LoginResultDto> LoginTwoFactorAsync(TwoFactorLoginDto dto, CancellationToken ct) =>
+        SendAsync<LoginResultDto>(HttpMethod.Post, "api/auth/login-2fa", dto, ct);
+
+    public Task<LoginResultDto> LoginRecoveryCodeAsync(RecoveryCodeLoginDto dto, CancellationToken ct) =>
+        SendAsync<LoginResultDto>(HttpMethod.Post, "api/auth/login-recovery", dto, ct);
 
     public Task LogoutAsync(CancellationToken ct) => SendAsync(HttpMethod.Post, "api/auth/logout", null, ct);
 
@@ -97,6 +104,24 @@ public sealed class VedettaVipApiClient(HttpClient http)
 
     public Task ChangePasswordAsync(ChangePasswordDto dto, CancellationToken ct) =>
         SendAsync(HttpMethod.Post, "api/auth/change-password", dto, ct);
+
+    public Task<TwoFactorStatusDto> GetTwoFactorStatusAsync(CancellationToken ct) =>
+        SendAsync<TwoFactorStatusDto>(HttpMethod.Get, "api/auth/2fa", null, ct);
+
+    public Task<TwoFactorSetupDto> SetupTwoFactorAsync(CancellationToken ct) =>
+        SendAsync<TwoFactorSetupDto>(HttpMethod.Post, "api/auth/2fa/setup", null, ct);
+
+    public Task<RecoveryCodesDto> EnableTwoFactorAsync(string code, CancellationToken ct) =>
+        SendAsync<RecoveryCodesDto>(HttpMethod.Post, "api/auth/2fa/enable", new TwoFactorCodeDto(code), ct);
+
+    public Task<RecoveryCodesDto> RegenerateRecoveryCodesAsync(string code, CancellationToken ct) =>
+        SendAsync<RecoveryCodesDto>(HttpMethod.Post, "api/auth/2fa/recovery-codes", new TwoFactorCodeDto(code), ct);
+
+    public Task DisableTwoFactorAsync(string password, CancellationToken ct) =>
+        SendAsync(HttpMethod.Post, "api/auth/2fa/disable", new TwoFactorDisableDto(password), ct);
+
+    public Task ForgetTwoFactorBrowserAsync(CancellationToken ct) =>
+        SendAsync(HttpMethod.Post, "api/auth/2fa/forget-browser", null, ct);
 
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync(CancellationToken ct) =>
         await SendAsync<List<UserDto>>(HttpMethod.Get, "api/users", null, ct);
@@ -109,6 +134,9 @@ public sealed class VedettaVipApiClient(HttpClient http)
 
     public Task ResetUserPasswordAsync(Guid id, string newPassword, CancellationToken ct) =>
         SendAsync(HttpMethod.Post, $"api/users/{id}/reset-password", new ResetPasswordDto(newPassword), ct);
+
+    public Task ResetUserTwoFactorAsync(Guid id, CancellationToken ct) =>
+        SendAsync(HttpMethod.Post, $"api/users/{id}/reset-2fa", null, ct);
 
     public Task DeleteUserAsync(Guid id, CancellationToken ct) => SendAsync(HttpMethod.Delete, $"api/users/{id}", null, ct);
 

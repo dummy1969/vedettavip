@@ -17,6 +17,21 @@ public sealed class SecretProtector(IDataProtectionProvider provider, ILogger<Se
 
     public string Protect(string plaintext) => protector.Protect(plaintext);
 
+    /// <summary>Come <see cref="Unprotect"/>, senza log: per i chiamanti che danno un messaggio proprio.</summary>
+    public bool TryUnprotect(string protectedValue, out string? plaintext)
+    {
+        try
+        {
+            plaintext = protector.Unprotect(protectedValue);
+            return true;
+        }
+        catch (CryptographicException)
+        {
+            plaintext = null;
+            return false;
+        }
+    }
+
     /// <summary>Null se assente o non decifrabile (chiavi perse o ruotate oltre la scadenza): va reinserito dalla UI.</summary>
     public string? Unprotect(string? protectedValue)
     {

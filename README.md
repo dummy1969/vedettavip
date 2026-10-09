@@ -33,8 +33,8 @@ look at on a NOC screen and quick to set up.
   latency/loss and RouterOS charts.
 - **Notifications** by email (SMTP) and Telegram: recipients by customer, map or global; parent/child dependencies
   to avoid alert storms; flap suppression; maintenance windows (one-off and weekly); reminders; acknowledgement.
-- **Users and roles** (Admin, Operator, Viewer), local accounts, CSRF protection, secrets encrypted with ASP.NET Core
-  Data Protection.
+- **Users and roles** (Admin, Operator, Viewer), local accounts, optional two-factor authentication (TOTP authenticator
+  apps, recovery codes), CSRF protection, secrets encrypted with ASP.NET Core Data Protection.
 - **Device management**: overview page with filters, CSV import/export.
 
 ## Quick start (Docker Compose)
@@ -128,7 +128,7 @@ Blazor-ApexCharts, Caddy. In Docker the Worker needs only the `NET_RAW` capabili
 ## Roadmap
 
 - Remote agents installed in customer networks, multi-tenant access per customer (MSP scenario)
-- Two-factor authentication (TOTP) and external login (OIDC: Entra ID, Keycloak)
+- External login (OIDC: Entra ID, Keycloak)
 - Map backgrounds (floor plans, geographic maps) and force-directed auto-layout for discovered nodes
 - Live propagation of map edits to other open browsers; links between different maps
 - RouterOS: IPsec, PPP, EoIP/GRE, MNDP; SNMPv3
