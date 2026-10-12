@@ -114,6 +114,18 @@
                 break;
 
             case EditorTab.Monitoring:
+                <div class="form-check mb-2">
+                    <input id="dev-notify" class="form-check-input" type="checkbox" @bind="NotifyEnabled" />
+                    <label class="form-check-label small" for="dev-notify">Invia notifiche per questo dispositivo</label>
+                </div>
+                @if (notificationsMuted)
+                {
+                    <div class="form-text mt-0 mb-2">
+                        Il dispositivo resta monitorato: stato, eventi e interruzioni vengono registrati, ma nessun avviso
+                        (email, Telegram, promemoria) parte per lui. Gli eventi risultano "soppressi".
+                    </div>
+                }
+
                 <label class="form-label small mb-1" for="dev-snmp">SNMP</label>
                 <select id="dev-snmp" class="form-select form-select-sm" @bind="snmpVersion">
                     <option value="@SnmpVersion.None">nessuno (solo ping)</option>

@@ -82,6 +82,9 @@ public partial class DeviceEditor : IDisposable
         }
     }
     private bool enabled = true;
+    private bool notificationsMuted;
+    /// <summary>Casella in positivo ("invia notifiche"), il campo resta in negativo come nel DTO.</summary>
+    private bool NotifyEnabled { get => !notificationsMuted; set => notificationsMuted = !value; }
     private string EnabledText { get => enabled ? Monitored : NotMonitored; set => enabled = value == Monitored; }
     private int? downAfterFailures;
     private int? upAfterSuccesses;
@@ -130,6 +133,7 @@ public partial class DeviceEditor : IDisposable
         routerOsApiEnabled = Device?.RouterOsApiEnabled ?? false;
         vendor = Device?.Vendor ?? DeviceVendor.Generic;
         enabled = Device?.Enabled ?? true;
+        notificationsMuted = Device?.NotificationsMuted ?? false;
         downAfterFailures = Device?.DownAfterFailures;
         upAfterSuccesses = Device?.UpAfterSuccesses;
         snmpDegradedAfterFailures = Device?.SnmpDegradedAfterFailures;
@@ -146,7 +150,13 @@ public partial class DeviceEditor : IDisposable
             case EditorTab.Monitoring:
                 var custom = new object?[] { downAfterFailures, upAfterSuccesses, snmpDegradedAfterFailures, rttThresholdMs, lossThresholdPct }
                     .Count(v => v is not null);
-                return custom > 0 ? (custom.ToString(), $"{custom} soglie specifiche di questo dispositivo") : null;
+                return (custom, notificationsMuted) switch
+                {
+                    (0, false) => null,
+                    (0, true) => ("notifiche off", "notifiche disattivate per questo dispositivo"),
+                    (_, false) => (custom.ToString(), $"{custom} soglie specifiche di questo dispositivo"),
+                    _ => ($"{custom} · notifiche off", $"{custom} soglie specifiche, notifiche disattivate")
+                };
             case EditorTab.RouterOs:
                 return !routerOsApiEnabled ? null
                     : watchCount > 0 ? ($"on · {watchCount}", $"lettura RouterOS attiva, {watchCount} elementi sorvegliati")
@@ -215,7 +225,8 @@ public partial class DeviceEditor : IDisposable
                 Guid.TryParse(routerOsCredentialId, out var ros) ? ros : null,
                 routerOsApiEnabled ? cpuThresholdPct : null,
                 routerOsApiEnabled ? temperatureThresholdC : null,
-                vendor);
+                vendor,
+                notificationsMuted);
 
             Guid id;
             if (Device is null)

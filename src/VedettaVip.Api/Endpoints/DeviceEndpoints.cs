@@ -227,7 +227,7 @@ public static class DeviceEndpoints
         d.Id, d.Name, d.Address, d.Type, d.Icon, d.SnmpVersion, d.SnmpCredentialId,
         d.RouterOsApiEnabled, d.ParentDeviceId, d.Enabled,
         d.DownAfterFailures, d.UpAfterSuccesses, d.SnmpDegradedAfterFailures, d.CustomerId, d.RttThresholdMs, d.LossThresholdPct,
-        d.RouterOsCredentialId, d.CpuThresholdPct, d.TemperatureThresholdC, d.Vendor);
+        d.RouterOsCredentialId, d.CpuThresholdPct, d.TemperatureThresholdC, d.Vendor, d.NotificationsMuted);
 
     private static void Apply(Device d, DeviceUpsertDto dto)
     {
@@ -250,6 +250,7 @@ public static class DeviceEndpoints
         d.CpuThresholdPct = dto.CpuThresholdPct;
         d.TemperatureThresholdC = dto.TemperatureThresholdC;
         d.Vendor = VendorOf(dto.Vendor, dto.RouterOsApiEnabled);
+        d.NotificationsMuted = dto.NotificationsMuted;
     }
 
     /// <summary>L'API RouterOS esiste solo sui MikroTik: abilitarla fissa il produttore.</summary>

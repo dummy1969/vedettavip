@@ -26,7 +26,8 @@ public sealed record DeviceDto(
     Guid? RouterOsCredentialId = null,
     int? CpuThresholdPct = null,
     int? TemperatureThresholdC = null,
-    DeviceVendor Vendor = DeviceVendor.Generic);
+    DeviceVendor Vendor = DeviceVendor.Generic,
+    bool NotificationsMuted = false);
 
 /// <summary>
 /// Creazione/modifica di un device. Le tre soglie di rilevazione sono facoltative: null = valore generale
@@ -53,7 +54,9 @@ public sealed record DeviceUpsertDto(
     [property: Range(0, 100, ErrorMessage = "CPU: tra 0 (disattivata) e 100 %.")] int? CpuThresholdPct = null,
     [property: Range(0, 150, ErrorMessage = "Temperatura: tra 0 (disattivata) e 150 °C.")] int? TemperatureThresholdC = null,
     /// <summary>Produttore; con l'API RouterOS abilitata l'API lo porta comunque a MikroTik.</summary>
-    DeviceVendor Vendor = DeviceVendor.Generic);
+    DeviceVendor Vendor = DeviceVendor.Generic,
+    /// <summary>Notifiche disattivate: monitorato, eventi registrati, nessun avviso.</summary>
+    bool NotificationsMuted = false);
 
 /// <summary>Corpo della risposta 409 quando si tenta di eliminare un dispositivo ancora in uso.</summary>
 public sealed record DeviceInUseDto(

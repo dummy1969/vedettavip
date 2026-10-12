@@ -14,10 +14,11 @@ namespace VedettaVip.Api.Services;
 public static class DeviceCsv
 {
     public const string Name = "name", Address = "address", Type = "type", Vendor = "vendor", Snmp = "snmp", Customer = "customer",
-        Parent = "parent", SnmpProfile = "snmp_profile", Enabled = "enabled", Map = "map";
+        Parent = "parent", SnmpProfile = "snmp_profile", Enabled = "enabled", Notify = "notify",
+        Map = "map";
 
     /// <summary>Ordine delle colonne nell'export (e nel modello).</summary>
-    public static readonly string[] Columns = [Name, Address, Type, Vendor, Snmp, Customer, Parent, SnmpProfile, Enabled, Map];
+    public static readonly string[] Columns = [Name, Address, Type, Vendor, Snmp, Customer, Parent, SnmpProfile, Enabled, Notify, Map];
 
     private static readonly Dictionary<string, string> Aliases = new()
     {
@@ -31,6 +32,7 @@ public static class DeviceCsv
         ["parent"] = Parent, ["padre"] = Parent, ["dipendeda"] = Parent,
         ["snmpprofile"] = SnmpProfile, ["profilosnmp"] = SnmpProfile, ["profilo"] = SnmpProfile, ["snmpcredential"] = SnmpProfile,
         ["enabled"] = Enabled, ["abilitato"] = Enabled, ["attivo"] = Enabled,
+        ["notify"] = Notify, ["notifiche"] = Notify, ["notifica"] = Notify, ["notifications"] = Notify,
         ["map"] = Map, ["mappa"] = Map, ["maps"] = Map, ["mappe"] = Map
     };
 

@@ -31,7 +31,8 @@ public sealed class NotificationDispatcher(
     private const int EventBatch = 100;
     private const int DeliveryBatch = 20;
 
-    private sealed record DeviceInfo(Guid Id, string Name, string Address, Guid? ParentId, Guid? CustomerId, NodeState State);
+    private sealed record DeviceInfo(Guid Id, string Name, string Address, Guid? ParentId, Guid? CustomerId, NodeState State,
+        bool Muted);
 
     /// <summary>Dati di instradamento caricati una volta per giro: device, mappe, iscrizioni, finestre attive.</summary>
     private sealed class Routing
@@ -65,6 +66,9 @@ public sealed class NotificationDispatcher(
             return ActiveWindows.FirstOrDefault(w =>
                 MaintenanceSchedule.Covers(w.Scope, w.CustomerId, w.MapId, w.DeviceId, id, device.CustomerId, maps));
         }
+
+        /// <summary>Device con le notifiche disattivate (gli eventi degli agenti non lo sono mai).</summary>
+        public bool IsMuted(Guid? deviceId) => deviceId is { } id && Devices.GetValueOrDefault(id)?.Muted == true;
 
         /// <summary>Contatti che devono ricevere l'avviso (un contatto una volta sola).</summary>
         public List<Contact> Recipients(Event ev, AlertKind kind)
@@ -171,6 +175,13 @@ public sealed class NotificationDispatcher(
             if (kind is null)
             {
                 await FinishAsync(db, ev, NotifyState.None, null, ct);
+                continue;
+            }
+
+            // Notifiche disattivate sul device: l'evento resta (e la presa in carico), l'avviso no
+            if (routing.IsMuted(ev.DeviceId))
+            {
+                await FinishAsync(db, ev, NotifyState.Suppressed, AlertRules.MutedNote, ct);
                 continue;
             }
 
@@ -331,7 +342,7 @@ public sealed class NotificationDispatcher(
                 EventTypes.AgentOffline => ev.AgentId is { } a && offlineAgents.Contains(a),
                 _ => true // soglia: aperta finché non c'è il rientro (ResolvedAt)
             };
-            if (!stillOpen || routing.MaintenanceFor(ev.DeviceId) is not null)
+            if (!stillOpen || routing.MaintenanceFor(ev.DeviceId) is not null || routing.IsMuted(ev.DeviceId))
                 continue;
 
             var created = AddDeliveries(db, ev, routing.Recipients(ev, kind.Value), settings, isReminder: true, now);
@@ -480,7 +491,7 @@ public sealed class NotificationDispatcher(
     private static async Task<Dictionary<Guid, DeviceInfo>> LoadDevicesAsync(VedettaVipDbContext db, CancellationToken ct) =>
         await db.Devices.AsNoTracking()
             .Select(d => new DeviceInfo(d.Id, d.Name, d.Address, d.ParentDeviceId, d.CustomerId,
-                d.Status != null ? d.Status.State : NodeState.Unknown))
+                d.Status != null ? d.Status.State : NodeState.Unknown, d.NotificationsMuted))
             .ToDictionaryAsync(d => d.Id, ct);
 
     internal static MaintenanceSchedule.Window ToSchedule(MaintenanceWindow w) =>

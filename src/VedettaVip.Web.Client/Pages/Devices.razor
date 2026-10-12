@@ -155,6 +155,11 @@ else if (rows is not null)
                                     <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle ms-1"
                                           title="Notifiche sospese: @maintenance">manutenzione</span>
                                 }
+                                @if (d.NotificationsMuted)
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle ms-1"
+                                          title="Monitorato, ma le notifiche di questo dispositivo sono disattivate">notifiche off</span>
+                                }
                                 @if (CustomThresholds(d) is { } custom)
                                 {
                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" title="@custom">soglie</span>

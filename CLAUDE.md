@@ -261,7 +261,8 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
   (inventario derivato, come DeviceStatus).
 - **Device**: anche DownAfterFailures?, UpAfterSuccesses?, SnmpDegradedAfterFailures? (CHECK 1–100; null = valore
   generale). Migration `AddDetectionThresholds`. Vendor (`Generic/MikroTik`, testo, default `Generic`; migration
-  `AddDeviceVendorAndWinBox`, che ha segnato MikroTik i device con `RouterOsApiEnabled`).
+  `AddDeviceVendorAndWinBox`, che ha segnato MikroTik i device con `RouterOsApiEnabled`). NotificationsMuted (bool,
+  migration `DeviceNotificationsMuted`): notifiche disattivate, il device resta monitorato.
 - **MonitoringSettings** (riga unica, CHECK Id = 1, creata dalla migration): DownAfterFailures, UpAfterSuccesses,
   SnmpDegradedAfterFailures (1–100), soglie generali di rilevazione; DashboardEventHours (1–168, default 4, migration
   `AddDashboardSettings`); WinBoxWindowsPath?/WinBoxLinuxPath? (512, migration `AddDeviceVendorAndWinBox`).
@@ -603,6 +604,12 @@ usare ASP.NET Core Data Protection o un secret store.
   alla fine della finestra i problemi ancora aperti tornano Pending e vengono notificati, quelli risolti o presi in
   carico diventano Suppressed. Mappa: bordo blu tratteggiato (`MapNodeDto.Maintenance`); Dispositivi: badge
   "manutenzione" (`DeviceOverviewDto.Maintenance`, servizio `ActiveMaintenance`).
+- **Notifiche disattivate per un device** (`Device.NotificationsMuted`, casella "Invia notifiche per questo dispositivo"
+  nella scheda Monitoraggio del pannello, badge "notifiche off" in Dispositivi, colonna CSV `notify`/`notifiche` si/no):
+  il device resta monitorato (stato, eventi, interruzioni, mappa, presa in carico), ma il dispatcher chiude i suoi eventi
+  come `Suppressed` con nota `AlertRules.MutedNote` ("notifiche disattivate per il dispositivo"), prima di manutenzione e
+  dipendenze, e non manda promemoria. Vale per tutti gli avvisi del device (stato, soglie, interfacce, tunnel), rientri
+  compresi; riattivarle non recupera gli avvisi passati. Per periodi limitati restano le finestre di manutenzione.
 - **Promemoria** (`NotificationSettings.ReminderMinutes`, 0 = disattivati, default 0; `ReminderIncludeWarnings`):
   problemi notificati, ancora aperti (né risolti né presi in carico, Down ancora Down, agente ancora offline) e non
   in manutenzione vengono rinotificati ("PROMEMORIA …, ancora aperto da X"; `NotificationDelivery.IsReminder`,
@@ -756,7 +763,7 @@ usare ASP.NET Core Data Protection o un secret store.
   mappa"). Cliente e mappa stanno nell'indirizzo (`/devices?customer=…&map=…`, `SupplyParameterFromQuery`): link e
   segnalibri riaprono la stessa vista. "N di M" e "Azzera filtri".
 - Pannello `Components/DeviceEditor` (420 px) a **schede**: Generale (nome, indirizzo, tipo, stato, cliente, padre, mappa
-  alla creazione), Monitoraggio (SNMP, profilo SNMP, soglie di rilevazione e delle metriche), RouterOS (API e profilo),
+  alla creazione), Monitoraggio (invio delle notifiche, SNMP, profilo SNMP, soglie di rilevazione e delle metriche), RouterOS (API e profilo),
   Icona. Badge sulla scheda con valori personalizzati; un solo Salva per tutte le schede.
   Alla creazione "Aggiungi alla mappa" (mappe ad albero, `Services/MapHierarchy`): il nodo va **sempre sotto i nodi
   esistenti** (`MapPlacement.NextBelow` nell'API, coperto da test): mappa vuota in alto a sinistra, poi una "riga dei
@@ -769,7 +776,7 @@ usare ASP.NET Core Data Protection o un secret store.
   N eventi)" con conferma: `DELETE ...?purgeEvents=true`, eventi e device nella stessa transazione.
 - Badge "soglie" sui device con soglie di rilevazione specifiche (tooltip con i valori).
 - **Import/export CSV** (`Components/DeviceImportPanel`, `Services/DeviceCsv` + `Endpoints/DeviceImportEndpoints` nell'API,
-  parser coperto da test): colonne nome, indirizzo, tipo, produttore, snmp, cliente, padre, profilo_snmp, abilitato, mappa (alias italiani e
+  parser coperto da test): colonne nome, indirizzo, tipo, produttore, snmp, cliente, padre, profilo_snmp, abilitato, notifiche, mappa (alias italiani e
   inglesi, separatore `;` `,` o tab rilevato dall'intestazione, UTF-8 o Latin-1). Anteprima riga per riga (nessuna scrittura)
   e conferma in un unico SaveChanges; duplicati per indirizzo saltati o aggiornati (una colonna presente sovrascrive anche se
   vuota); padre per indirizzo o nome, anche di una riga del file, con controllo dei cicli; clienti mancanti creati solo se

@@ -22,6 +22,23 @@ public class DeviceCsvTests
         Assert.False(row.Has(DeviceCsv.Parent));
     }
 
+    [Theory]
+    [InlineData("notifiche")]
+    [InlineData("Notifica")]
+    [InlineData("notify")]
+    [InlineData("notifications")]
+    public void Notify_column_has_italian_and_english_aliases(string header)
+    {
+        var row = Assert.Single(DeviceCsv.Parse($"nome;indirizzo;{header}\r\nr1;192.0.2.1;no\r\n").Rows);
+        Assert.True(row.Has(DeviceCsv.Notify));
+        Assert.True(DeviceCsv.TryParseBool(row.Get(DeviceCsv.Notify), out var notify));
+        Assert.False(notify);
+    }
+
+    [Fact]
+    public void Export_columns_put_notify_after_enabled() =>
+        Assert.Equal([DeviceCsv.Enabled, DeviceCsv.Notify, DeviceCsv.Map], DeviceCsv.Columns[^3..]);
+
     [Fact]
     public void Detects_comma_and_tab_and_handles_quotes_and_line_numbers()
     {
@@ -94,10 +111,11 @@ public class DeviceCsvTests
     [Fact]
     public void Export_round_trips_through_the_parser()
     {
-        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "mikrotik", "v2c", "Rossi \"A\"", "", "Rossi", "si", "Sede | Rack"]]);
+        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "mikrotik", "v2c", "Rossi \"A\"", "", "Rossi", "si", "no", "Sede | Rack"]]);
         var row = Assert.Single(DeviceCsv.Parse(csv).Rows);
-        Assert.Equal(("Core; sede", "mikrotik", "Rossi \"A\"", "si", "Sede | Rack"),
-            (row.Get(DeviceCsv.Name), row.Get(DeviceCsv.Vendor), row.Get(DeviceCsv.Customer), row.Get(DeviceCsv.Enabled), row.Get(DeviceCsv.Map)));
+        Assert.Equal(("Core; sede", "mikrotik", "Rossi \"A\"", "si", "no", "Sede | Rack"),
+            (row.Get(DeviceCsv.Name), row.Get(DeviceCsv.Vendor), row.Get(DeviceCsv.Customer), row.Get(DeviceCsv.Enabled),
+             row.Get(DeviceCsv.Notify), row.Get(DeviceCsv.Map)));
     }
 
     [Theory]

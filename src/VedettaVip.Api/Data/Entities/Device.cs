@@ -27,6 +27,11 @@ public sealed class Device
     public Guid? ParentDeviceId { get; set; }
     public Device? ParentDevice { get; set; }
     public bool Enabled { get; set; } = true;
+    /// <summary>
+    /// Notifiche disattivate: il device resta monitorato (stato, eventi, interruzioni) ma i suoi avvisi non partono
+    /// (eventi soppressi dal dispatcher, niente promemoria).
+    /// </summary>
+    public bool NotificationsMuted { get; set; }
 
     // Soglie di rilevazione specifiche del device; null = valore generale (MonitoringSettings)
     public int? DownAfterFailures { get; set; }

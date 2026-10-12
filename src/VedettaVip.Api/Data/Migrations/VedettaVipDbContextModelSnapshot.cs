@@ -391,6 +391,9 @@ namespace VedettaVip.Api.Data.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<bool>("NotificationsMuted")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid?>("ParentDeviceId")
                         .HasColumnType("uuid");
 
@@ -464,6 +467,7 @@ namespace VedettaVip.Api.Data.Migrations
                             Address = "10.0.0.1",
                             Enabled = true,
                             Name = "CCR2004-CORE",
+                            NotificationsMuted = false,
                             RouterOsApiEnabled = true,
                             SnmpVersion = "V2c",
                             Type = "Router",
@@ -475,6 +479,7 @@ namespace VedettaVip.Api.Data.Migrations
                             Address = "10.0.0.2",
                             Enabled = true,
                             Name = "CRS326-SW1",
+                            NotificationsMuted = false,
                             ParentDeviceId = new Guid("0198f000-0000-7000-8000-000000000101"),
                             RouterOsApiEnabled = true,
                             SnmpVersion = "V2c",
@@ -487,6 +492,7 @@ namespace VedettaVip.Api.Data.Migrations
                             Address = "10.0.0.3",
                             Enabled = true,
                             Name = "CRS326-SW2",
+                            NotificationsMuted = false,
                             ParentDeviceId = new Guid("0198f000-0000-7000-8000-000000000101"),
                             RouterOsApiEnabled = true,
                             SnmpVersion = "V2c",
@@ -499,6 +505,7 @@ namespace VedettaVip.Api.Data.Migrations
                             Address = "10.0.10.5",
                             Enabled = true,
                             Name = "cAP-ax-Uffici",
+                            NotificationsMuted = false,
                             ParentDeviceId = new Guid("0198f000-0000-7000-8000-000000000102"),
                             RouterOsApiEnabled = true,
                             SnmpVersion = "V2c",

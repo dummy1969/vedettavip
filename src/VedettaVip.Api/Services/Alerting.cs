@@ -14,6 +14,9 @@ public enum AlertKind { Down, Partial, Recovery, AgentOffline, AgentOnline, Thre
 /// <summary>Regole di notifica (pure, coperte da test).</summary>
 public static class AlertRules
 {
+    /// <summary>Nota degli eventi non notificati perché il device ha le notifiche disattivate.</summary>
+    public const string MutedNote = "notifiche disattivate per il dispositivo";
+
     /// <summary>
     /// Tipo di avviso di un evento; null se non si notifica (es. Unknown → Up alla prima rilevazione,
     /// Up → Unknown non viene mai generato).
