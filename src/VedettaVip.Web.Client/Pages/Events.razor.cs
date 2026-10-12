@@ -160,6 +160,11 @@ public partial class Events : IDisposable
         await ReloadAsync();
     }
 
+    /// <summary>CSV con gli stessi filtri dell'elenco (tutti gli eventi, non solo le pagine caricate).</summary>
+    private string ExportUrl => Api.EventsExportUrl(unacknowledgedOnly, Until(), Since(), deviceFilter,
+        Guid.TryParse(customerFilter, out var cid) ? cid : null, customerFilter == NoneFilter,
+        Enum.TryParse<EventSeverity>(severityFilter, out var sev) ? sev : null);
+
     /// <summary>Inizio del periodo scelto (null = nessun limite).</summary>
     private DateTimeOffset? Since() => range switch
     {
@@ -249,13 +254,7 @@ public partial class Events : IDisposable
 
     private int OpenCount() => events?.Count(e => !e.Acknowledged) ?? 0;
 
-    internal static string SeverityText(EventSeverity s) => s switch
-    {
-        EventSeverity.Critical => "critico",
-        EventSeverity.Error => "errore",
-        EventSeverity.Warning => "avviso",
-        _ => "info"
-    };
+    internal static string SeverityText(EventSeverity s) => Labels.Severity(s);
 
     internal static string ChangeText(EventDto e) => e.Type switch
     {

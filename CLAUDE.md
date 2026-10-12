@@ -346,6 +346,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | GET/POST, PUT/DELETE | `/api/snmp-credentials`, `/api/snmp-credentials/{id}` | profili SNMP (`SnmpCredentialDto` senza community; upsert con community write-only, vuota = invariata); DELETE 409 se in uso; scritture Admin |
 | PUT | `/api/snmp-credentials/default` | `SnmpDefaultDto` (profilo predefinito, null = community del Worker) |
 | GET/PUT | `/api/settings/dashboard` | `DashboardSettingsDto` (ore di eventi recenti nella Home, 1–168, default 4); PUT Admin |
+| GET | `/api/events/export` | stessi filtri di `/api/events` (before = fine del periodo) → CSV (max 100.000 righe) |
 | PUT | `/api/events/{id}/ack` | `EventAckDto` (presa in carico / riapertura) |
 | GET | `/api/events/{id}/deliveries` | `DeliveryDto[]` (canale, contatto, destinazione, esito, tentativi, errore) |
 | GET/PUT | `/api/settings/metric-thresholds` | `MetricThresholdsDto` (latenza, perdita, utilizzo link, finestra); PUT Admin |
@@ -376,6 +377,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | GET/PUT | `/api/settings/winbox` | `WinBoxSettingsDto` (percorsi di WinBox 4 per Windows e Linux, null = ricerca); GET per tutti, PUT Admin |
 | GET | `/api/winbox/handler/{windows\|linux}` | installer del gestore `winbox://` con il percorso già scritto (`.cmd` / `.sh`) |
 | GET | `/api/outages` | `?deviceId&customerId&status=All\|Active\|Resolved&service&from&before&limit` (max 2000) → `OutageDto[]`, più recenti prima; senza deviceId = vista globale |
+| GET | `/api/outages/export` | stessi filtri di `/api/outages` (senza limit) → CSV (max 100.000 righe) |
 | DELETE | `/api/outages/resolved` | `?deviceId&service` → `OutageDeleteResultDto` ("Rimuovi risolte"; gli eventi restano); Operatore |
 | GET | `/api/devices/{id}/availability` | `?from&to` (default 30 giorni) → `OutageSummaryDto` (interruzioni, in corso, tempo giù al ping, disponibilità) |
 | GET | `/api/traffic` | `InterfaceTrafficDto[]` recenti (ultimo campione per DeviceId + IfIndex) |
@@ -719,7 +721,20 @@ usare ASP.NET Core Data Protection o un secret store.
   stato (⚑ in corso / risolta), inizio, durata ("10g 12:04:38", dal vivo ogni secondo), servizio, dettaglio con badge
   manutenzione; filtri stato/servizio/periodo, ordinamento per colonna, riepilogo con disponibilità (`OutageStats`), ricarica
   ogni 30 s, "Rimuovi risolte" (Operatore, rispetta il filtro servizio).
+- **Export CSV** (bottone "Esporta CSV" della scheda, con i filtri attivi): vedi "Export CSV" sotto.
 - Vista globale: l'API è pronta (`GET /api/outages` senza deviceId, filtro cliente, nome/indirizzo/cliente nel DTO); manca la pagina.
+
+### Export CSV (implementato)
+
+- `Services/CsvWriter` (coperto da test): `;`, CRLF, BOM UTF-8, virgolette dove servono; `protectFormulas` mette un apice
+  davanti alle celle che iniziano con `= + - @` (CSV injection in Excel: nomi e messaggi vengono da dispositivi e utenti).
+  L'export dei dispositivi non lo usa (deve rileggersi identico con l'import).
+- **Eventi** (`GET /api/events/export`, bottone nella pagina Eventi) e **interruzioni** (`GET /api/outages/export`, bottone
+  nella scheda Interruzioni): stessi filtri degli elenchi, condivisi con una sola funzione di query per endpoint
+  (`FilterEvents`, `ListQuery`), tutte le righe e non solo le pagine caricate (massimo 100.000, le più recenti). Orari
+  `yyyy-MM-dd HH:mm:ss` nel fuso delle notifiche (`TimeZoneId`, indicato nell'intestazione); interruzioni con durata in
+  testo e in secondi. Link diretti (`EventsExportUrl`, `OutagesExportUrl` del client): il cookie viaggia con la navigazione.
+- Testi in comune tra pagine e CSV in `VedettaVip.Shared/Contracts/Labels` (gravità, servizio, stato della notifica, durata).
 
 ### Dashboard (implementata, Home `/`)
 

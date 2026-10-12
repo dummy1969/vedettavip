@@ -25,9 +25,11 @@
                 <option value="@p.Value">@p.Label</option>
             }
         </select>
+        <a class="btn btn-sm btn-outline-secondary ms-auto" href="@ExportUrl" download
+           title="Le interruzioni in CSV, con i filtri attivi">Esporta CSV</a>
         @if (canEdit)
         {
-            <span class="ms-auto">
+            <span>
                 <DeleteButton Text="Rimuovi risolte" ConfirmText="@RemoveConfirmText" Busy="busy" OnConfirmed="RemoveResolvedAsync" />
             </span>
         }

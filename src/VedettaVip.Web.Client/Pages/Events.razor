@@ -17,6 +17,8 @@
         <input id="ev-open" class="form-check-input" type="checkbox" @bind="unacknowledgedOnly" @bind:after="ReloadAsync" />
         <label class="form-check-label small" for="ev-open">Solo da prendere in carico</label>
     </div>
+    <a class="btn btn-sm btn-outline-secondary" href="@ExportUrl" download
+       title="Gli eventi in CSV, con i filtri attivi (massimo 100.000, i più recenti)">Esporta CSV</a>
 </div>
 
 <p class="small text-muted">

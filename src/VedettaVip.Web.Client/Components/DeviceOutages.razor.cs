@@ -134,6 +134,17 @@ public partial class DeviceOutages : IDisposable
         }
     }
 
+    /// <summary>CSV con gli stessi filtri della tabella (periodo calcolato a ogni ridisegno, cioè almeno ogni 30 s).</summary>
+    private string ExportUrl
+    {
+        get
+        {
+            var days = Periods.First(p => p.Value == period).Days;
+            return Api.OutagesExportUrl(DeviceId, Enum.Parse<OutageStatusFilter>(status), SelectedService,
+                days > 0 ? DateTimeOffset.UtcNow.AddDays(-days) : null);
+        }
+    }
+
     private OutageService? SelectedService => Enum.TryParse<OutageService>(service, out var s) ? s : null;
 
     private Task FiltersChangedAsync()
@@ -221,14 +232,7 @@ public partial class DeviceOutages : IDisposable
 
     private static TimeSpan DurationOf(OutageDto o, DateTimeOffset now) => (o.EndedAt ?? now) - o.StartedAt;
 
-    /// <summary>Durata come in The Dude: "00:03:20", "10g 12:04:38".</summary>
-    internal static string DurationText(TimeSpan d)
-    {
-        if (d < TimeSpan.Zero)
-            d = TimeSpan.Zero;
-        var clock = $"{d.Hours:00}:{d.Minutes:00}:{d.Seconds:00}";
-        return d.TotalDays >= 1 ? $"{(int)d.TotalDays}g {clock}" : clock;
-    }
+    internal static string DurationText(TimeSpan d) => Labels.Duration(d);
 
     /// <summary>Durata a parole per il riepilogo: "45 s", "12 min", "3 h 20 min", "2 g 4 h".</summary>
     private static string Readable(TimeSpan d) => d switch
@@ -253,19 +257,7 @@ public partial class DeviceOutages : IDisposable
         ? $"Dal {FullTime(o.StartedAt)} al {FullTime(end)}"
         : $"Dal {FullTime(o.StartedAt)}, ancora in corso";
 
-    internal static string ServiceLabel(OutageService s) => s switch
-    {
-        OutageService.Ping => "Ping",
-        OutageService.Snmp => "SNMP",
-        OutageService.Interface => "Interfaccia",
-        OutageService.WireGuard => "WireGuard",
-        OutageService.Latency => "Latenza",
-        OutageService.Loss => "Perdita",
-        OutageService.Cpu => "CPU",
-        OutageService.Temperature => "Temperatura",
-        OutageService.Link => "Utilizzo link",
-        _ => s.ToString()
-    };
+    internal static string ServiceLabel(OutageService s) => Labels.Service(s);
 
     public void Dispose()
     {

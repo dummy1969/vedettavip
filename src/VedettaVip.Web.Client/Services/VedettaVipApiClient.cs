@@ -81,16 +81,23 @@ public sealed class VedettaVipApiClient(HttpClient http)
 
     /// <summary>Interruzioni, le più recenti per prime; deviceId null = tutti i device. from: solo quelle che toccano il periodo.</summary>
     public async Task<IReadOnlyList<OutageDto>> GetOutagesAsync(Guid? deviceId, OutageStatusFilter status, OutageService? service,
-        DateTimeOffset? from, int limit, CancellationToken ct)
+        DateTimeOffset? from, int limit, CancellationToken ct) =>
+        await SendAsync<List<OutageDto>>(HttpMethod.Get, $"api/outages?{OutagesQuery(deviceId, status, service, from)}&limit={limit}", null, ct);
+
+    /// <summary>URL del CSV delle interruzioni con gli stessi filtri dell'elenco (link diretto, come per i dispositivi).</summary>
+    public string OutagesExportUrl(Guid? deviceId, OutageStatusFilter status, OutageService? service, DateTimeOffset? from) =>
+        new Uri(http.BaseAddress!, $"api/outages/export?{OutagesQuery(deviceId, status, service, from)}").ToString();
+
+    private static string OutagesQuery(Guid? deviceId, OutageStatusFilter status, OutageService? service, DateTimeOffset? from)
     {
-        var url = $"api/outages?status={status}&limit={limit}";
+        var url = $"status={status}";
         if (deviceId is { } d)
             url += $"&deviceId={d}";
         if (service is { } s)
             url += $"&service={s}";
         if (from is { } f)
             url += $"&from={Uri.EscapeDataString(f.UtcDateTime.ToString("O"))}";
-        return await SendAsync<List<OutageDto>>(HttpMethod.Get, url, null, ct);
+        return url;
     }
 
     public Task<OutageSummaryDto> GetAvailabilityAsync(Guid deviceId, DateTimeOffset from, CancellationToken ct) =>
@@ -232,9 +239,22 @@ public sealed class VedettaVipApiClient(HttpClient http)
     /// </summary>
     public async Task<IReadOnlyList<EventDto>> GetEventsAsync(bool unacknowledgedOnly, DateTimeOffset? before, int limit, CancellationToken ct,
         DateTimeOffset? since = null, Guid? deviceId = null, Guid? customerId = null, bool noCustomer = false,
-        EventSeverity? severity = null)
+        EventSeverity? severity = null) =>
+        await SendAsync<List<EventDto>>(HttpMethod.Get,
+            $"api/events?{EventsQuery(unacknowledgedOnly, before, since, deviceId, customerId, noCustomer, severity)}&limit={limit}", null, ct);
+
+    /// <summary>
+    /// URL del CSV degli eventi con gli stessi filtri dell'elenco (before = fine del periodo). Link diretto: il cookie di
+    /// sessione viaggia con la navigazione.
+    /// </summary>
+    public string EventsExportUrl(bool unacknowledgedOnly, DateTimeOffset? before, DateTimeOffset? since, Guid? deviceId,
+        Guid? customerId, bool noCustomer, EventSeverity? severity) =>
+        new Uri(http.BaseAddress!, $"api/events/export?{EventsQuery(unacknowledgedOnly, before, since, deviceId, customerId, noCustomer, severity)}").ToString();
+
+    private static string EventsQuery(bool unacknowledgedOnly, DateTimeOffset? before, DateTimeOffset? since, Guid? deviceId,
+        Guid? customerId, bool noCustomer, EventSeverity? severity)
     {
-        var url = $"api/events?unacknowledgedOnly={(unacknowledgedOnly ? "true" : "false")}&limit={limit}";
+        var url = $"unacknowledgedOnly={(unacknowledgedOnly ? "true" : "false")}";
         if (deviceId is { } d)
             url += $"&deviceId={d}";
         if (severity is { } sev)
@@ -247,7 +267,7 @@ public sealed class VedettaVipApiClient(HttpClient http)
             url += $"&before={Uri.EscapeDataString(b.UtcDateTime.ToString("O"))}";
         if (since is { } s)
             url += $"&since={Uri.EscapeDataString(s.UtcDateTime.ToString("O"))}";
-        return await SendAsync<List<EventDto>>(HttpMethod.Get, url, null, ct);
+        return url;
     }
 
     public Task AcknowledgeEventAsync(long id, bool acknowledged, CancellationToken ct) =>

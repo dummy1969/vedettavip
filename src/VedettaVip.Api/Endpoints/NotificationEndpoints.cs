@@ -39,6 +39,7 @@ public static partial class NotificationEndpoints
 
         var events = app.MapGroup("/api/events").WithTags("Events");
         events.MapGet("/", GetEventsAsync);
+        events.MapGet("/export", ExportEventsAsync);
         events.MapPut("/{id:long}/ack", AcknowledgeAsync).RequireOperator();
         events.MapGet("/{id:long}/deliveries", GetDeliveriesAsync);
 
@@ -325,18 +326,7 @@ public static partial class NotificationEndpoints
         DateTimeOffset? before = null, DateTimeOffset? since = null, int limit = 200, Guid? customerId = null, bool noCustomer = false,
         EventSeverity? severity = null)
     {
-        var query = db.Events.AsNoTracking();
-        if (deviceId is { } id) query = query.Where(e => e.DeviceId == id);
-        // Cliente del device; "senza cliente" comprende anche gli eventi degli agenti (nessun device, nessun cliente)
-        if (customerId is { } cid) query = query.Where(e => e.Device != null && e.Device.CustomerId == cid);
-        else if (noCustomer) query = query.Where(e => e.Device == null || e.Device.CustomerId == null);
-        if (severity is { } sev) query = query.Where(e => e.Severity == sev);
-        if (unacknowledgedOnly) query = query.Where(e => !e.Acknowledged);
-        if (before is { } b) query = query.Where(e => e.Time < b.ToUniversalTime());
-        if (since is { } s) query = query.Where(e => e.Time >= s.ToUniversalTime());
-
-        var events = await query
-            .OrderByDescending(e => e.Time).ThenByDescending(e => e.Id)
+        var events = await FilterEvents(db, deviceId, unacknowledgedOnly, before, since, customerId, noCustomer, severity)
             .Take(Math.Clamp(limit, 1, 1000))
             .Select(e => new EventDto(
                 e.Id, e.Time, e.Severity, e.Type, e.Message, e.DeviceId,
@@ -349,6 +339,64 @@ public static partial class NotificationEndpoints
             .ToListAsync(ct);
 
         return TypedResults.Ok(events);
+    }
+
+    /// <summary>Filtri dell'elenco degli eventi, condivisi con l'export: i più recenti per primi.</summary>
+    private static IQueryable<Event> FilterEvents(
+        VedettaVipDbContext db, Guid? deviceId, bool unacknowledgedOnly, DateTimeOffset? before, DateTimeOffset? since,
+        Guid? customerId, bool noCustomer, EventSeverity? severity)
+    {
+        var query = db.Events.AsNoTracking();
+        if (deviceId is { } id) query = query.Where(e => e.DeviceId == id);
+        // Cliente del device; "senza cliente" comprende anche gli eventi degli agenti (nessun device, nessun cliente)
+        if (customerId is { } cid) query = query.Where(e => e.Device != null && e.Device.CustomerId == cid);
+        else if (noCustomer) query = query.Where(e => e.Device == null || e.Device.CustomerId == null);
+        if (severity is { } sev) query = query.Where(e => e.Severity == sev);
+        if (unacknowledgedOnly) query = query.Where(e => !e.Acknowledged);
+        if (before is { } b) query = query.Where(e => e.Time < b.ToUniversalTime());
+        if (since is { } s) query = query.Where(e => e.Time >= s.ToUniversalTime());
+        return query.OrderByDescending(e => e.Time).ThenByDescending(e => e.Id);
+    }
+
+    /// <summary>Righe massime di un export: oltre, il file si ferma ai più recenti (restringere i filtri).</summary>
+    internal const int MaxExportRows = 100_000;
+
+    /// <summary>
+    /// Eventi in CSV con gli stessi filtri dell'elenco (before = fine del periodo), orari nel fuso delle notifiche.
+    /// </summary>
+    private static async Task<FileContentHttpResult> ExportEventsAsync(
+        VedettaVipDbContext db, NotificationSettingsService settings, TimeProvider time, CancellationToken ct,
+        Guid? deviceId = null, bool unacknowledgedOnly = false, DateTimeOffset? before = null, DateTimeOffset? since = null,
+        Guid? customerId = null, bool noCustomer = false, EventSeverity? severity = null)
+    {
+        var zone = settings.TimeZone(await settings.LoadAsync(db, ct));
+        var rows = await FilterEvents(db, deviceId, unacknowledgedOnly, before, since, customerId, noCustomer, severity)
+            .Take(MaxExportRows)
+            .Select(e => new
+            {
+                e.Time, e.Severity, e.Type, e.Message, e.AgentId, e.FromState, e.ToState, e.Acknowledged, e.AcknowledgedBy,
+                e.AcknowledgedAt, e.ResolvedAt, e.NotifyState, e.NotifyNote,
+                DeviceName = e.Device != null ? e.Device.Name : null,
+                DeviceAddress = e.Device != null ? e.Device.Address : null,
+                CustomerName = e.Device != null && e.Device.Customer != null ? e.Device.Customer.Name : null,
+                Sent = e.Deliveries.Count(d => d.Status == DeliveryStatus.Sent),
+                Failed = e.Deliveries.Count(d => d.Status == DeliveryStatus.Failed)
+            })
+            .ToListAsync(ct);
+
+        string[] header =
+        [
+            $"data ({zone.Id})", "gravita", "tipo", "dispositivo", "indirizzo", "cliente", "agente", "da_stato", "a_stato", "messaggio",
+            "preso_in_carico", "preso_da", "preso_il", "risolto_il", "notifica", "nota_notifica", "invii_riusciti", "invii_falliti"
+        ];
+        var csv = CsvWriter.Write(header, rows.Select(e => (IReadOnlyList<string>)
+        [
+            CsvWriter.Time(e.Time, zone), Labels.Severity(e.Severity), e.Type, e.DeviceName ?? "", e.DeviceAddress ?? "",
+            e.CustomerName ?? "", e.AgentId ?? "", e.FromState?.ToString() ?? "", e.ToState?.ToString() ?? "", e.Message,
+            e.Acknowledged ? "si" : "no", e.AcknowledgedBy ?? "", CsvWriter.Time(e.AcknowledgedAt, zone), CsvWriter.Time(e.ResolvedAt, zone),
+            Labels.NotifyState(e.NotifyState), e.NotifyNote ?? "", e.Sent.ToString(), e.Failed.ToString()
+        ]), protectFormulas: true);
+        return CsvWriter.File(csv, $"vedettavip-eventi-{TimeZoneInfo.ConvertTime(time.GetUtcNow(), zone):yyyyMMdd-HHmm}.csv");
     }
 
     /// <summary>Presa in carico (con nome dell'utente e ora) o riapertura (azzera anche la chiusura automatica).</summary>

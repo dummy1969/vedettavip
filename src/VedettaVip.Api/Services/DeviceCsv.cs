@@ -275,18 +275,6 @@ public static class DeviceCsv
         _ => "none"
     };
 
-    /// <summary>CSV con ; (si apre direttamente in Excel in italiano), BOM UTF-8 aggiunto dall'endpoint.</summary>
-    public static string Write(IEnumerable<IReadOnlyList<string>> rows)
-    {
-        var sb = new StringBuilder();
-        sb.AppendJoin(';', Columns).Append("\r\n");
-        foreach (var row in rows)
-            sb.AppendJoin(';', row.Select(Quote)).Append("\r\n");
-        return sb.ToString();
-    }
-
-    private static string Quote(string value) =>
-        value.IndexOfAny([';', ',', '"', '\n', '\r']) >= 0 || value != value.Trim()
-            ? "\"" + value.Replace("\"", "\"\"") + "\""
-            : value;
+    /// <summary>CSV dei dispositivi (colonne dell'import), senza protezione delle formule: si rilegge identico.</summary>
+    public static string Write(IEnumerable<IReadOnlyList<string>> rows) => CsvWriter.Write(Columns, rows);
 }

@@ -359,8 +359,7 @@ public static class DeviceImportEndpoints
             ParentRef(d.ParentDeviceId), d.Profile, d.Enabled ? "si" : "no",
             string.Join($" {MapReferences.ListSeparator} ", mapsByDevice[d.Id].Order(StringComparer.CurrentCultureIgnoreCase))
         ]));
-        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray(); // BOM: Excel riconosce l'UTF-8
-        return TypedResults.File(bytes, "text/csv; charset=utf-8", $"vedettavip-dispositivi-{time.GetLocalNow():yyyyMMdd}.csv");
+        return CsvWriter.File(csv, $"vedettavip-dispositivi-{time.GetLocalNow():yyyyMMdd}.csv");
     }
 
     private static DeviceImportResultDto Empty(bool dryRun, string error) =>
