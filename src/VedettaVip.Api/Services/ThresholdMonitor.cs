@@ -65,6 +65,7 @@ public sealed class ThresholdMonitor(IServiceScopeFactory scopes, TimeProvider t
         var minSamples = ThresholdRules.MinSamples(settings.ThresholdWindowMinutes);
 
         var open = await db.OpenThresholdAlerts.ToDictionaryAsync(a => (a.Kind, a.DeviceId, a.LinkId), ct);
+        var outages = await OutageBook.LoadAsync(db, null, OutageBook.ThresholdServices, ct);
         var devices = await db.Devices.AsNoTracking()
             .Select(d => new DeviceRow(d.Id, d.Name, d.Address, d.Enabled, d.Status != null ? d.Status.State : NodeState.Unknown,
                 d.RttThresholdMs, d.LossThresholdPct, d.RouterOsApiEnabled, d.CpuThresholdPct, d.TemperatureThresholdC))
@@ -90,9 +91,9 @@ public sealed class ThresholdMonitor(IServiceScopeFactory scopes, TimeProvider t
                             && deviceStats.TryGetValue(device.Id, out var stats) && stats.Pings >= minSamples;
             var s = evaluable ? deviceStats[device.Id] : null;
 
-            changes += Apply(db, open, cleared, ThresholdKind.Latency, device, s?.RttAvg, ThresholdRules.Effective(device.RttMs, settings.RttThresholdMs),
+            changes += Apply(db, open, cleared, outages, ThresholdKind.Latency, device, s?.RttAvg, ThresholdRules.Effective(device.RttMs, settings.RttThresholdMs),
                 evaluable, now, v => $"latenza media {v:0.#} ms", "ms", window, null);
-            changes += Apply(db, open, cleared, ThresholdKind.Loss, device, s?.LossAvg, ThresholdRules.Effective(device.LossPct, settings.LossThresholdPct),
+            changes += Apply(db, open, cleared, outages, ThresholdKind.Loss, device, s?.LossAvg, ThresholdRules.Effective(device.LossPct, settings.LossThresholdPct),
                 evaluable, now, v => $"perdita {v:0.#} %", "%", window, null);
         }
 
@@ -115,10 +116,10 @@ public sealed class ThresholdMonitor(IServiceScopeFactory scopes, TimeProvider t
                             && rosStats.TryGetValue(device.Id, out var rs) && rs.Samples >= rosMinSamples;
             var r = evaluable ? rosStats[device.Id] : null;
             // API RouterOS disattivata sul device: soglie considerate disattivate, gli avvisi aperti si chiudono
-            changes += Apply(db, open, cleared, ThresholdKind.RouterOsCpu, device, r?.CpuAvg,
+            changes += Apply(db, open, cleared, outages, ThresholdKind.RouterOsCpu, device, r?.CpuAvg,
                 device.RouterOs ? ThresholdRules.Effective(device.CpuPct, settings.RouterOsCpuThresholdPct) : null,
                 evaluable, now, v => $"CPU media {v:0} %", "%", window, null);
-            changes += Apply(db, open, cleared, ThresholdKind.RouterOsTemperature, device, r?.TempAvg,
+            changes += Apply(db, open, cleared, outages, ThresholdKind.RouterOsTemperature, device, r?.TempAvg,
                 device.RouterOs ? ThresholdRules.Effective(device.TemperatureC, settings.RouterOsTemperatureThresholdC) : null,
                 evaluable, now, v => $"temperatura media {v:0} °C", "°C", window, null);
         }
@@ -149,7 +150,7 @@ public sealed class ThresholdMonitor(IServiceScopeFactory scopes, TimeProvider t
                     continue;
                 var evaluable = interfaceStats.TryGetValue((link.DeviceId, link.IfIndex), out var st) && st.Samples >= minSamples && link.SpeedBps > 0;
                 double? utilization = evaluable ? Math.Max(st!.InAvg ?? 0, st.OutAvg ?? 0) / link.SpeedBps * 100 : null;
-                changes += Apply(db, open, cleared, ThresholdKind.LinkUtilization, device, utilization,
+                changes += Apply(db, open, cleared, outages, ThresholdKind.LinkUtilization, device, utilization,
                     ThresholdRules.Effective(link.UtilizationPct, settings.LinkUtilizationThresholdPct), evaluable, now,
                     v => $"link {link.FromName} – {link.ToName} al {v:0} %", "%", window, link.Id);
             }
@@ -157,9 +158,15 @@ public sealed class ThresholdMonitor(IServiceScopeFactory scopes, TimeProvider t
             // Avvisi di link eliminati o non più misurati: si chiudono senza evento
             var linkIds = links.Select(l => l.Id).ToHashSet();
             foreach (var stale in open.Values.Where(a => a.Kind == nameof(ThresholdKind.LinkUtilization) && !linkIds.Contains(a.LinkId)).ToList())
+            {
                 db.OpenThresholdAlerts.Remove(stale);
+                outages.Close(stale.DeviceId, ThresholdRules.Key(ThresholdKind.LinkUtilization, stale.LinkId), now,
+                    "link eliminato o senza sorgente di traffico");
+            }
         }
 
+        SyncOutages(db, outages, devices, now);
+        await outages.TagMaintenanceAsync(c => scope.ServiceProvider.GetRequiredService<ActiveMaintenance>().LoadAsync(db, c), ct);
         await db.SaveChangesAsync(ct);
 
         // La chiusura prende in carico l'apertura (come il ripristino di un Down)
@@ -172,9 +179,31 @@ public sealed class ThresholdMonitor(IServiceScopeFactory scopes, TimeProvider t
             logger.LogInformation("Soglie: {Changes} avvisi aperti o chiusi", changes);
     }
 
+    /// <summary>
+    /// Storico dei down: un'interruzione aperta per ogni avviso aperto di un device abilitato, nessun'altra. Copre i casi
+    /// senza transizione (device riabilitato con l'avviso ancora aperto, avviso chiuso senza evento).
+    /// </summary>
+    private static void SyncOutages(VedettaVipDbContext db, OutageBook outages, Dictionary<Guid, DeviceRow> devices, DateTimeOffset now)
+    {
+        var wanted = new HashSet<(Guid, string)>();
+        var alerts = db.ChangeTracker.Entries<OpenThresholdAlert>()
+            .Where(e => e.State is not (EntityState.Deleted or EntityState.Detached))
+            .Select(e => e.Entity);
+        foreach (var a in alerts)
+        {
+            if (!devices.TryGetValue(a.DeviceId, out var device) || !device.Enabled || !Enum.TryParse<ThresholdKind>(a.Kind, out var kind))
+                continue;
+            var key = ThresholdRules.Key(kind, a.LinkId == Guid.Empty ? null : a.LinkId);
+            wanted.Add((a.DeviceId, key));
+            outages.Open(a.DeviceId, OutageBook.ServiceOf(kind), key, $"valore {a.LastValue:0.#}, soglia {a.Threshold:0.#}", now);
+        }
+        foreach (var o in outages.OpenOutages.Where(o => !wanted.Contains((o.DeviceId, o.Key))).ToList())
+            outages.Close(o.DeviceId, o.Key, now, "avviso chiuso senza rientro");
+    }
+
     /// <summary>Applica la transizione di un avviso; restituisce 1 se si è aperto o chiuso.</summary>
     private static int Apply(
-        VedettaVipDbContext db, Dictionary<(string, Guid, Guid), OpenThresholdAlert> open, List<(Guid, string)> cleared,
+        VedettaVipDbContext db, Dictionary<(string, Guid, Guid), OpenThresholdAlert> open, List<(Guid, string)> cleared, OutageBook outages,
         ThresholdKind kind, DeviceRow device, double? value, double? threshold, bool evaluable, DateTimeOffset now, Func<double, string> describe, string unit, TimeSpan window, Guid? linkId)
     {
         var key = (kind.ToString(), device.Id, linkId ?? Guid.Empty);
@@ -208,6 +237,7 @@ public sealed class ThresholdMonitor(IServiceScopeFactory scopes, TimeProvider t
                     NotifyState = NotifyState.Pending,
                     NotifyAfter = now
                 });
+                outages.Open(device.Id, OutageBook.ServiceOf(kind), alertKey, $"{describe(v)}, soglia {threshold:0.#} {unit}", now);
                 return 1;
 
             case ThresholdTransition.Clear:
@@ -227,6 +257,8 @@ public sealed class ThresholdMonitor(IServiceScopeFactory scopes, TimeProvider t
                     NotifyAfter = now
                 });
                 cleared.Add((device.Id, alertKey));
+                outages.Close(device.Id, alertKey, now, threshold is null ? "soglia disattivata" : null,
+                    threshold is null ? null : $"picco {alert!.PeakValue:0.#} {unit}");
                 return 1;
 
             default:

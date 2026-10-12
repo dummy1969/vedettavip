@@ -271,6 +271,11 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
 - **RouterOsCredential** (tabella `RouterOsCredentials`, migration `AddRouterOsCredentials`): Name(128, unico), Description?,
   Username(64), PasswordProtected, UseTls, Port (CHECK 1–65535), VerifyCertificate. FK RESTRICT da
   `Devices.RouterOsCredentialId`, `Customers.RouterOsCredentialId`, `MonitoringSettings.DefaultRouterOsCredentialId`.
+- **Outage** (tabella `Outages`, migration `AddOutages`): storico dei down. Id, DeviceId (FK **CASCADE**, storico derivato:
+  gli eventi restano RESTRICT), Service (`OutageService` come testo: Ping, Snmp, Interface, WireGuard, Latency, Loss, Cpu,
+  Temperature, Link), Key(128: `ping`, `snmp` o l'AlertKey `if:…`/`wg:…`/`latency`/`link:{id}`…), Detail(256)?, StartedAt,
+  EndedAt? (null = in corso; CHECK EndedAt ≥ StartedAt), EndNote(128)?, Maintenance(128)? (nome della finestra). Indice unico
+  parziale `IX_Outages_Open` (DeviceId, Key) WHERE EndedAt IS NULL. La migration ricostruisce lo storico dagli Event.
 - **Agent** (tabella `Agents`): Id(64, = `Agent:AgentId` del Worker, default nome macchina), FirstSeen, LastSeen,
   OfflineSince?.
 - **Notifiche** (migration `AddNotifications`): `Customers` (Name unico), `Contacts`, `Subscriptions` (CHECK di
@@ -370,6 +375,9 @@ usare ASP.NET Core Data Protection o un secret store.
 | POST | `/api/discovery/accept`, `/ignore`, `/refresh` | conferma (`DiscoveryAcceptDto`), ignora/ripristina, "Scopri ora"; Operatore |
 | GET/PUT | `/api/settings/winbox` | `WinBoxSettingsDto` (percorsi di WinBox 4 per Windows e Linux, null = ricerca); GET per tutti, PUT Admin |
 | GET | `/api/winbox/handler/{windows\|linux}` | installer del gestore `winbox://` con il percorso già scritto (`.cmd` / `.sh`) |
+| GET | `/api/outages` | `?deviceId&customerId&status=All\|Active\|Resolved&service&from&before&limit` (max 2000) → `OutageDto[]`, più recenti prima; senza deviceId = vista globale |
+| DELETE | `/api/outages/resolved` | `?deviceId&service` → `OutageDeleteResultDto` ("Rimuovi risolte"; gli eventi restano); Operatore |
+| GET | `/api/devices/{id}/availability` | `?from&to` (default 30 giorni) → `OutageSummaryDto` (interruzioni, in corso, tempo giù al ping, disponibilità) |
 | GET | `/api/traffic` | `InterfaceTrafficDto[]` recenti (ultimo campione per DeviceId + IfIndex) |
 | WS | `/hubs/agent` | SignalR, **X-Agent-Key**; server → agente `TargetsChanged` (nessun argomento), `InterfacesRequested` (Guid) |
 
@@ -690,6 +698,29 @@ usare ASP.NET Core Data Protection o un secret store.
 - Mappa: in sola visualizzazione un **clic su un link** (senza trascinare) apre il grafico sotto la mappa; in
   modifica bottone "Grafico" nel pannello del link.
 
+### Storico dei down (implementato, scheda "Interruzioni")
+
+- Come la scheda Outages di The Dude: un'**interruzione** (`Outage`) è l'intervallo in cui un servizio del device è giù.
+  **Indipendente dalla presa in carico** degli eventi (un Down preso in carico a mano non ha `ResolvedAt`, l'interruzione sì)
+  e conservata **per sempre**, finché non la si rimuove con "Rimuovi risolte" (cancella solo le interruzioni, non eventi né
+  notifiche).
+- `Services/OutageBook` (coperto da test): carica tracciate le interruzioni aperte di device e servizi, apre/chiude in memoria,
+  il chiamante salva nello stesso SaveChanges degli eventi. Aprire ciò che è aperto o chiudere ciò che non lo è non fa nulla,
+  quindi i servizi **riallineano** a ogni giro oltre a seguire le transizioni (device riabilitato ancora giù, storico parziale):
+  - `DeviceStatusService`: a ogni risultato di un device abilitato `SyncState` (Down = Ping, Partial = SNMP, Up chiude
+    entrambe; Unknown non decide nulla; Partial → Down chiude SNMP e apre Ping allo stesso istante, orologio dell'agente);
+  - `ThresholdMonitor`: latenza, perdita, CPU, temperatura, utilizzo link (apertura con valore e soglia, chiusura con il picco;
+    "soglia disattivata", "link eliminato…"); riallineato su `OpenThresholdAlerts` dei device abilitati;
+  - `RouterOsWatchService`: interfacce e peer WireGuard sorvegliati; togliere la sorveglianza chiude ("sorveglianza tolta").
+  - Device disabilitato (PUT e import CSV): `CloseForDisabledDevicesAsync` chiude le aperte con nota "monitoraggio disattivato".
+- **Manutenzione**: registrate comunque, con il nome della finestra attiva all'apertura o alla chiusura (`ActiveMaintenance`);
+  il tempo in manutenzione non conta nella disponibilità.
+- UI: `DeviceCharts` ha due schede, **Grafici** e **Interruzioni** (badge rosso con quelle in corso); `Components/DeviceOutages`:
+  stato (⚑ in corso / risolta), inizio, durata ("10g 12:04:38", dal vivo ogni secondo), servizio, dettaglio con badge
+  manutenzione; filtri stato/servizio/periodo, ordinamento per colonna, riepilogo con disponibilità (`OutageStats`), ricarica
+  ogni 30 s, "Rimuovi risolte" (Operatore, rispetta il filtro servizio).
+- Vista globale: l'API è pronta (`GET /api/outages` senza deviceId, filtro cliente, nome/indirizzo/cliente nel DTO); manca la pagina.
+
 ### Dashboard (implementata, Home `/`)
 
 - Pagina WebAssembly `Pages/Home` (la vecchia Home statica di VedettaVip.Web è stata rimossa), aggiornata ogni 30 s da
@@ -881,6 +912,8 @@ OID utili:
 - [x] Discovery, seconda tappa: tabella ARP dei router (con lease DHCP) e scansione di subnet (ping, DNS, SNMP, porte),
       proposte unite per IP, produttore dal MAC (OUI IEEE), "Ignora selezionati". Da fare: auto-layout.
 - [x] Sottomappe con stato aggregato (ricorsivo, live via SignalR, badge e riepilogo nell'etichetta).
+- [x] Storico dei down per device (scheda Interruzioni: ping, SNMP, interfacce, WireGuard, soglie; manutenzione, disponibilità,
+      "Rimuovi risolte"). Da fare: pagina globale delle interruzioni.
 - [x] Soglie di rilevazione (ping persi per Down, riusciti per Up, errori SNMP per Partial) configurabili dalla UI:
       generali (pagina Impostazioni) e per singolo device.
 - [x] Notifiche email (MailKit, SMTP configurabile dalla UI) e Telegram, destinatari per cliente/mappa/tutto, outbox

@@ -1486,6 +1486,62 @@ namespace VedettaVip.Api.Data.Migrations
                     b.ToTable("OpenThresholdAlerts", (string)null);
                 });
 
+            modelBuilder.Entity("VedettaVip.Api.Data.Entities.Outage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EndNote")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Maintenance")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedAt")
+                        .IsDescending();
+
+                    b.HasIndex("DeviceId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Outages_Open")
+                        .HasFilter("\"EndedAt\" IS NULL");
+
+                    b.HasIndex("DeviceId", "StartedAt")
+                        .IsDescending(false, true);
+
+                    b.ToTable("Outages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Outages_Interval", "\"EndedAt\" IS NULL OR \"EndedAt\" >= \"StartedAt\"");
+                        });
+                });
+
             modelBuilder.Entity("VedettaVip.Api.Data.Entities.RouterOsCredential", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1929,6 +1985,17 @@ namespace VedettaVip.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("VedettaVip.Api.Data.Entities.OpenThresholdAlert", b =>
+                {
+                    b.HasOne("VedettaVip.Api.Data.Entities.Device", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
+                });
+
+            modelBuilder.Entity("VedettaVip.Api.Data.Entities.Outage", b =>
                 {
                     b.HasOne("VedettaVip.Api.Data.Entities.Device", "Device")
                         .WithMany()

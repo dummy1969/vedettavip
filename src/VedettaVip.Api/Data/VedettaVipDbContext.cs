@@ -43,6 +43,7 @@ public sealed class VedettaVipDbContext(DbContextOptions<VedettaVipDbContext> op
     public DbSet<DiscoveryIgnore> DiscoveryIgnores => Set<DiscoveryIgnore>();
     public DbSet<DeviceArpEntry> DeviceArpEntries => Set<DeviceArpEntry>();
     public DbSet<DiscoveryScan> DiscoveryScans => Set<DiscoveryScan>();
+    public DbSet<Outage> Outages => Set<Outage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,5 +70,6 @@ public sealed class VedettaVipDbContext(DbContextOptions<VedettaVipDbContext> op
         configurationBuilder.Properties<NotifyState>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<NotificationChannel>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<DeliveryStatus>().HaveConversion<string>().HaveMaxLength(16);
+        configurationBuilder.Properties<OutageService>().HaveConversion<string>().HaveMaxLength(16);
     }
 }

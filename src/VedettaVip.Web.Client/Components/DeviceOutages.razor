@@ -1,0 +1,114 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<div class="device-outages">
+    <div class="outage-toolbar">
+        <label class="small text-muted" for="outage-status">Stato</label>
+        <select id="outage-status" class="form-select form-select-sm" @bind="status" @bind:after="FiltersChangedAsync">
+            <option value="@nameof(OutageStatusFilter.All)">tutte</option>
+            <option value="@nameof(OutageStatusFilter.Active)">in corso</option>
+            <option value="@nameof(OutageStatusFilter.Resolved)">risolte</option>
+        </select>
+        <label class="small text-muted" for="outage-service">Servizio</label>
+        <select id="outage-service" class="form-select form-select-sm" @bind="service" @bind:after="FiltersChangedAsync">
+            <option value="">tutti</option>
+            @foreach (var svc in Services)
+            {
+                <option value="@svc">@ServiceLabel(svc)</option>
+            }
+        </select>
+        <select class="form-select form-select-sm" aria-label="Periodo" @bind="period" @bind:after="FiltersChangedAsync">
+            @foreach (var p in Periods)
+            {
+                <option value="@p.Value">@p.Label</option>
+            }
+        </select>
+        @if (canEdit)
+        {
+            <span class="ms-auto">
+                <DeleteButton Text="Rimuovi risolte" ConfirmText="@RemoveConfirmText" Busy="busy" OnConfirmed="RemoveResolvedAsync" />
+            </span>
+        }
+    </div>
+
+    @if (error is not null)
+    {
+        <div class="alert alert-danger py-1 px-2 small mb-2">@error</div>
+    }
+    @if (notice is not null)
+    {
+        <div class="alert alert-success py-1 px-2 small mb-2">@notice</div>
+    }
+
+    @if (summary is { } sum)
+    {
+        <p class="outage-summary small mb-2">
+            @SummaryText(sum) ·
+            <strong title="Tempo in cui il dispositivo non rispondeva al ping, esclusa la manutenzione">@AvailabilityText(sum)</strong>
+        </p>
+    }
+
+    @if (outages is null)
+    {
+        <p class="text-muted small">Caricamento...</p>
+    }
+    else if (outages.Count == 0)
+    {
+        <p class="text-muted small mb-0">Nessuna interruzione con questi filtri.</p>
+    }
+    else
+    {
+        <div class="outage-table-wrap">
+            <table class="table table-sm table-hover outage-table mb-0">
+                <thead>
+                    <tr>
+                        <th><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Status)">Stato@(SortMark(SortColumn.Status))</button></th>
+                        <th><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Start)">Inizio@(SortMark(SortColumn.Start))</button></th>
+                        <th class="text-end"><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Duration)">Durata@(SortMark(SortColumn.Duration))</button></th>
+                        <th><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Service)">Servizio@(SortMark(SortColumn.Service))</button></th>
+                        <th>Dettaglio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ var now = DateTimeOffset.UtcNow; }
+                    @foreach (var o in Sorted)
+                    {
+                        <tr class="@(o.EndedAt is null ? "active" : "")" title="@RowTitle(o)">
+                            <td class="text-nowrap">
+                                @if (o.EndedAt is null)
+                                {
+                                    <span class="flag" aria-hidden="true">⚑</span><span class="state-active">in corso</span>
+                                }
+                                else
+                                {
+                                    <span class="state-resolved">risolta</span>
+                                }
+                            </td>
+                            <td class="text-nowrap font-monospace">@StartText(o.StartedAt)</td>
+                            <td class="text-nowrap text-end font-monospace">@DurationText(DurationOf(o, now))</td>
+                            <td class="text-nowrap">@ServiceLabel(o.Service)</td>
+                            <td class="detail">
+                                @o.Detail
+                                @if (o.Maintenance is { } maintenance)
+                                {
+                                    <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle ms-1"
+                                          title="Finestra di manutenzione: @maintenance">manutenzione</span>
+                                }
+                                @if (o.EndNote is { } note)
+                                {
+                                    <span class="text-muted fst-italic ms-1">(@note)</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (outages.Count >= Limit)
+        {
+            <p class="text-muted small mt-1 mb-0">Mostrate le @Limit più recenti: restringere periodo o filtri per le altre.</p>
+        }
+    }
+</div>

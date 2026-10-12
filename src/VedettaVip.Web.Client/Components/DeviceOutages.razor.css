@@ -1,0 +1,72 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.outage-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.outage-toolbar select {
+    width: auto;
+}
+
+.outage-summary {
+    color: #495057;
+}
+
+/* Come la lista di The Dude: scorre dentro la scheda, intestazione ferma */
+.outage-table-wrap {
+    max-height: 26rem;
+    overflow: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+
+.outage-table {
+    font-size: 0.85rem;
+}
+
+.outage-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8f9fa;
+    white-space: nowrap;
+}
+
+.outage-table .sort {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font-weight: 600;
+}
+
+.outage-table .sort:hover {
+    color: #0d6efd;
+}
+
+.outage-table tr.active td {
+    background: #fff5f5;
+}
+
+.flag {
+    margin-right: 0.3rem;
+    color: #dc3545;
+}
+
+.state-active {
+    color: #b02a37;
+    font-weight: 600;
+}
+
+.state-resolved {
+    color: #6c757d;
+}
+
+.detail {
+    min-width: 14rem;
+}

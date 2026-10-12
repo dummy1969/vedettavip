@@ -77,6 +77,31 @@ public sealed class VedettaVipApiClient(HttpClient http)
     public async Task<IReadOnlyList<InterfaceWithHistoryDto>> GetInterfacesWithHistoryAsync(Guid deviceId, CancellationToken ct) =>
         await SendAsync<List<InterfaceWithHistoryDto>>(HttpMethod.Get, $"api/metrics/device/interfaces?deviceId={deviceId}", null, ct);
 
+    // ---------- Storico dei down ----------
+
+    /// <summary>Interruzioni, le più recenti per prime; deviceId null = tutti i device. from: solo quelle che toccano il periodo.</summary>
+    public async Task<IReadOnlyList<OutageDto>> GetOutagesAsync(Guid? deviceId, OutageStatusFilter status, OutageService? service,
+        DateTimeOffset? from, int limit, CancellationToken ct)
+    {
+        var url = $"api/outages?status={status}&limit={limit}";
+        if (deviceId is { } d)
+            url += $"&deviceId={d}";
+        if (service is { } s)
+            url += $"&service={s}";
+        if (from is { } f)
+            url += $"&from={Uri.EscapeDataString(f.UtcDateTime.ToString("O"))}";
+        return await SendAsync<List<OutageDto>>(HttpMethod.Get, url, null, ct);
+    }
+
+    public Task<OutageSummaryDto> GetAvailabilityAsync(Guid deviceId, DateTimeOffset from, CancellationToken ct) =>
+        SendAsync<OutageSummaryDto>(HttpMethod.Get,
+            $"api/devices/{deviceId}/availability?from={Uri.EscapeDataString(from.UtcDateTime.ToString("O"))}", null, ct);
+
+    /// <summary>"Rimuovi risolte" del device (di un solo servizio se indicato); gli eventi restano.</summary>
+    public Task<OutageDeleteResultDto> DeleteResolvedOutagesAsync(Guid deviceId, OutageService? service, CancellationToken ct) =>
+        SendAsync<OutageDeleteResultDto>(HttpMethod.Delete,
+            $"api/outages/resolved?deviceId={deviceId}{(service is { } s ? $"&service={s}" : "")}", null, ct);
+
     /// <summary>Ultimo campione di traffico per interfaccia (solo quelli recenti).</summary>
     public async Task<IReadOnlyList<InterfaceTrafficDto>> GetTrafficAsync(CancellationToken ct) =>
         await http.GetFromJsonAsync<List<InterfaceTrafficDto>>("api/traffic", Json, ct) ?? [];

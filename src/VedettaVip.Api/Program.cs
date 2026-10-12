@@ -193,6 +193,7 @@ app.MapSnmpCredentialEndpoints();
 app.MapRouterOsCredentialEndpoints();
 app.MapRouterOsWatchEndpoints();
 app.MapDiscoveryEndpoints();
+app.MapOutageEndpoints();
 app.MapHub<StatusHub>("/" + StatusHubMessages.HubPath);
 app.MapHub<AgentHub>("/" + AgentHubMessages.HubPath).AllowAnonymous(); // protetto da AgentKeyMiddleware
 

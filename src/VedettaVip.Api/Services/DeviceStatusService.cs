@@ -25,6 +25,7 @@ public sealed class DeviceStatusService(
     VedettaVipDbContext db,
     IHubContext<StatusHub> hub,
     StatusProcessingLock processingLock,
+    ActiveMaintenance maintenance,
     TimeProvider time,
     ILogger<DeviceStatusService> logger)
 {
@@ -48,6 +49,8 @@ public sealed class DeviceStatusService(
                 .Include(d => d.Status)
                 .Where(d => ids.Contains(d.Id))
                 .ToDictionaryAsync(d => d.Id, ct);
+            // Storico dei down: riallineato a ogni risultato, non solo ai cambi (device riabilitato ancora giù)
+            var outages = await OutageBook.LoadAsync(db, ids, OutageBook.StateServices, ct);
 
             // In ordine di rilevazione: i cambi bufferizzati dal Worker diventano eventi nell'ordine corretto
             foreach (var result in report.Results.OrderBy(r => r.Time))
@@ -81,6 +84,9 @@ public sealed class DeviceStatusService(
                 status.SnmpOk = result.SnmpOk;
                 status.AgentId = report.AgentId;
 
+                if (device.Enabled)
+                    outages.SyncState(device.Id, result.State, observedAt);
+
                 if (previous == result.State)
                     continue;
 
@@ -112,6 +118,8 @@ public sealed class DeviceStatusService(
                 });
                 changes.Add(new DeviceStateChangedDto(device.Id, result.State, observedAt));
             }
+
+            await outages.TagMaintenanceAsync(c => maintenance.LoadAsync(db, c), ct);
 
             // Stessa transazione: un Down e il suo ripristino arrivati nello stesso report si chiudono insieme
             await using var tx = await db.Database.BeginTransactionAsync(ct);

@@ -125,7 +125,7 @@ public static class DeviceEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateDeviceAsync(
-        Guid id, DeviceUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, CancellationToken ct)
+        Guid id, DeviceUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, TimeProvider time, CancellationToken ct)
     {
         var device = await db.Devices.FirstOrDefaultAsync(d => d.Id == id, ct);
         if (device is null)
@@ -135,6 +135,7 @@ public static class DeviceEndpoints
             return TypedResults.ValidationProblem(errors);
 
         Apply(device, dto);
+        await OutageBook.CloseForDisabledDevicesAsync(db, time.GetUtcNow(), ct);
 
         if (await db.TrySaveChangesAsync(ct) is { } saveProblem)
             return saveProblem;

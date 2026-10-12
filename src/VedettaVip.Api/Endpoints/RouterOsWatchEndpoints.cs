@@ -56,7 +56,7 @@ public static class RouterOsWatchEndpoints
         {
             db.RouterOsWatches.Remove(existing);
             await db.SaveChangesAsync(ct);
-            await service.CloseOpenAlertAsync(id, RouterOsWatchRules.AlertKey(kind, existing.Key), ct);
+            await service.StopWatchingAsync(id, kind, existing.Key, ct);
         }
         return TypedResults.Ok(await WatchesAsync(db, id, ct));
     }

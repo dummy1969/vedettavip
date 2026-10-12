@@ -9,8 +9,9 @@ using VedettaVip.Web.Client.Services;
 namespace VedettaVip.Web.Client.Components;
 
 /// <summary>
-/// Grafici di un device: latenza e perdita dei ping, traffico delle interfacce che hanno storico (dal punto di
-/// vista dell'interfaccia: Out = uscita, In = ingresso). Usato nella pagina Dispositivi e sulla mappa (doppio clic).
+/// Scheda di un device a due schede: Grafici (latenza e perdita dei ping, traffico delle interfacce che hanno storico,
+/// dal punto di vista dell'interfaccia: Out = uscita, In = ingresso) e Interruzioni (storico dei down). Usata nella
+/// pagina Dispositivi e sulla mappa (doppio clic).
 /// </summary>
 public partial class DeviceCharts : IDisposable
 {
@@ -22,11 +23,15 @@ public partial class DeviceCharts : IDisposable
     [Parameter] public string? Address { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
 
+    private enum ChartsTab { Charts, Outages }
+
     private readonly CancellationTokenSource cts = new();
     private Guid? loadedFor;
     private IReadOnlyList<InterfaceWithHistoryDto>? interfaces;
     private int? selectedIfIndex;
     private bool routerOsEnabled;
+    private ChartsTab tab = ChartsTab.Charts;
+    private int activeOutages;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -37,8 +42,11 @@ public partial class DeviceCharts : IDisposable
         interfaces = null;
         selectedIfIndex = null;
         routerOsEnabled = false;
+        activeOutages = 0;
         try
         {
+            // Badge della scheda Interruzioni anche prima di aprirla
+            activeOutages = (await Api.GetOutagesAsync(DeviceId, OutageStatusFilter.Active, null, null, 100, cts.Token)).Count;
             routerOsEnabled = (await Api.GetDeviceAsync(DeviceId, cts.Token)).RouterOsApiEnabled;
             interfaces = await Api.GetInterfacesWithHistoryAsync(DeviceId, cts.Token);
             selectedIfIndex = interfaces.FirstOrDefault()?.IfIndex;

@@ -64,7 +64,7 @@ public static class DeviceImportEndpoints
 
     private static async Task<Results<Ok<DeviceImportResultDto>, ValidationProblem, ProblemHttpResult>> ImportAsync(
         DeviceImportRequestDto request, ClaimsPrincipal user, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier,
-        CancellationToken ct)
+        TimeProvider time, CancellationToken ct)
     {
         if (request.CreateMissingCustomers && !user.IsInRole(Roles.Admin))
             return DbProblems.Problem(StatusCodes.Status403Forbidden, "Solo un amministratore può creare clienti");
@@ -241,6 +241,7 @@ public static class DeviceImportEndpoints
         {
             Apply(db, plans);
             await PlaceAsync(db, toMap, ct);
+            await OutageBook.CloseForDisabledDevicesAsync(db, time.GetUtcNow(), ct);
             if (await db.TrySaveChangesAsync(ct) is { } problem)
                 return problem;
             await agents.TargetsChangedAsync();

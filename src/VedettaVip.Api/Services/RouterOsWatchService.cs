@@ -13,7 +13,8 @@ namespace VedettaVip.Api.Services;
 /// apre/chiude gli avvisi come eventi ThresholdRaised/ThresholdCleared (AlertKey "if:…" / "wg:…"): così ritardo di invio,
 /// flap, manutenzione, promemoria e presa in carico sono quelli delle soglie. Letture fallite: nessuna valutazione.
 /// </summary>
-public sealed class RouterOsWatchService(VedettaVipDbContext db, TimeProvider time, ILogger<RouterOsWatchService> logger)
+public sealed class RouterOsWatchService(
+    VedettaVipDbContext db, ActiveMaintenance maintenance, TimeProvider time, ILogger<RouterOsWatchService> logger)
 {
     /// <summary>Valuta le letture e restituisce gli elementi sorvegliati giù per device (anche quelli senza cambi).</summary>
     public async Task<Dictionary<Guid, int>> ProcessAsync(IReadOnlyList<RouterOsSampleDto> samples, CancellationToken ct)
@@ -28,7 +29,8 @@ public sealed class RouterOsWatchService(VedettaVipDbContext db, TimeProvider ti
             return [];
 
         var devices = await db.Devices.AsNoTracking().Where(d => ids.Contains(d.Id))
-            .ToDictionaryAsync(d => d.Id, d => new { d.Name, d.Address }, ct);
+            .ToDictionaryAsync(d => d.Id, d => new { d.Name, d.Address, d.Enabled }, ct);
+        var outages = await OutageBook.LoadAsync(db, ids, OutageBook.WatchServices, ct);
         var now = time.GetUtcNow();
         var cleared = new List<(Guid DeviceId, string AlertKey)>();
 
@@ -55,6 +57,7 @@ public sealed class RouterOsWatchService(VedettaVipDbContext db, TimeProvider ti
                         DeviceId = w.DeviceId, Time = sample.Time, Severity = EventSeverity.Error, Type = EventTypes.ThresholdRaised,
                         AlertKey = alertKey, Message = $"{who}: {what} giù ({detail})", NotifyState = NotifyState.Pending, NotifyAfter = now
                     });
+                    outages.Open(w.DeviceId, OutageBook.ServiceOf(w.Kind), alertKey, $"{what} giù ({detail})", sample.Time);
                     break;
                 case WatchTransition.Clear:
                     db.Events.Add(new Event
@@ -64,17 +67,42 @@ public sealed class RouterOsWatchService(VedettaVipDbContext db, TimeProvider ti
                         NotifyState = NotifyState.Pending, NotifyAfter = now
                     });
                     cleared.Add((w.DeviceId, alertKey));
+                    outages.Close(w.DeviceId, alertKey, sample.Time);
                     break;
             }
             if (transition != WatchTransition.None)
                 logger.LogInformation("{Who}: {What} {State} ({Detail})", who, what, state, detail);
         }
 
+        // Storico dei down riallineato: un'interruzione aperta per ogni elemento giù di un device abilitato (anche senza
+        // transizione, es. device riabilitato con l'interfaccia ancora giù), nessun'altra
+        var wanted = new HashSet<(Guid, string)>();
+        foreach (var w in watches.Where(w => w.State == RouterOsWatchState.Down && devices.GetValueOrDefault(w.DeviceId)?.Enabled == true))
+        {
+            var alertKey = RouterOsWatchRules.AlertKey(w.Kind, w.Key);
+            wanted.Add((w.DeviceId, alertKey));
+            var what = w.Kind == RouterOsWatchKind.Interface ? $"interfaccia {w.Label}" : $"tunnel WireGuard {w.Label}";
+            outages.Open(w.DeviceId, OutageBook.ServiceOf(w.Kind), alertKey, $"{what} giù ({w.Detail})", now);
+        }
+        foreach (var o in outages.OpenOutages.Where(o => !wanted.Contains((o.DeviceId, o.Key))).ToList())
+            outages.Close(o.DeviceId, o.Key, now, "sorveglianza tolta");
+        await outages.TagMaintenanceAsync(c => maintenance.LoadAsync(db, c), ct);
+
         await db.SaveChangesAsync(ct);
         foreach (var (deviceId, alertKey) in cleared)
             await CloseOpenAlertAsync(deviceId, alertKey, ct);
 
         return watches.Where(w => w.State == RouterOsWatchState.Down).GroupBy(w => w.DeviceId).ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    /// <summary>Sorveglianza tolta: chiude l'avviso aperto (senza notifica) e l'interruzione in corso.</summary>
+    public async Task StopWatchingAsync(Guid deviceId, RouterOsWatchKind kind, string key, CancellationToken ct)
+    {
+        var alertKey = RouterOsWatchRules.AlertKey(kind, key);
+        var outages = await OutageBook.LoadAsync(db, [deviceId], OutageBook.WatchServices, ct);
+        if (outages.Close(deviceId, alertKey, time.GetUtcNow(), "sorveglianza tolta"))
+            await db.SaveChangesAsync(ct);
+        await CloseOpenAlertAsync(deviceId, alertKey, ct);
     }
 
     /// <summary>Prende in carico e chiude l'avviso aperto (ripristino, o sorveglianza tolta).</summary>
