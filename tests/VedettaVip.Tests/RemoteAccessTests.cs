@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Marcello Anderlini
 
+using VedettaVip.Api.Endpoints;
 using VedettaVip.Api.Services;
 using VedettaVip.Shared.Contracts;
 using VedettaVip.Shared.Models;
@@ -49,6 +50,24 @@ public class RemoteAccessTests
         // Nessun accesso: nessuna porta, anche se il device ne aveva una
         Assert.Equal(new DeviceAccessDto(null, WebAccess.None, null, TerminalAccess.None, null),
             RemoteAccess.Resolve(null, WebAccess.None, 8080, TerminalAccess.None, 22, RemoteAccessSettingsDto.Default));
+    }
+
+    /// <summary>
+    /// Nodi della mappa: la query legge le porte del dispositivo così come sono, le generali si aggiungono in memoria
+    /// (in SQL, con le generali null, PostgreSQL falliva su tutte le mappe: COALESCE integer/text).
+    /// </summary>
+    [Fact]
+    public void Map_node_ports_are_resolved_after_the_query()
+    {
+        var node = new MapNodeDto(Guid.CreateVersion7(), MapNodeKind.Device, Guid.CreateVersion7(), null, 0, 0, "[Name]", null, "r1",
+            "192.0.2.1", DeviceType.Router, NodeState.Up, Access: new DeviceAccessDto(null, WebAccess.Https, null, TerminalAccess.Ssh, 2200));
+        var settings = new RemoteAccessSettingsDto(null, null, WinBoxPort: 18291, HttpsPort: 8443);
+
+        Assert.Equal(new DeviceAccessDto(18291, WebAccess.Https, 8443, TerminalAccess.Ssh, 2200), MapEndpoints.WithAccess(node, settings).Access);
+        Assert.Equal(new DeviceAccessDto(null, WebAccess.Https, null, TerminalAccess.Ssh, 2200),
+            MapEndpoints.WithAccess(node, RemoteAccessSettingsDto.Default).Access);
+        var submap = node with { Kind = MapNodeKind.Submap, Access = null };
+        Assert.Null(MapEndpoints.WithAccess(submap, settings).Access);
     }
 
     [Theory]

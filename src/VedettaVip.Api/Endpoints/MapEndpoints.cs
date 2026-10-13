@@ -36,7 +36,7 @@ public static class MapEndpoints
     /// se il dispositivo è disabilitato o se l'ultimo report è più vecchio di <paramref name="staleBefore"/>
     /// (agente fermo: la mappa non deve restare verde). Lo stato dei nodi Submap lo calcola <see cref="WithSubmapStatusAsync"/>.
     /// </summary>
-    internal static Expression<Func<MapNode, MapNodeDto>> ToNodeDto(DateTimeOffset staleBefore, RemoteAccessSettingsDto access) => n => new MapNodeDto(
+    internal static Expression<Func<MapNode, MapNodeDto>> ToNodeDto(DateTimeOffset staleBefore) => n => new MapNodeDto(
         n.Id,
         n.Kind,
         n.DeviceId,
@@ -55,17 +55,17 @@ public static class MapEndpoints
         null,
         n.Icon,
         n.Device != null ? (DeviceVendor?)n.Device.Vendor : null,
-        // Accessi remoti con le porte già risolte (stessa regola di RemoteAccess.Resolve, scritta qui per EF)
+        // Accessi remoti del dispositivo così come sono: le porte generali le aggiunge WithAccess dopo la query. Non dentro
+        // l'SQL: con le porte generali null EF scrive costanti NULL e PostgreSQL tipizza "CASE ... THEN NULL" come testo
+        // (COALESCE integer/text, errore 42804 su tutte le mappe)
         n.Device != null
-            ? new DeviceAccessDto(
-                n.Device.WinBoxPort ?? access.WinBoxPort,
-                n.Device.WebAccess,
-                n.Device.WebAccess == WebAccess.None ? null
-                    : n.Device.WebPort ?? (n.Device.WebAccess == WebAccess.Https ? access.HttpsPort : access.HttpPort),
-                n.Device.TerminalAccess,
-                n.Device.TerminalAccess == TerminalAccess.None ? null
-                    : n.Device.TerminalPort ?? (n.Device.TerminalAccess == TerminalAccess.Telnet ? access.TelnetPort : access.SshPort))
+            ? new DeviceAccessDto(n.Device.WinBoxPort, n.Device.WebAccess, n.Device.WebPort, n.Device.TerminalAccess, n.Device.TerminalPort)
             : null);
+
+    /// <summary>Porte effettive del nodo: quelle del dispositivo, altrimenti le generali (<see cref="RemoteAccess.Resolve"/>).</summary>
+    public static MapNodeDto WithAccess(MapNodeDto node, RemoteAccessSettingsDto settings) => node.Access is { } a
+        ? node with { Access = RemoteAccess.Resolve(a.WinBoxPort, a.Web, a.WebPort, a.Terminal, a.TerminalPort, settings) }
+        : node;
 
     internal static DateTimeOffset StaleBefore(TimeProvider time, AgentOptions options) =>
         time.GetUtcNow() - options.StaleAfter;
@@ -94,8 +94,10 @@ public static class MapEndpoints
             .AsNoTracking()
             .Where(n => n.MapId == id)
             .OrderBy(n => n.Id)
-            .Select(ToNodeDto(StaleBefore(time, agentOptions.Value), await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
+            .Select(ToNodeDto(StaleBefore(time, agentOptions.Value)))
             .ToListAsync(ct);
+        var remoteAccess = await SettingsEndpoints.LoadRemoteAccessAsync(db, ct);
+        nodes = nodes.Select(n => WithAccess(n, remoteAccess)).ToList();
 
         // Nodi dei device in manutenzione (bordo tratteggiato sulla mappa)
         var inMaintenance = await maintenance.LoadAsync(db, ct);

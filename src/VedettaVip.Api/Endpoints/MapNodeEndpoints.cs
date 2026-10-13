@@ -42,9 +42,9 @@ public static class MapNodeEndpoints
         var node = await db.MapNodes
             .AsNoTracking()
             .Where(n => n.Id == nodeId && n.MapId == mapId)
-            .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value),
-                await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
+            .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value)))
             .FirstOrDefaultAsync(ct);
+        node = node is null ? null : MapEndpoints.WithAccess(node, await SettingsEndpoints.LoadRemoteAccessAsync(db, ct));
 
         return node is null ? TypedResults.NotFound() : TypedResults.Ok(node);
     }
@@ -95,9 +95,9 @@ public static class MapNodeEndpoints
 
         var created = await db.MapNodes.AsNoTracking()
             .Where(n => n.Id == node.Id)
-            .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value),
-                await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
+            .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value)))
             .FirstAsync(ct);
+        created = MapEndpoints.WithAccess(created, await SettingsEndpoints.LoadRemoteAccessAsync(db, ct));
 
         // La sottomappa agganciata cambia mappa padre (collegamento "torna alla mappa padre")
         await notifier.MapsChangedAsync(db, [mapId, .. Submap(node)]);
@@ -124,9 +124,9 @@ public static class MapNodeEndpoints
 
         var updated = await db.MapNodes.AsNoTracking()
             .Where(n => n.Id == nodeId)
-            .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value),
-                await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
+            .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value)))
             .FirstAsync(ct);
+        updated = MapEndpoints.WithAccess(updated, await SettingsEndpoints.LoadRemoteAccessAsync(db, ct));
 
         await notifier.MapsChangedAsync(db, [mapId]);
         return TypedResults.Ok(updated);
@@ -191,9 +191,9 @@ public static class MapNodeEndpoints
 
         var moved = await db.MapNodes.AsNoTracking()
             .Where(n => n.Id == nodeId)
-            .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value),
-                await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
+            .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value)))
             .FirstAsync(ct);
+        moved = MapEndpoints.WithAccess(moved, await SettingsEndpoints.LoadRemoteAccessAsync(db, ct));
 
         await notifier.MapsChangedAsync(db, [mapId, targetMapId, .. Submap(node)]);
         return TypedResults.Ok(moved);

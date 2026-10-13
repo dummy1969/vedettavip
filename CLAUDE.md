@@ -504,8 +504,9 @@ usare ASP.NET Core Data Protection o un secret store.
   `HttpDefaultPort`, `HttpsDefaultPort`, `SshDefaultPort`, `TelnetDefaultPort`), poi standard (8291, 80, 443, 22, 23).
   Accesso None = porta azzerata. Nessun nome utente né password nei link (scelta voluta).
 - **Porte effettive** calcolate dall'API: `DeviceAccessDto` (WinBoxPort, Web, WebPort, Terminal, TerminalPort) in
-  `MapNodeDto.Access` (proiezione `MapEndpoints.ToNodeDto`, stessa regola di `RemoteAccess.Resolve`) e
-  `DeviceOverviewDto.Access`; cambiare le porte generali invia `MapsChanged` a tutte le mappe.
+  `MapNodeDto.Access` (`MapEndpoints.ToNodeDto` legge le porte del dispositivo, `MapEndpoints.WithAccess` aggiunge le
+  generali in memoria con `RemoteAccess.Resolve`) e `DeviceOverviewDto.Access`; cambiare le porte generali invia
+  `MapsChanged` a tutte le mappe.
 - **Link** (`VedettaVip.Shared/Models/RemoteAccess` e `WinBoxTarget`, coperti da test; client `Services/DeviceLinks`), porta
   solo se non standard:
   - `winbox://<indirizzo>[:porta]` (WinBox accetta `indirizzo:porta` da riga di comando; IPv6 senza porta: i gestori
@@ -872,6 +873,12 @@ OID utili:
   Motivo: nei blocchi `@code` le righe che iniziano con `<` vengono interpretate come tag HTML.
 
 ## Insidie note
+
+- **Parametri null dentro una proiezione EF (`CASE`/`COALESCE`)**: EF scrive un valore null catturato come costante `NULL`, e
+  PostgreSQL tipizza `CASE WHEN … THEN NULL END` come **testo**; `COALESCE(colonna_int, CASE …)` fallisce allora con 42804
+  ("COALESCE types integer and text cannot be matched"). Successo nella 1.3.0 con le porte generali di accesso remoto tutte
+  vuote: **tutte le mappe in errore**. Risolvere in memoria dopo la query (`MapEndpoints.WithAccess`); nelle verifiche su
+  PostgreSQL provare sempre anche il caso con i valori null.
 
 - **ApexCharts.js non è più open source da 5.1.0** (luglio 2025: doppia licenza, gratuita solo sotto 2 M$ di fatturato,
   niente sublicenza). Blazor-ApexCharts 6.1.0 e successive includono ApexCharts.js 5.3+/6.x: incompatibili con la
