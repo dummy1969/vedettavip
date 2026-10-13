@@ -35,7 +35,8 @@ public partial class NodeMenu : IAsyncDisposable
 
     private string Name => Node.Values.GetValueOrDefault("Name") is { Length: > 0 } name ? name : "Nodo";
     private string? Address => Node.Kind == MapNodeKind.Device ? Node.Values.GetValueOrDefault("Address") : null;
-    private string? WinBoxHref => WinBoxLink.Href(Node.Vendor, Address);
+    private string? WinBoxHref => WinBoxLink.Href(Node.Vendor, Address, Node.WinBoxPort);
+    private string WinBoxLabel => "Apri con WinBox" + WinBoxLink.PortSuffix(Address, Node.WinBoxPort);
 
     /// <summary>Un nodo statico in sola visualizzazione non ha voci: niente menu.</summary>
     private bool HasItems => Node.Kind != MapNodeKind.Static || Editing;

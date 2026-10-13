@@ -67,12 +67,13 @@ public static class DeviceEndpoints
             .ToLookup(x => x.DeviceId, x => new MapRefDto(x.MapId, x.MapName));
 
         var inMaintenance = await maintenance.LoadAsync(db, ct);
+        var winBoxPort = await SettingsEndpoints.WinBoxDefaultPortAsync(db, ct);
         var overview = devices.Select(d =>
         {
             var s = d.Status;
             var state = d.Enabled && s is not null && s.LastReportAt >= staleBefore ? s.State : NodeState.Unknown;
             return new DeviceOverviewDto(ToDto(d), state, s?.Since, s?.LastReportAt, s?.LastRttMs, s?.SnmpOk, s?.AgentId,
-                mapsByDevice[d.Id].ToList(), inMaintenance(d.Id));
+                mapsByDevice[d.Id].ToList(), inMaintenance(d.Id), WinBoxTarget.Effective(d.WinBoxPort, winBoxPort));
         }).ToList();
 
         return TypedResults.Ok(overview);
@@ -227,7 +228,7 @@ public static class DeviceEndpoints
         d.Id, d.Name, d.Address, d.Type, d.Icon, d.SnmpVersion, d.SnmpCredentialId,
         d.RouterOsApiEnabled, d.ParentDeviceId, d.Enabled,
         d.DownAfterFailures, d.UpAfterSuccesses, d.SnmpDegradedAfterFailures, d.CustomerId, d.RttThresholdMs, d.LossThresholdPct,
-        d.RouterOsCredentialId, d.CpuThresholdPct, d.TemperatureThresholdC, d.Vendor, d.NotificationsMuted);
+        d.RouterOsCredentialId, d.CpuThresholdPct, d.TemperatureThresholdC, d.Vendor, d.NotificationsMuted, d.WinBoxPort);
 
     private static void Apply(Device d, DeviceUpsertDto dto)
     {
@@ -251,6 +252,7 @@ public static class DeviceEndpoints
         d.TemperatureThresholdC = dto.TemperatureThresholdC;
         d.Vendor = VendorOf(dto.Vendor, dto.RouterOsApiEnabled);
         d.NotificationsMuted = dto.NotificationsMuted;
+        d.WinBoxPort = dto.WinBoxPort;
     }
 
     /// <summary>L'API RouterOS esiste solo sui MikroTik: abilitarla fissa il produttore.</summary>

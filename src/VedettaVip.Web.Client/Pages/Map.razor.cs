@@ -175,7 +175,8 @@ public partial class Map : IAsyncDisposable
             Icon = MapIcons.Resolve(dto.Icon, MapIcons.DefaultFor(dto.Kind, dto.DeviceType)),
             OwnIcon = dto.OwnIcon,
             DeviceType = dto.DeviceType,
-            Vendor = dto.Vendor
+            Vendor = dto.Vendor,
+            WinBoxPort = dto.WinBoxPort
         };
         node.Values["Name"] = dto.Name ?? "";
         node.Values["Address"] = dto.Address ?? "";

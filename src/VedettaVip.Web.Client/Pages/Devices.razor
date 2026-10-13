@@ -206,10 +206,10 @@ else if (rows is not null)
                                             title="Grafici" aria-label="Grafici di @d.Name">
                                         <UiIcon Name="@UiIcons.Charts" />
                                     </button>
-                                    @if (WinBoxLink.Href(d.Vendor, d.Address) is { } winbox)
+                                    @if (WinBoxLink.Href(d.Vendor, d.Address, row.WinBoxPort) is { } winbox)
                                     {
                                         <a class="btn btn-sm btn-outline-secondary btn-icon" href="@winbox"
-                                           title="Apri con WinBox (serve il gestore winbox:// su questo PC: pagina Gestore WinBox)"
+                                           title="Apri con WinBox@(WinBoxLink.PortSuffix(d.Address, row.WinBoxPort)) (serve il gestore winbox:// su questo PC: pagina Gestore WinBox)"
                                            aria-label="Apri @d.Name con WinBox">
                                             <UiIcon Name="@UiIcons.WinBox" />
                                         </a>
@@ -242,7 +242,7 @@ else if (rows is not null)
         @if (editorOpen)
         {
             <DeviceEditor @key="editorKey" Device="EditingDevice" AllDevices="AllDevices" Defaults="detectionDefaults" Customers="customers" Metrics="metricThresholds"
-                          SnmpProfiles="snmpProfiles" RouterOsProfiles="routerOsProfiles"
+                          SnmpProfiles="snmpProfiles" RouterOsProfiles="routerOsProfiles" WinBoxDefaultPort="winBoxDefaultPort"
                           OnSaved="SavedAsync" OnClose="CloseEditor" />
         }
     </div>

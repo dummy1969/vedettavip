@@ -29,12 +29,19 @@
             <div class="form-text">~/ = cartella home dell'utente. Vuoto = l'installer cerca nelle posizioni comuni e, se non lo
                 trova, chiede il percorso.</div>
 
+            <label class="form-label small mb-1 mt-3" for="wb-port">Porta predefinita</label>
+            <input id="wb-port" class="form-control form-control-sm wb-port" type="number" min="1" max="65535"
+                   @bind="defaultPort" placeholder="8291" />
+            <div class="form-text">Porta del servizio winbox dei router: vuoto = 8291 (standard). Un dispositivo può averne una
+                propria (pannello del dispositivo, scheda RouterOS). Se diversa da 8291 il link diventa
+                <code>winbox://indirizzo:porta</code>; i gestori già installati sui PC funzionano senza reinstallarli.</div>
+
             <div class="d-flex align-items-baseline gap-2 mt-3">
                 <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="SaveAsync">Salva</button>
                 @if (savedAt is { } at)
                 {
                     <span class="small text-success">Salvato alle @at.ToString("HH:mm:ss"): gli installer scaricati da ora usano i
-                        nuovi percorsi.</span>
+                        nuovi percorsi, i link la nuova porta.</span>
                 }
             </div>
         }

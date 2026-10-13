@@ -15,10 +15,10 @@ public static class DeviceCsv
 {
     public const string Name = "name", Address = "address", Type = "type", Vendor = "vendor", Snmp = "snmp", Customer = "customer",
         Parent = "parent", SnmpProfile = "snmp_profile", Enabled = "enabled", Notify = "notify",
-        Map = "map";
+        WinBoxPort = "winbox_port", Map = "map";
 
     /// <summary>Ordine delle colonne nell'export (e nel modello).</summary>
-    public static readonly string[] Columns = [Name, Address, Type, Vendor, Snmp, Customer, Parent, SnmpProfile, Enabled, Notify, Map];
+    public static readonly string[] Columns = [Name, Address, Type, Vendor, Snmp, Customer, Parent, SnmpProfile, Enabled, Notify, WinBoxPort, Map];
 
     private static readonly Dictionary<string, string> Aliases = new()
     {
@@ -33,6 +33,7 @@ public static class DeviceCsv
         ["snmpprofile"] = SnmpProfile, ["profilosnmp"] = SnmpProfile, ["profilo"] = SnmpProfile, ["snmpcredential"] = SnmpProfile,
         ["enabled"] = Enabled, ["abilitato"] = Enabled, ["attivo"] = Enabled,
         ["notify"] = Notify, ["notifiche"] = Notify, ["notifica"] = Notify, ["notifications"] = Notify,
+        ["winboxport"] = WinBoxPort, ["portawinbox"] = WinBoxPort, ["winbox"] = WinBoxPort,
         ["map"] = Map, ["mappa"] = Map, ["maps"] = Map, ["mappe"] = Map
     };
 
@@ -224,6 +225,19 @@ public static class DeviceCsv
             _ => (SnmpVersion)(-1)
         };
         return Enum.IsDefined(version);
+    }
+
+    /// <summary>Porta di WinBox: vuota = generale (null), altrimenti 1–65535.</summary>
+    public static bool TryParsePort(string s, out int? port)
+    {
+        port = null;
+        if (string.IsNullOrWhiteSpace(s))
+            return true;
+        if (!int.TryParse(s.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var p)
+            || p is < 1 or > 65535)
+            return false;
+        port = p;
+        return true;
     }
 
     public static bool TryParseBool(string s, out bool value)

@@ -25,6 +25,8 @@ public sealed class MapNode
     public DeviceType? DeviceType { get; set; }
     /// <summary>Produttore del dispositivo (null per sottomappe e nodi statici).</summary>
     public DeviceVendor? Vendor { get; set; }
+    /// <summary>Porta di WinBox effettiva (null = 8291), per "Apri con WinBox".</summary>
+    public int? WinBoxPort { get; set; }
     /// <summary>Nome della finestra di manutenzione attiva (null = nessuna): bordo tratteggiato blu sulla mappa.</summary>
     public string? Maintenance { get; set; }
 

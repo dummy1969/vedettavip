@@ -32,6 +32,8 @@ public sealed class Device
     /// (eventi soppressi dal dispatcher, niente promemoria).
     /// </summary>
     public bool NotificationsMuted { get; set; }
+    /// <summary>Porta di WinBox per "Apri con WinBox"; null = quella generale (Impostazioni → WinBox, poi 8291).</summary>
+    public int? WinBoxPort { get; set; }
 
     // Soglie di rilevazione specifiche del device; null = valore generale (MonitoringSettings)
     public int? DownAfterFailures { get; set; }

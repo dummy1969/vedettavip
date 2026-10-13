@@ -2,6 +2,7 @@
 @* Copyright (C) 2026 Marcello Anderlini *@
 
 @using VedettaVip.Shared.Contracts
+@using VedettaVip.Shared.Models
 
 <aside class="device-editor">
     <h6>@(Device is null ? "Nuovo dispositivo" : $"Modifica {Device.Name}")</h6>
@@ -216,6 +217,29 @@
                         </fieldset>
                     }
                 }
+
+                <fieldset class="detection mt-3">
+                    <legend class="small fw-semibold mb-1">Apri con WinBox</legend>
+                    @if (vendor == DeviceVendor.MikroTik)
+                    {
+                        <div class="detection-grid">
+                            <label for="dev-winbox-port" class="small">Porta WinBox</label>
+                            <input id="dev-winbox-port" class="form-control form-control-sm" type="number" min="1" max="65535"
+                                   @bind="winBoxPort" placeholder="@WinBoxPortPlaceholder" />
+                        </div>
+                        <div class="form-text">
+                            Vuoto = porta generale (Impostazioni → WinBox). Il link apre WinBox su <code>@WinBoxPreview</code>.
+                            @if (WinBoxTarget.IsIPv6(address) && winBoxPort is not null)
+                            {
+                                <span class="text-warning-emphasis">Con un indirizzo IPv6 la porta non viene passata a WinBox.</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-text mt-0">Disponibile per i dispositivi MikroTik (Produttore nella scheda Generale).</div>
+                    }
+                </fieldset>
                 break;
 
             case EditorTab.Icon:

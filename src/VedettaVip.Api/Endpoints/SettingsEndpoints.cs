@@ -84,16 +84,23 @@ public static class SettingsEndpoints
     internal static async Task<WinBoxSettingsDto> LoadWinBoxAsync(VedettaVipDbContext db, CancellationToken ct) =>
         await db.MonitoringSettings.AsNoTracking()
             .Where(s => s.Id == MonitoringSettings.SingletonId)
-            .Select(s => new WinBoxSettingsDto(s.WinBoxWindowsPath, s.WinBoxLinuxPath))
+            .Select(s => new WinBoxSettingsDto(s.WinBoxWindowsPath, s.WinBoxLinuxPath, s.WinBoxDefaultPort))
             .FirstOrDefaultAsync(ct)
         ?? WinBoxSettingsDto.Default;
+
+    /// <summary>Porta di WinBox dei dispositivi senza una propria (null = 8291), per i link "Apri con WinBox".</summary>
+    internal static async Task<int?> WinBoxDefaultPortAsync(VedettaVipDbContext db, CancellationToken ct) =>
+        await db.MonitoringSettings.AsNoTracking()
+            .Where(s => s.Id == MonitoringSettings.SingletonId)
+            .Select(s => s.WinBoxDefaultPort)
+            .FirstOrDefaultAsync(ct);
 
     private static async Task<Ok<WinBoxSettingsDto>> GetWinBoxAsync(VedettaVipDbContext db, CancellationToken ct) =>
         TypedResults.Ok(await LoadWinBoxAsync(db, ct));
 
     /// <summary>Vuoto = nessun predefinito (l'installer cerca WinBox e, se non lo trova, chiede il percorso).</summary>
     private static async Task<Results<Ok<WinBoxSettingsDto>, ValidationProblem, ProblemHttpResult>> UpdateWinBoxAsync(
-        WinBoxSettingsDto dto, VedettaVipDbContext db, CancellationToken ct)
+        WinBoxSettingsDto dto, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
         var windows = string.IsNullOrWhiteSpace(dto.WindowsPath) ? null : dto.WindowsPath.Trim();
         var linux = string.IsNullOrWhiteSpace(dto.LinuxPath) ? null : dto.LinuxPath.Trim();
@@ -109,9 +116,14 @@ public static class SettingsEndpoints
         var settings = await db.MonitoringSettings.FirstAsync(s => s.Id == MonitoringSettings.SingletonId, ct);
         settings.WinBoxWindowsPath = windows;
         settings.WinBoxLinuxPath = linux;
+        var portChanged = settings.WinBoxDefaultPort != dto.DefaultPort;
+        settings.WinBoxDefaultPort = dto.DefaultPort;
         if (await db.TrySaveChangesAsync(ct) is { } problem)
             return problem;
-        return TypedResults.Ok(new WinBoxSettingsDto(windows, linux));
+        // La porta è nei nodi delle mappe (menu "Apri con WinBox"): le mappe aperte si ricaricano
+        if (portChanged)
+            await notifier.AllMapsChangedAsync();
+        return TypedResults.Ok(new WinBoxSettingsDto(windows, linux, dto.DefaultPort));
     }
 
     /// <summary>Aggiorna le soglie generali e avvisa gli agenti: i device senza valori specifici le usano subito.</summary>

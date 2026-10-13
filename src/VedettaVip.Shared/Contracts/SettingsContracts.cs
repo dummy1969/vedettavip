@@ -51,10 +51,12 @@ public sealed record DashboardSettingsDto(
 /// Percorso di WinBox 4 sui PC degli operatori, scritto negli installer del gestore dei link winbox:// (pagina WinBox).
 /// Null = nessun predefinito: l'installer cerca nelle posizioni comuni e, se non lo trova, chiede il percorso.
 /// Ammesse le variabili d'ambiente (%LOCALAPPDATA%, %USERPROFILE%) su Windows e ~/ su Linux.
+/// DefaultPort: porta di WinBox dei dispositivi senza una propria (null = 8291, standard).
 /// </summary>
 public sealed record WinBoxSettingsDto(
     [property: StringLength(WinBoxSettingsDto.MaxPathLength, ErrorMessage = "Percorso Windows: al massimo 512 caratteri.")] string? WindowsPath,
-    [property: StringLength(WinBoxSettingsDto.MaxPathLength, ErrorMessage = "Percorso Linux: al massimo 512 caratteri.")] string? LinuxPath)
+    [property: StringLength(WinBoxSettingsDto.MaxPathLength, ErrorMessage = "Percorso Linux: al massimo 512 caratteri.")] string? LinuxPath,
+    [property: Range(1, 65535, ErrorMessage = "Porta di WinBox: tra 1 e 65535.")] int? DefaultPort = null)
 {
     public const int MaxPathLength = 512;
     public static readonly WinBoxSettingsDto Default = new(null, null);

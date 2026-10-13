@@ -262,7 +262,8 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
 - **Device**: anche DownAfterFailures?, UpAfterSuccesses?, SnmpDegradedAfterFailures? (CHECK 1–100; null = valore
   generale). Migration `AddDetectionThresholds`. Vendor (`Generic/MikroTik`, testo, default `Generic`; migration
   `AddDeviceVendorAndWinBox`, che ha segnato MikroTik i device con `RouterOsApiEnabled`). NotificationsMuted (bool,
-  migration `DeviceNotificationsMuted`): notifiche disattivate, il device resta monitorato.
+  migration `DeviceNotificationsMuted`): notifiche disattivate, il device resta monitorato. WinBoxPort? (CHECK 1–65535,
+  migration `WinBoxPort`, con `MonitoringSettings.WinBoxDefaultPort`): porta per "Apri con WinBox", null = generale.
 - **MonitoringSettings** (riga unica, CHECK Id = 1, creata dalla migration): DownAfterFailures, UpAfterSuccesses,
   SnmpDegradedAfterFailures (1–100), soglie generali di rilevazione; DashboardEventHours (1–168, default 4, migration
   `AddDashboardSettings`); WinBoxWindowsPath?/WinBoxLinuxPath? (512, migration `AddDeviceVendorAndWinBox`).
@@ -375,7 +376,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | GET/POST, DELETE | `/api/discovery/scans`, `/api/discovery/scans/{id}` | scansioni di subnet (ultime 20 con avanzamento); Operatore per avviare/eliminare |
 | GET/POST | `/api/agent/scans/{id}` | **X-Agent-Key** + `X-Agent-Id`: presa del compito (409 se di un altro agente) e avanzamento/esito |
 | POST | `/api/discovery/accept`, `/ignore`, `/refresh` | conferma (`DiscoveryAcceptDto`), ignora/ripristina, "Scopri ora"; Operatore |
-| GET/PUT | `/api/settings/winbox` | `WinBoxSettingsDto` (percorsi di WinBox 4 per Windows e Linux, null = ricerca); GET per tutti, PUT Admin |
+| GET/PUT | `/api/settings/winbox` | `WinBoxSettingsDto` (percorsi di WinBox 4 per Windows e Linux, null = ricerca; porta predefinita, null = 8291); GET per tutti, PUT Admin |
 | GET | `/api/winbox/handler/{windows\|linux}` | installer del gestore `winbox://` con il percorso già scritto (`.cmd` / `.sh`) |
 | GET | `/api/outages` | `?deviceId&customerId&status=All\|Active\|Resolved&service&from&before&limit` (max 2000) → `OutageDto[]`, più recenti prima; senza deviceId = vista globale |
 | GET | `/api/outages/export` | stessi filtri di `/api/outages` (senza limit) → CSV (max 100.000 righe) |
@@ -492,6 +493,13 @@ usare ASP.NET Core Data Protection o un secret store.
   l'API RouterOS lo porta a MikroTik (UI e API, `DeviceEndpoints.VendorOf`); colonna CSV `produttore` (mikrotik/generic);
   la Scoperta propone MikroTik se la proposta è RouterOS o il MAC è MikroTik (`DiscoveryPlanner.VendorOf`).
   `MapNodeDto.Vendor` e `DeviceDto.Vendor` lo portano al client.
+- **Porta** (`VedettaVip.Shared/Models/WinBoxTarget`, coperto da test): generale in Impostazioni → WinBox
+  (`WinBoxSettingsDto.DefaultPort`, null = 8291) e per device (`Device.WinBoxPort`, scheda RouterOS del pannello, colonna CSV
+  `winbox_port`/`porta_winbox`). L'API manda la porta **effettiva** (device → generale) in `MapNodeDto.WinBoxPort` e
+  `DeviceOverviewDto.WinBoxPort`; cambiare la generale invia `MapsChanged` a tutte le mappe. Il link diventa
+  `winbox://<indirizzo>:<porta>` solo se la porta non è 8291 (WinBox accetta `indirizzo:porta` anche da riga di comando);
+  per IPv6 la porta non si passa (servirebbero le parentesi quadre, rifiutate dai gestori installati). I gestori già
+  installati accettano `:porta` senza reinstallarli. Il menu del nodo mostra "Apri con WinBox (porta N)".
 - **Link** `winbox://<indirizzo>` (`Services/WinBoxLink`), **senza credenziali**: WinBox chiede utente e password o usa i
   suoi indirizzi salvati. Nessuna password di accesso ai router è salvata in VedettaVip (scelta voluta).
 - **Menu contestuale del nodo** (`Components/NodeMenu`, clic destro su un nodo, anche in sola visualizzazione): Apri con
@@ -507,7 +515,7 @@ usare ASP.NET Core Data Protection o un secret store.
     `x-scheme-handler/winbox`, `xdg-mime default`. `--uninstall`.
   - Il gestore accetta solo IP, hostname o MAC (`^[A-Za-z0-9:][A-Za-z0-9.:-]{0,252}$`): qualsiasi sito può aprire un link
     `winbox://`. Coperto da test (anche l'installer Linux eseguito davvero con un finto WinBox).
-- **Impostazioni → WinBox** (Admin): percorsi per Windows e Linux + download. Pagina **`/winbox`** ("Gestore WinBox", per
+- **Impostazioni → WinBox** (Admin): percorsi per Windows e Linux, porta predefinita + download. Pagina **`/winbox`** ("Gestore WinBox", per
   tutti gli utenti, raggiungibile dal menu del nodo): download e istruzioni. macOS non ancora previsto.
 
 ### Discovery (prima tappa: vicini e link)
@@ -776,7 +784,7 @@ usare ASP.NET Core Data Protection o un secret store.
   N eventi)" con conferma: `DELETE ...?purgeEvents=true`, eventi e device nella stessa transazione.
 - Badge "soglie" sui device con soglie di rilevazione specifiche (tooltip con i valori).
 - **Import/export CSV** (`Components/DeviceImportPanel`, `Services/DeviceCsv` + `Endpoints/DeviceImportEndpoints` nell'API,
-  parser coperto da test): colonne nome, indirizzo, tipo, produttore, snmp, cliente, padre, profilo_snmp, abilitato, notifiche, mappa (alias italiani e
+  parser coperto da test): colonne nome, indirizzo, tipo, produttore, snmp, cliente, padre, profilo_snmp, abilitato, notifiche, porta_winbox, mappa (alias italiani e
   inglesi, separatore `;` `,` o tab rilevato dall'intestazione, UTF-8 o Latin-1). Anteprima riga per riga (nessuna scrittura)
   e conferma in un unico SaveChanges; duplicati per indirizzo saltati o aggiornati (una colonna presente sovrascrive anche se
   vuota); padre per indirizzo o nome, anche di una riga del file, con controllo dei cicli; clienti mancanti creati solo se

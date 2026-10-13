@@ -433,6 +433,9 @@ namespace VedettaVip.Api.Data.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<int?>("WinBoxPort")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
@@ -458,6 +461,8 @@ namespace VedettaVip.Api.Data.Migrations
                             t.HasCheckConstraint("CK_Devices_TemperatureThresholdC", "\"TemperatureThresholdC\" IS NULL OR \"TemperatureThresholdC\" BETWEEN 0 AND 150");
 
                             t.HasCheckConstraint("CK_Devices_UpAfterSuccesses", "\"UpAfterSuccesses\" IS NULL OR \"UpAfterSuccesses\" BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_Devices_WinBoxPort", "\"WinBoxPort\" IS NULL OR \"WinBoxPort\" BETWEEN 1 AND 65535");
                         });
 
                     b.HasData(
@@ -1261,6 +1266,9 @@ namespace VedettaVip.Api.Data.Migrations
                     b.Property<int>("UpAfterSuccesses")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("WinBoxDefaultPort")
+                        .HasColumnType("integer");
+
                     b.Property<string>("WinBoxLinuxPath")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
@@ -1282,6 +1290,8 @@ namespace VedettaVip.Api.Data.Migrations
                             t.HasCheckConstraint("CK_MonitoringSettings_Singleton", "\"Id\" = 1");
 
                             t.HasCheckConstraint("CK_MonitoringSettings_Thresholds", "\"DownAfterFailures\" BETWEEN 1 AND 100 AND \"UpAfterSuccesses\" BETWEEN 1 AND 100 AND \"SnmpDegradedAfterFailures\" BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_MonitoringSettings_WinBoxPort", "\"WinBoxDefaultPort\" IS NULL OR \"WinBoxDefaultPort\" BETWEEN 1 AND 65535");
 
                             t.HasCheckConstraint("CK_MonitoringSettings_Window", "\"ThresholdWindowMinutes\" BETWEEN 1 AND 60");
                         });

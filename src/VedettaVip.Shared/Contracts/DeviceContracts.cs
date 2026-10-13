@@ -27,7 +27,8 @@ public sealed record DeviceDto(
     int? CpuThresholdPct = null,
     int? TemperatureThresholdC = null,
     DeviceVendor Vendor = DeviceVendor.Generic,
-    bool NotificationsMuted = false);
+    bool NotificationsMuted = false,
+    int? WinBoxPort = null);
 
 /// <summary>
 /// Creazione/modifica di un device. Le tre soglie di rilevazione sono facoltative: null = valore generale
@@ -56,7 +57,9 @@ public sealed record DeviceUpsertDto(
     /// <summary>Produttore; con l'API RouterOS abilitata l'API lo porta comunque a MikroTik.</summary>
     DeviceVendor Vendor = DeviceVendor.Generic,
     /// <summary>Notifiche disattivate: monitorato, eventi registrati, nessun avviso.</summary>
-    bool NotificationsMuted = false);
+    bool NotificationsMuted = false,
+    /// <summary>Porta di WinBox; null = quella generale (Impostazioni → WinBox).</summary>
+    [property: Range(1, 65535, ErrorMessage = "Porta di WinBox: tra 1 e 65535.")] int? WinBoxPort = null);
 
 /// <summary>Corpo della risposta 409 quando si tenta di eliminare un dispositivo ancora in uso.</summary>
 public sealed record DeviceInUseDto(
@@ -79,4 +82,6 @@ public sealed record DeviceOverviewDto(
     string? AgentId,
     IReadOnlyList<MapRefDto> Maps,
     /// <summary>Nome della finestra di manutenzione attiva che copre il device (null = nessuna).</summary>
-    string? Maintenance = null);
+    string? Maintenance = null,
+    /// <summary>Porta di WinBox effettiva (del device, altrimenti generale; null = 8291).</summary>
+    int? WinBoxPort = null);

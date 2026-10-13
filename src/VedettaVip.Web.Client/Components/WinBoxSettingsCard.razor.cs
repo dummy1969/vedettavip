@@ -7,7 +7,10 @@ using VedettaVip.Web.Client.Services;
 
 namespace VedettaVip.Web.Client.Components;
 
-/// <summary>Impostazioni → WinBox: percorsi di WinBox 4 scritti negli installer del gestore dei link winbox://.</summary>
+/// <summary>
+/// Impostazioni → WinBox: percorsi di WinBox 4 scritti negli installer del gestore dei link winbox:// e porta predefinita
+/// passata a WinBox (i dispositivi possono averne una propria).
+/// </summary>
 public partial class WinBoxSettingsCard
 {
     [Inject] private VedettaVipApiClient Api { get; set; } = default!;
@@ -18,6 +21,7 @@ public partial class WinBoxSettingsCard
     private DateTime? savedAt;
     private string? windowsPath;
     private string? linuxPath;
+    private int? defaultPort;
     /// <summary>Valori salvati: quelli che finiscono negli installer scaricati.</summary>
     private WinBoxSettingsDto? saved;
 
@@ -26,7 +30,7 @@ public partial class WinBoxSettingsCard
         try
         {
             saved = await Api.GetWinBoxSettingsAsync(CancellationToken.None);
-            (windowsPath, linuxPath) = (saved.WindowsPath, saved.LinuxPath);
+            (windowsPath, linuxPath, defaultPort) = (saved.WindowsPath, saved.LinuxPath, saved.DefaultPort);
             loaded = true;
         }
         catch (HttpRequestException ex)
@@ -42,8 +46,8 @@ public partial class WinBoxSettingsCard
         savedAt = null;
         try
         {
-            saved = await Api.UpdateWinBoxSettingsAsync(new WinBoxSettingsDto(windowsPath, linuxPath), CancellationToken.None);
-            (windowsPath, linuxPath) = (saved.WindowsPath, saved.LinuxPath);
+            saved = await Api.UpdateWinBoxSettingsAsync(new WinBoxSettingsDto(windowsPath, linuxPath, defaultPort), CancellationToken.None);
+            (windowsPath, linuxPath, defaultPort) = (saved.WindowsPath, saved.LinuxPath, saved.DefaultPort);
             savedAt = DateTime.Now;
         }
         catch (HttpRequestException ex)

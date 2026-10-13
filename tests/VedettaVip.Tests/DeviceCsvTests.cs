@@ -36,8 +36,32 @@ public class DeviceCsvTests
     }
 
     [Fact]
-    public void Export_columns_put_notify_after_enabled() =>
-        Assert.Equal([DeviceCsv.Enabled, DeviceCsv.Notify, DeviceCsv.Map], DeviceCsv.Columns[^3..]);
+    public void Export_columns_put_notify_and_winbox_port_after_enabled() =>
+        Assert.Equal([DeviceCsv.Enabled, DeviceCsv.Notify, DeviceCsv.WinBoxPort, DeviceCsv.Map], DeviceCsv.Columns[^4..]);
+
+    [Theory]
+    [InlineData("Porta WinBox")]
+    [InlineData("porta_winbox")]
+    [InlineData("winbox_port")]
+    public void WinBox_port_column_has_aliases(string header) =>
+        Assert.True(Assert.Single(DeviceCsv.Parse($"nome;indirizzo;{header}\r\nr1;192.0.2.1;8292\r\n").Rows).Has(DeviceCsv.WinBoxPort));
+
+    [Theory]
+    [InlineData("", true, null)]
+    [InlineData("  ", true, null)]
+    [InlineData("8292", true, 8292)]
+    [InlineData(" 1 ", true, 1)]
+    [InlineData("65535", true, 65535)]
+    [InlineData("0", false, null)]
+    [InlineData("65536", false, null)]
+    [InlineData("-5", false, null)]
+    [InlineData("82,9", false, null)]
+    [InlineData("porta", false, null)]
+    public void WinBox_port_is_empty_or_between_1_and_65535(string value, bool valid, int? expected)
+    {
+        Assert.Equal(valid, DeviceCsv.TryParsePort(value, out var port));
+        Assert.Equal(expected, port);
+    }
 
     [Fact]
     public void Detects_comma_and_tab_and_handles_quotes_and_line_numbers()
@@ -111,11 +135,11 @@ public class DeviceCsvTests
     [Fact]
     public void Export_round_trips_through_the_parser()
     {
-        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "mikrotik", "v2c", "Rossi \"A\"", "", "Rossi", "si", "no", "Sede | Rack"]]);
+        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "mikrotik", "v2c", "Rossi \"A\"", "", "Rossi", "si", "no", "8292", "Sede | Rack"]]);
         var row = Assert.Single(DeviceCsv.Parse(csv).Rows);
-        Assert.Equal(("Core; sede", "mikrotik", "Rossi \"A\"", "si", "no", "Sede | Rack"),
+        Assert.Equal(("Core; sede", "mikrotik", "Rossi \"A\"", "si", "no", "8292", "Sede | Rack"),
             (row.Get(DeviceCsv.Name), row.Get(DeviceCsv.Vendor), row.Get(DeviceCsv.Customer), row.Get(DeviceCsv.Enabled),
-             row.Get(DeviceCsv.Notify), row.Get(DeviceCsv.Map)));
+             row.Get(DeviceCsv.Notify), row.Get(DeviceCsv.WinBoxPort), row.Get(DeviceCsv.Map)));
     }
 
     [Theory]

@@ -18,7 +18,7 @@
 
         @if (WinBoxHref is { } winbox)
         {
-            <a class="node-menu-item" role="menuitem" href="@winbox" @onclick="CloseAsync">Apri con WinBox</a>
+            <a class="node-menu-item" role="menuitem" href="@winbox" @onclick="CloseAsync">@WinBoxLabel</a>
         }
         @if (Address is { Length: > 0 })
         {

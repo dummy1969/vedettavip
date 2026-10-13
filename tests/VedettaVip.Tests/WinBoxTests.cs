@@ -5,6 +5,7 @@ using System.Diagnostics;
 using VedettaVip.Api.Endpoints;
 using VedettaVip.Api.Services;
 using VedettaVip.Shared.Contracts;
+using VedettaVip.Shared.Models;
 
 namespace VedettaVip.Tests;
 
@@ -58,6 +59,24 @@ public class WinBoxTests
     [InlineData("/opt/winbox/WinBox\r", false, false)]
     public void Path_validation(string path, bool windows, bool valid) =>
         Assert.Equal(valid, WinBoxHandlerScripts.Validate(path, windows) is null);
+
+    [Theory]
+    [InlineData("192.0.2.1", null, "192.0.2.1")]
+    [InlineData("192.0.2.1", 8291, "192.0.2.1")] // porta standard: non serve
+    [InlineData(" 192.0.2.1 ", 8292, "192.0.2.1:8292")]
+    [InlineData("router.example.com", 18291, "router.example.com:18291")]
+    [InlineData("2001:db8::1", 8292, "2001:db8::1")] // IPv6: i gestori installati non accettano le parentesi quadre
+    [InlineData("192.0.2.1", 0, "192.0.2.1")]
+    [InlineData("192.0.2.1", 70000, "192.0.2.1")]
+    public void WinBox_target_adds_only_a_non_standard_port(string address, int? port, string expected) =>
+        Assert.Equal(expected, WinBoxTarget.Of(address, port));
+
+    [Theory]
+    [InlineData(8292, 9000, 8292)]
+    [InlineData(null, 9000, 9000)]
+    [InlineData(null, null, null)]
+    public void WinBox_port_of_the_device_wins_over_the_general_one(int? device, int? general, int? expected) =>
+        Assert.Equal(expected, WinBoxTarget.Effective(device, general));
 
     [Fact]
     public void RouterOs_api_means_MikroTik()
@@ -123,10 +142,11 @@ public class WinBoxTests
 
             Assert.Equal(0, await RunAsync(home.FullName, handler, "winbox://192.0.2.1/"));
             Assert.Equal(0, await RunAsync(home.FullName, handler, "winbox://router.example.com"));
+            Assert.Equal(0, await RunAsync(home.FullName, handler, "winbox://192.0.2.1:8292")); // porta non standard
             foreach (var bad in new[] { "winbox://192.0.2.1;touch x", "winbox://$(id)", "winbox://--romon", "winbox://a b", "winbox://" })
                 Assert.Equal(1, await RunAsync(home.FullName, handler, bad));
 
-            Assert.Equal(["192.0.2.1|", "router.example.com|"], await File.ReadAllLinesAsync(log));
+            Assert.Equal(["192.0.2.1|", "router.example.com|", "192.0.2.1:8292|"], await File.ReadAllLinesAsync(log));
         }
         finally
         {

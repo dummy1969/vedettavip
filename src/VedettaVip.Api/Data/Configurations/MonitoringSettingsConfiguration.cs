@@ -21,6 +21,8 @@ public sealed class MonitoringSettingsConfiguration : IEntityTypeConfiguration<M
             t.HasCheckConstraint("CK_MonitoringSettings_Thresholds",
                 "\"DownAfterFailures\" BETWEEN 1 AND 100 AND \"UpAfterSuccesses\" BETWEEN 1 AND 100 " +
                 "AND \"SnmpDegradedAfterFailures\" BETWEEN 1 AND 100");
+            t.HasCheckConstraint("CK_MonitoringSettings_WinBoxPort",
+                "\"WinBoxDefaultPort\" IS NULL OR \"WinBoxDefaultPort\" BETWEEN 1 AND 65535");
         });
         b.Property(s => s.Id).ValueGeneratedNever();
         b.Property(s => s.WinBoxWindowsPath).HasMaxLength(WinBoxSettingsDto.MaxPathLength);

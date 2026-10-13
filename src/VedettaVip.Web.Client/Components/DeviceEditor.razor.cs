@@ -4,6 +4,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 using VedettaVip.Shared.Contracts;
+using VedettaVip.Shared.Models;
 using VedettaVip.Web.Client.Services;
 
 namespace VedettaVip.Web.Client.Components;
@@ -32,6 +33,8 @@ public partial class DeviceEditor : IDisposable
     [Parameter] public IReadOnlyList<RouterOsCredentialDto> RouterOsProfiles { get; set; } = [];
     /// <summary>Soglie generali sulle metriche, mostrate come segnaposto.</summary>
     [Parameter] public MetricThresholdsDto? Metrics { get; set; }
+    /// <summary>Porta generale di WinBox (Impostazioni → WinBox; null = 8291), per il segnaposto.</summary>
+    [Parameter] public int? WinBoxDefaultPort { get; set; }
     /// <summary>Notifica il salvataggio con l'Id del dispositivo.</summary>
     [Parameter] public EventCallback<Guid> OnSaved { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
@@ -83,6 +86,7 @@ public partial class DeviceEditor : IDisposable
     }
     private bool enabled = true;
     private bool notificationsMuted;
+    private int? winBoxPort;
     /// <summary>Casella in positivo ("invia notifiche"), il campo resta in negativo come nel DTO.</summary>
     private bool NotifyEnabled { get => !notificationsMuted; set => notificationsMuted = !value; }
     private string EnabledText { get => enabled ? Monitored : NotMonitored; set => enabled = value == Monitored; }
@@ -134,6 +138,7 @@ public partial class DeviceEditor : IDisposable
         vendor = Device?.Vendor ?? DeviceVendor.Generic;
         enabled = Device?.Enabled ?? true;
         notificationsMuted = Device?.NotificationsMuted ?? false;
+        winBoxPort = Device?.WinBoxPort;
         downAfterFailures = Device?.DownAfterFailures;
         upAfterSuccesses = Device?.UpAfterSuccesses;
         snmpDegradedAfterFailures = Device?.SnmpDegradedAfterFailures;
@@ -226,7 +231,8 @@ public partial class DeviceEditor : IDisposable
                 routerOsApiEnabled ? cpuThresholdPct : null,
                 routerOsApiEnabled ? temperatureThresholdC : null,
                 vendor,
-                notificationsMuted);
+                notificationsMuted,
+                vendor == DeviceVendor.MikroTik ? winBoxPort : Device?.WinBoxPort);
 
             Guid id;
             if (Device is null)
@@ -278,6 +284,12 @@ public partial class DeviceEditor : IDisposable
     }
 
     private static string Placeholder(int? general) => general is { } g ? $"generale: {g}" : "generale";
+
+    private string WinBoxPortPlaceholder => $"generale: {WinBoxDefaultPort ?? WinBoxTarget.DefaultPort}";
+
+    /// <summary>Destinazione che riceverà WinBox con i valori del pannello.</summary>
+    private string WinBoxPreview => WinBoxTarget.Of(string.IsNullOrWhiteSpace(address) ? "indirizzo" : address,
+        WinBoxTarget.Effective(winBoxPort, WinBoxDefaultPort));
 
     private static string IntPlaceholder(int? general) => general is { } g ? $"generale: {g}" : "generale: disattivata";
 

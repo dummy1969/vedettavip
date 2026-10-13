@@ -36,7 +36,7 @@ public static class MapEndpoints
     /// se il dispositivo è disabilitato o se l'ultimo report è più vecchio di <paramref name="staleBefore"/>
     /// (agente fermo: la mappa non deve restare verde). Lo stato dei nodi Submap lo calcola <see cref="WithSubmapStatusAsync"/>.
     /// </summary>
-    internal static Expression<Func<MapNode, MapNodeDto>> ToNodeDto(DateTimeOffset staleBefore) => n => new MapNodeDto(
+    internal static Expression<Func<MapNode, MapNodeDto>> ToNodeDto(DateTimeOffset staleBefore, int? winBoxDefaultPort) => n => new MapNodeDto(
         n.Id,
         n.Kind,
         n.DeviceId,
@@ -54,7 +54,8 @@ public static class MapEndpoints
         null,
         null,
         n.Icon,
-        n.Device != null ? (DeviceVendor?)n.Device.Vendor : null);
+        n.Device != null ? (DeviceVendor?)n.Device.Vendor : null,
+        n.Device != null ? n.Device.WinBoxPort ?? winBoxDefaultPort : null);
 
     internal static DateTimeOffset StaleBefore(TimeProvider time, AgentOptions options) =>
         time.GetUtcNow() - options.StaleAfter;
@@ -83,7 +84,7 @@ public static class MapEndpoints
             .AsNoTracking()
             .Where(n => n.MapId == id)
             .OrderBy(n => n.Id)
-            .Select(ToNodeDto(StaleBefore(time, agentOptions.Value)))
+            .Select(ToNodeDto(StaleBefore(time, agentOptions.Value), await SettingsEndpoints.WinBoxDefaultPortAsync(db, ct)))
             .ToListAsync(ct);
 
         // Nodi dei device in manutenzione (bordo tratteggiato sulla mappa)

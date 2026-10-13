@@ -48,6 +48,7 @@ public static class DeviceImportEndpoints
         public SnmpVersion Snmp { get; set; }
         public bool Enabled { get; set; } = true;
         public bool Notify { get; set; } = true;
+        public int? WinBoxPort { get; set; }
         public Guid? CustomerId { get; set; }
         public string? NewCustomerName { get; set; }
         public Guid? ProfileId { get; set; }
@@ -124,6 +125,9 @@ public static class DeviceImportEndpoints
 
             if (DeviceCsv.TryParseBool(row.Get(DeviceCsv.Notify), out var notify)) p.Notify = notify;
             else p.Fail($"notifiche \"{row.Get(DeviceCsv.Notify)}\" non valido (si/no)");
+
+            if (DeviceCsv.TryParsePort(row.Get(DeviceCsv.WinBoxPort), out var winBoxPort)) p.WinBoxPort = winBoxPort;
+            else p.Fail($"porta WinBox \"{row.Get(DeviceCsv.WinBoxPort)}\" non valida (1-65535, vuota = generale)");
 
             var customer = row.Get(DeviceCsv.Customer);
             if (customer.Length > 0)
@@ -297,6 +301,7 @@ public static class DeviceImportEndpoints
             if (isNew || row.Has(DeviceCsv.Snmp)) d.SnmpVersion = p.Snmp;
             if (isNew || row.Has(DeviceCsv.Enabled)) d.Enabled = p.Enabled;
             if (isNew || row.Has(DeviceCsv.Notify)) d.NotificationsMuted = !p.Notify;
+            if (isNew || row.Has(DeviceCsv.WinBoxPort)) d.WinBoxPort = p.WinBoxPort;
             if (isNew || row.Has(DeviceCsv.Customer)) d.CustomerId = p.CustomerId;
             if (isNew || row.Has(DeviceCsv.SnmpProfile)) d.SnmpCredentialId = p.ProfileId;
             if (isNew || row.Has(DeviceCsv.Parent)) d.ParentDeviceId = p.ParentId;
@@ -342,7 +347,7 @@ public static class DeviceImportEndpoints
             .OrderBy(d => d.Name)
             .Select(d => new
             {
-                d.Id, d.Name, d.Address, d.Type, d.Vendor, d.SnmpVersion, d.Enabled, d.NotificationsMuted, d.ParentDeviceId,
+                d.Id, d.Name, d.Address, d.Type, d.Vendor, d.SnmpVersion, d.Enabled, d.NotificationsMuted, d.WinBoxPort, d.ParentDeviceId,
                 Customer = d.Customer != null ? d.Customer.Name : "",
                 Profile = d.SnmpCredential != null ? d.SnmpCredential.Name : ""
             })
@@ -362,6 +367,7 @@ public static class DeviceImportEndpoints
         [
             d.Name, d.Address, DeviceCsv.TypeText(d.Type), DeviceCsv.VendorText(d.Vendor), DeviceCsv.SnmpText(d.SnmpVersion), d.Customer,
             ParentRef(d.ParentDeviceId), d.Profile, d.Enabled ? "si" : "no", d.NotificationsMuted ? "no" : "si",
+            d.WinBoxPort?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "",
             string.Join($" {MapReferences.ListSeparator} ", mapsByDevice[d.Id].Order(StringComparer.CurrentCultureIgnoreCase))
         ]));
         return CsvWriter.File(csv, $"vedettavip-dispositivi-{time.GetLocalNow():yyyyMMdd}.csv");

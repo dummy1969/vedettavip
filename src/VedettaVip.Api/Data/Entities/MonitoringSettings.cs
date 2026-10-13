@@ -32,6 +32,8 @@ public sealed class MonitoringSettings
     public string? WinBoxWindowsPath { get; set; }
     /// <summary>Percorso di WinBox 4 sui PC Linux degli operatori, scritto nell'installer del gestore winbox://; null = ricerca.</summary>
     public string? WinBoxLinuxPath { get; set; }
+    /// <summary>Porta di WinBox dei dispositivi senza una propria; null = 8291 (standard).</summary>
+    public int? WinBoxDefaultPort { get; set; }
 
     /// <summary>Profilo SNMP dei device senza profilo proprio né del cliente; null = community del Worker.</summary>
     public Guid? DefaultSnmpCredentialId { get; set; }
