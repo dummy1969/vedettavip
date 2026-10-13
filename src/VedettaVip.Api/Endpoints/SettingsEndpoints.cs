@@ -23,8 +23,8 @@ public static class SettingsEndpoints
         settings.MapPut("/metric-thresholds", UpdateMetricThresholdsAsync).RequireAdmin();
         settings.MapGet("/dashboard", GetDashboardAsync);
         settings.MapPut("/dashboard", UpdateDashboardAsync).RequireAdmin();
-        settings.MapGet("/winbox", GetWinBoxAsync);
-        settings.MapPut("/winbox", UpdateWinBoxAsync).RequireAdmin();
+        settings.MapGet("/remote-access", GetRemoteAccessAsync);
+        settings.MapPut("/remote-access", UpdateRemoteAccessAsync).RequireAdmin();
         return app;
     }
 
@@ -80,50 +80,63 @@ public static class SettingsEndpoints
         return TypedResults.Ok(dto);
     }
 
-    /// <summary>Percorsi di WinBox scritti negli installer del gestore winbox:// (letti da tutti: la pagina WinBox li mostra).</summary>
-    internal static async Task<WinBoxSettingsDto> LoadWinBoxAsync(VedettaVipDbContext db, CancellationToken ct) =>
+    /// <summary>
+    /// Accesso remoto: percorsi di WinBox e PuTTY scritti negli installer del gestore dei link e porte generali (letti da
+    /// tutti: servono alla pagina Gestore dei link e al pannello dei dispositivi).
+    /// </summary>
+    internal static async Task<RemoteAccessSettingsDto> LoadRemoteAccessAsync(VedettaVipDbContext db, CancellationToken ct) =>
         await db.MonitoringSettings.AsNoTracking()
             .Where(s => s.Id == MonitoringSettings.SingletonId)
-            .Select(s => new WinBoxSettingsDto(s.WinBoxWindowsPath, s.WinBoxLinuxPath, s.WinBoxDefaultPort))
+            .Select(s => new RemoteAccessSettingsDto(s.WinBoxWindowsPath, s.WinBoxLinuxPath, s.WinBoxDefaultPort,
+                s.PuttyWindowsPath, s.PuttyLinuxPath, s.HttpDefaultPort, s.HttpsDefaultPort, s.SshDefaultPort, s.TelnetDefaultPort))
             .FirstOrDefaultAsync(ct)
-        ?? WinBoxSettingsDto.Default;
+        ?? RemoteAccessSettingsDto.Default;
 
-    /// <summary>Porta di WinBox dei dispositivi senza una propria (null = 8291), per i link "Apri con WinBox".</summary>
-    internal static async Task<int?> WinBoxDefaultPortAsync(VedettaVipDbContext db, CancellationToken ct) =>
-        await db.MonitoringSettings.AsNoTracking()
-            .Where(s => s.Id == MonitoringSettings.SingletonId)
-            .Select(s => s.WinBoxDefaultPort)
-            .FirstOrDefaultAsync(ct);
+    private static async Task<Ok<RemoteAccessSettingsDto>> GetRemoteAccessAsync(VedettaVipDbContext db, CancellationToken ct) =>
+        TypedResults.Ok(await LoadRemoteAccessAsync(db, ct));
 
-    private static async Task<Ok<WinBoxSettingsDto>> GetWinBoxAsync(VedettaVipDbContext db, CancellationToken ct) =>
-        TypedResults.Ok(await LoadWinBoxAsync(db, ct));
-
-    /// <summary>Vuoto = nessun predefinito (l'installer cerca WinBox e, se non lo trova, chiede il percorso).</summary>
-    private static async Task<Results<Ok<WinBoxSettingsDto>, ValidationProblem, ProblemHttpResult>> UpdateWinBoxAsync(
-        WinBoxSettingsDto dto, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
+    /// <summary>Percorsi vuoti = nessun predefinito (l'installer cerca il programma e, se non lo trova, chiede il percorso).</summary>
+    private static async Task<Results<Ok<RemoteAccessSettingsDto>, ValidationProblem, ProblemHttpResult>> UpdateRemoteAccessAsync(
+        RemoteAccessSettingsDto dto, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
     {
-        var windows = string.IsNullOrWhiteSpace(dto.WindowsPath) ? null : dto.WindowsPath.Trim();
-        var linux = string.IsNullOrWhiteSpace(dto.LinuxPath) ? null : dto.LinuxPath.Trim();
+        static string? Blank(string? path) => string.IsNullOrWhiteSpace(path) ? null : path.Trim();
+        var clean = dto with
+        {
+            WinBoxWindowsPath = Blank(dto.WinBoxWindowsPath), WinBoxLinuxPath = Blank(dto.WinBoxLinuxPath),
+            PuttyWindowsPath = Blank(dto.PuttyWindowsPath), PuttyLinuxPath = Blank(dto.PuttyLinuxPath)
+        };
 
         var errors = new Dictionary<string, string[]>();
-        if (WinBoxHandlerScripts.Validate(windows, windows: true) is { } windowsError)
-            errors[nameof(dto.WindowsPath)] = [windowsError];
-        if (WinBoxHandlerScripts.Validate(linux, windows: false) is { } linuxError)
-            errors[nameof(dto.LinuxPath)] = [linuxError];
+        void Check(string field, string? path, bool windows)
+        {
+            if (LinkHandlerScripts.Validate(path, windows) is { } error)
+                errors[field] = [error];
+        }
+        Check(nameof(dto.WinBoxWindowsPath), clean.WinBoxWindowsPath, windows: true);
+        Check(nameof(dto.WinBoxLinuxPath), clean.WinBoxLinuxPath, windows: false);
+        Check(nameof(dto.PuttyWindowsPath), clean.PuttyWindowsPath, windows: true);
+        Check(nameof(dto.PuttyLinuxPath), clean.PuttyLinuxPath, windows: false);
         if (errors.Count > 0)
             return TypedResults.ValidationProblem(errors);
 
         var settings = await db.MonitoringSettings.FirstAsync(s => s.Id == MonitoringSettings.SingletonId, ct);
-        settings.WinBoxWindowsPath = windows;
-        settings.WinBoxLinuxPath = linux;
-        var portChanged = settings.WinBoxDefaultPort != dto.DefaultPort;
-        settings.WinBoxDefaultPort = dto.DefaultPort;
+        var portsChanged = (settings.WinBoxDefaultPort, settings.HttpDefaultPort, settings.HttpsDefaultPort, settings.SshDefaultPort,
+            settings.TelnetDefaultPort) != (clean.WinBoxPort, clean.HttpPort, clean.HttpsPort, clean.SshPort, clean.TelnetPort);
+        settings.WinBoxWindowsPath = clean.WinBoxWindowsPath;
+        settings.WinBoxLinuxPath = clean.WinBoxLinuxPath;
+        settings.WinBoxDefaultPort = clean.WinBoxPort;
+        settings.PuttyWindowsPath = clean.PuttyWindowsPath;
+        settings.PuttyLinuxPath = clean.PuttyLinuxPath;
+        settings.HttpDefaultPort = clean.HttpPort;
+        settings.HttpsDefaultPort = clean.HttpsPort;
+        settings.SshDefaultPort = clean.SshPort;
+        settings.TelnetDefaultPort = clean.TelnetPort;
         if (await db.TrySaveChangesAsync(ct) is { } problem)
             return problem;
-        // La porta è nei nodi delle mappe (menu "Apri con WinBox"): le mappe aperte si ricaricano
-        if (portChanged)
+        // Le porte sono nei nodi delle mappe (menu del nodo): le mappe aperte si ricaricano
+        if (portsChanged)
             await notifier.AllMapsChangedAsync();
-        return TypedResults.Ok(new WinBoxSettingsDto(windows, linux, dto.DefaultPort));
+        return TypedResults.Ok(clean);
     }
 
     /// <summary>Aggiorna le soglie generali e avvisa gli agenti: i device senza valori specifici le usano subito.</summary>

@@ -67,13 +67,14 @@ public static class DeviceEndpoints
             .ToLookup(x => x.DeviceId, x => new MapRefDto(x.MapId, x.MapName));
 
         var inMaintenance = await maintenance.LoadAsync(db, ct);
-        var winBoxPort = await SettingsEndpoints.WinBoxDefaultPortAsync(db, ct);
+        var access = await SettingsEndpoints.LoadRemoteAccessAsync(db, ct);
         var overview = devices.Select(d =>
         {
             var s = d.Status;
             var state = d.Enabled && s is not null && s.LastReportAt >= staleBefore ? s.State : NodeState.Unknown;
             return new DeviceOverviewDto(ToDto(d), state, s?.Since, s?.LastReportAt, s?.LastRttMs, s?.SnmpOk, s?.AgentId,
-                mapsByDevice[d.Id].ToList(), inMaintenance(d.Id), WinBoxTarget.Effective(d.WinBoxPort, winBoxPort));
+                mapsByDevice[d.Id].ToList(), inMaintenance(d.Id),
+                RemoteAccess.Resolve(d.WinBoxPort, d.WebAccess, d.WebPort, d.TerminalAccess, d.TerminalPort, access));
         }).ToList();
 
         return TypedResults.Ok(overview);
@@ -228,7 +229,7 @@ public static class DeviceEndpoints
         d.Id, d.Name, d.Address, d.Type, d.Icon, d.SnmpVersion, d.SnmpCredentialId,
         d.RouterOsApiEnabled, d.ParentDeviceId, d.Enabled,
         d.DownAfterFailures, d.UpAfterSuccesses, d.SnmpDegradedAfterFailures, d.CustomerId, d.RttThresholdMs, d.LossThresholdPct,
-        d.RouterOsCredentialId, d.CpuThresholdPct, d.TemperatureThresholdC, d.Vendor, d.NotificationsMuted, d.WinBoxPort);
+        d.RouterOsCredentialId, d.CpuThresholdPct, d.TemperatureThresholdC, d.Vendor, d.NotificationsMuted, d.WinBoxPort, d.WebAccess, d.WebPort, d.TerminalAccess, d.TerminalPort);
 
     private static void Apply(Device d, DeviceUpsertDto dto)
     {
@@ -253,6 +254,10 @@ public static class DeviceEndpoints
         d.Vendor = VendorOf(dto.Vendor, dto.RouterOsApiEnabled);
         d.NotificationsMuted = dto.NotificationsMuted;
         d.WinBoxPort = dto.WinBoxPort;
+        d.WebAccess = dto.WebAccess;
+        d.WebPort = dto.WebAccess == WebAccess.None ? null : dto.WebPort;
+        d.TerminalAccess = dto.TerminalAccess;
+        d.TerminalPort = dto.TerminalAccess == TerminalAccess.None ? null : dto.TerminalPort;
     }
 
     /// <summary>L'API RouterOS esiste solo sui MikroTik: abilitarla fissa il produttore.</summary>

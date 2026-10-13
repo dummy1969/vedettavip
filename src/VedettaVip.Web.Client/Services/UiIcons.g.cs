@@ -12,6 +12,8 @@ public static partial class UiIcons
     [
         new("chart-line", "Grafici", @"<path d=""M4 19l16 0"" /> <path d=""M4 15l4 -6l4 2l4 -5l4 4"" />"),
         new("app-window", "WinBox", @"<path d=""M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10"" /> <path d=""M6 8h.01"" /> <path d=""M9 8h.01"" />"),
+        new("world-www", "Interfaccia web", @"<path d=""M19.5 7a9 9 0 0 0 -7.5 -4a8.991 8.991 0 0 0 -7.484 4"" /> <path d=""M11.5 3a16.989 16.989 0 0 0 -1.826 4"" /> <path d=""M12.5 3a16.989 16.989 0 0 1 1.828 4"" /> <path d=""M19.5 17a9 9 0 0 1 -7.5 4a8.991 8.991 0 0 1 -7.484 -4"" /> <path d=""M11.5 21a16.989 16.989 0 0 1 -1.826 -4"" /> <path d=""M12.5 21a16.989 16.989 0 0 0 1.828 -4"" /> <path d=""M2 10l1 4l1.5 -4l1.5 4l1 -4"" /> <path d=""M17 10l1 4l1.5 -4l1.5 4l1 -4"" /> <path d=""M9.5 10l1 4l1.5 -4l1.5 4l1 -4"" />"),
+        new("terminal-2", "Terminale", @"<path d=""M8 9l3 3l-3 3"" /> <path d=""M13 15l3 0"" /> <path d=""M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -12"" />"),
         new("pencil", "Modifica", @"<path d=""M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"" /> <path d=""M13.5 6.5l4 4"" />"),
         new("trash", "Elimina", @"<path d=""M4 7l16 0"" /> <path d=""M10 11l0 6"" /> <path d=""M14 11l0 6"" /> <path d=""M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"" /> <path d=""M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"" />"),
     ];

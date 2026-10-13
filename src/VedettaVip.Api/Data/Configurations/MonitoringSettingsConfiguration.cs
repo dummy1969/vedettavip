@@ -23,10 +23,17 @@ public sealed class MonitoringSettingsConfiguration : IEntityTypeConfiguration<M
                 "AND \"SnmpDegradedAfterFailures\" BETWEEN 1 AND 100");
             t.HasCheckConstraint("CK_MonitoringSettings_WinBoxPort",
                 "\"WinBoxDefaultPort\" IS NULL OR \"WinBoxDefaultPort\" BETWEEN 1 AND 65535");
+            t.HasCheckConstraint("CK_MonitoringSettings_AccessPorts",
+                "(\"HttpDefaultPort\" IS NULL OR \"HttpDefaultPort\" BETWEEN 1 AND 65535) " +
+                "AND (\"HttpsDefaultPort\" IS NULL OR \"HttpsDefaultPort\" BETWEEN 1 AND 65535) " +
+                "AND (\"SshDefaultPort\" IS NULL OR \"SshDefaultPort\" BETWEEN 1 AND 65535) " +
+                "AND (\"TelnetDefaultPort\" IS NULL OR \"TelnetDefaultPort\" BETWEEN 1 AND 65535)");
         });
         b.Property(s => s.Id).ValueGeneratedNever();
-        b.Property(s => s.WinBoxWindowsPath).HasMaxLength(WinBoxSettingsDto.MaxPathLength);
-        b.Property(s => s.WinBoxLinuxPath).HasMaxLength(WinBoxSettingsDto.MaxPathLength);
+        b.Property(s => s.WinBoxWindowsPath).HasMaxLength(RemoteAccessSettingsDto.MaxPathLength);
+        b.Property(s => s.WinBoxLinuxPath).HasMaxLength(RemoteAccessSettingsDto.MaxPathLength);
+        b.Property(s => s.PuttyWindowsPath).HasMaxLength(RemoteAccessSettingsDto.MaxPathLength);
+        b.Property(s => s.PuttyLinuxPath).HasMaxLength(RemoteAccessSettingsDto.MaxPathLength);
 
         // La riga esiste sempre: i valori iniziali sono quelli usati prima che fossero configurabili
         var defaults = DetectionThresholdsDto.Default;

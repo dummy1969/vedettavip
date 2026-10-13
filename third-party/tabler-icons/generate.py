@@ -28,7 +28,8 @@ ICONS = [
 
 # Comandi dell'interfaccia (bottoni a icona): chiave usata nel codice, etichetta = testo di riserva
 UI_ICONS = [
-    ("chart-line", "Grafici"), ("app-window", "WinBox"), ("pencil", "Modifica"), ("trash", "Elimina"),
+    ("chart-line", "Grafici"), ("app-window", "WinBox"), ("world-www", "Interfaccia web"), ("terminal-2", "Terminale"),
+    ("pencil", "Modifica"), ("trash", "Elimina"),
 ]
 
 root = pathlib.Path(__file__).resolve().parent

@@ -8,9 +8,15 @@ public enum DeviceType { Router, Switch, AccessPoint, Server, Firewall, Storage,
 
 /// <summary>
 /// Produttore del dispositivo (salvato come testo): abilita le azioni specifiche, es. "Apri con WinBox" per i MikroTik.
-/// Generic = qualsiasi altro.
+/// Generic = qualsiasi altro; Fritz = AVM FRITZ!Box. Nuovi valori in fondo: l'ordine è quello dei menu.
 /// </summary>
-public enum DeviceVendor { Generic, MikroTik }
+public enum DeviceVendor { Generic, MikroTik, Cisco, DrayTek, Fritz, TpLink }
+
+/// <summary>Accesso web di gestione del dispositivo (pagina del router): nessuno, HTTP o HTTPS.</summary>
+public enum WebAccess { None, Http, Https }
+
+/// <summary>Accesso da terminale del dispositivo, aperto con PuTTY: nessuno, SSH o Telnet.</summary>
+public enum TerminalAccess { None, Ssh, Telnet }
 
 public enum SnmpVersion { None, V1, V2c, V3 }
 

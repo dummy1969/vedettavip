@@ -9,7 +9,8 @@ namespace VedettaVip.Web.Client.Services;
 /// </summary>
 public static partial class UiIcons
 {
-    public const string Charts = "chart-line", WinBox = "app-window", Edit = "pencil", Delete = "trash";
+    public const string Charts = "chart-line", WinBox = "app-window", Web = "world-www", Terminal = "terminal-2", Edit = "pencil",
+        Delete = "trash";
 
     // Pigro: All sta nell'altro file partial e l'ordine di inizializzazione dei campi statici tra file non è garantito
     private static Dictionary<string, MapIcon>? byKey;

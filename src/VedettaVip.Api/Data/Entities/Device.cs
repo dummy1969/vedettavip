@@ -34,6 +34,12 @@ public sealed class Device
     public bool NotificationsMuted { get; set; }
     /// <summary>Porta di WinBox per "Apri con WinBox"; null = quella generale (Impostazioni → WinBox, poi 8291).</summary>
     public int? WinBoxPort { get; set; }
+    /// <summary>Accesso web di gestione (link http/https in una nuova scheda) e porta; null = generale del protocollo.</summary>
+    public WebAccess WebAccess { get; set; } = WebAccess.None;
+    public int? WebPort { get; set; }
+    /// <summary>Accesso da terminale aperto con PuTTY (SSH o Telnet) e porta; null = generale del protocollo.</summary>
+    public TerminalAccess TerminalAccess { get; set; } = TerminalAccess.None;
+    public int? TerminalPort { get; set; }
 
     // Soglie di rilevazione specifiche del device; null = valore generale (MonitoringSettings)
     public int? DownAfterFailures { get; set; }

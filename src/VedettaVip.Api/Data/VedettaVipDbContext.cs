@@ -61,6 +61,8 @@ public sealed class VedettaVipDbContext(DbContextOptions<VedettaVipDbContext> op
         configurationBuilder.Properties<DeviceType>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<SnmpVersion>().HaveConversion<string>().HaveMaxLength(8);
         configurationBuilder.Properties<DeviceVendor>().HaveConversion<string>().HaveMaxLength(16);
+        configurationBuilder.Properties<WebAccess>().HaveConversion<string>().HaveMaxLength(8);
+        configurationBuilder.Properties<TerminalAccess>().HaveConversion<string>().HaveMaxLength(8);
         configurationBuilder.Properties<MapNodeKind>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<EventSeverity>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<NodeState>().HaveConversion<string>().HaveMaxLength(16);

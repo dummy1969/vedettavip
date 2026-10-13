@@ -49,6 +49,10 @@ public static class DeviceImportEndpoints
         public bool Enabled { get; set; } = true;
         public bool Notify { get; set; } = true;
         public int? WinBoxPort { get; set; }
+        public WebAccess Web { get; set; }
+        public int? WebPort { get; set; }
+        public TerminalAccess Terminal { get; set; }
+        public int? TerminalPort { get; set; }
         public Guid? CustomerId { get; set; }
         public string? NewCustomerName { get; set; }
         public Guid? ProfileId { get; set; }
@@ -128,6 +132,15 @@ public static class DeviceImportEndpoints
 
             if (DeviceCsv.TryParsePort(row.Get(DeviceCsv.WinBoxPort), out var winBoxPort)) p.WinBoxPort = winBoxPort;
             else p.Fail($"porta WinBox \"{row.Get(DeviceCsv.WinBoxPort)}\" non valida (1-65535, vuota = generale)");
+
+            if (DeviceCsv.TryParseWeb(row.Get(DeviceCsv.Web), out var web)) p.Web = web;
+            else p.Fail($"accesso web \"{row.Get(DeviceCsv.Web)}\" sconosciuto (http, https, vuoto = nessuno)");
+            if (DeviceCsv.TryParsePort(row.Get(DeviceCsv.WebPort), out var webPort)) p.WebPort = webPort;
+            else p.Fail($"porta web \"{row.Get(DeviceCsv.WebPort)}\" non valida (1-65535, vuota = generale)");
+            if (DeviceCsv.TryParseTerminal(row.Get(DeviceCsv.Terminal), out var terminal)) p.Terminal = terminal;
+            else p.Fail($"terminale \"{row.Get(DeviceCsv.Terminal)}\" sconosciuto (ssh, telnet, vuoto = nessuno)");
+            if (DeviceCsv.TryParsePort(row.Get(DeviceCsv.TerminalPort), out var terminalPort)) p.TerminalPort = terminalPort;
+            else p.Fail($"porta del terminale \"{row.Get(DeviceCsv.TerminalPort)}\" non valida (1-65535, vuota = generale)");
 
             var customer = row.Get(DeviceCsv.Customer);
             if (customer.Length > 0)
@@ -302,6 +315,12 @@ public static class DeviceImportEndpoints
             if (isNew || row.Has(DeviceCsv.Enabled)) d.Enabled = p.Enabled;
             if (isNew || row.Has(DeviceCsv.Notify)) d.NotificationsMuted = !p.Notify;
             if (isNew || row.Has(DeviceCsv.WinBoxPort)) d.WinBoxPort = p.WinBoxPort;
+            if (isNew || row.Has(DeviceCsv.Web)) d.WebAccess = p.Web;
+            if (isNew || row.Has(DeviceCsv.WebPort)) d.WebPort = p.WebPort;
+            if (d.WebAccess == WebAccess.None) d.WebPort = null;
+            if (isNew || row.Has(DeviceCsv.Terminal)) d.TerminalAccess = p.Terminal;
+            if (isNew || row.Has(DeviceCsv.TerminalPort)) d.TerminalPort = p.TerminalPort;
+            if (d.TerminalAccess == TerminalAccess.None) d.TerminalPort = null;
             if (isNew || row.Has(DeviceCsv.Customer)) d.CustomerId = p.CustomerId;
             if (isNew || row.Has(DeviceCsv.SnmpProfile)) d.SnmpCredentialId = p.ProfileId;
             if (isNew || row.Has(DeviceCsv.Parent)) d.ParentDeviceId = p.ParentId;
@@ -347,7 +366,8 @@ public static class DeviceImportEndpoints
             .OrderBy(d => d.Name)
             .Select(d => new
             {
-                d.Id, d.Name, d.Address, d.Type, d.Vendor, d.SnmpVersion, d.Enabled, d.NotificationsMuted, d.WinBoxPort, d.ParentDeviceId,
+                d.Id, d.Name, d.Address, d.Type, d.Vendor, d.SnmpVersion, d.Enabled, d.NotificationsMuted, d.WinBoxPort, d.WebAccess, d.WebPort,
+                d.TerminalAccess, d.TerminalPort, d.ParentDeviceId,
                 Customer = d.Customer != null ? d.Customer.Name : "",
                 Profile = d.SnmpCredential != null ? d.SnmpCredential.Name : ""
             })
@@ -368,6 +388,8 @@ public static class DeviceImportEndpoints
             d.Name, d.Address, DeviceCsv.TypeText(d.Type), DeviceCsv.VendorText(d.Vendor), DeviceCsv.SnmpText(d.SnmpVersion), d.Customer,
             ParentRef(d.ParentDeviceId), d.Profile, d.Enabled ? "si" : "no", d.NotificationsMuted ? "no" : "si",
             d.WinBoxPort?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "",
+            DeviceCsv.WebText(d.WebAccess), d.WebPort?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "",
+            DeviceCsv.TerminalText(d.TerminalAccess), d.TerminalPort?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "",
             string.Join($" {MapReferences.ListSeparator} ", mapsByDevice[d.Id].Order(StringComparer.CurrentCultureIgnoreCase))
         ]));
         return CsvWriter.File(csv, $"vedettavip-dispositivi-{time.GetLocalNow():yyyyMMdd}.csv");

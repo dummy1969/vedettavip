@@ -218,17 +218,25 @@
                     }
                 }
 
-                <fieldset class="detection mt-3">
-                    <legend class="small fw-semibold mb-1">Apri con WinBox</legend>
+                break;
+
+            case EditorTab.Access:
+                <div class="form-text mt-0 mb-2">
+                    Accessi di gestione proposti nel menu del nodo (clic destro sulla mappa) e nella pagina Dispositivi. Porta vuota
+                    = generale (Impostazioni → Accesso remoto). Nessuna password: la chiede il programma o la pagina del router.
+                </div>
+
+                <fieldset class="detection">
+                    <legend class="small fw-semibold mb-1">WinBox</legend>
                     @if (vendor == DeviceVendor.MikroTik)
                     {
                         <div class="detection-grid">
                             <label for="dev-winbox-port" class="small">Porta WinBox</label>
                             <input id="dev-winbox-port" class="form-control form-control-sm" type="number" min="1" max="65535"
-                                   @bind="winBoxPort" placeholder="@WinBoxPortPlaceholder" />
+                                   @bind="winBoxPort" placeholder="@PortPlaceholder(RemoteAccessDefaults?.WinBoxPort, WinBoxTarget.DefaultPort)" />
                         </div>
                         <div class="form-text">
-                            Vuoto = porta generale (Impostazioni → WinBox). Il link apre WinBox su <code>@WinBoxPreview</code>.
+                            Apre WinBox su <code>@WinBoxPreview</code>.
                             @if (WinBoxTarget.IsIPv6(address) && winBoxPort is not null)
                             {
                                 <span class="text-warning-emphasis">Con un indirizzo IPv6 la porta non viene passata a WinBox.</span>
@@ -237,7 +245,57 @@
                     }
                     else
                     {
-                        <div class="form-text mt-0">Disponibile per i dispositivi MikroTik (Produttore nella scheda Generale).</div>
+                        <div class="form-text mt-0">Solo per i dispositivi MikroTik (Produttore nella scheda Generale).</div>
+                    }
+                </fieldset>
+
+                <fieldset class="detection mt-3">
+                    <legend class="small fw-semibold mb-1">Interfaccia web</legend>
+                    <div class="detection-grid">
+                        <label for="dev-web" class="small">Protocollo</label>
+                        <select id="dev-web" class="form-select form-select-sm" @bind="webAccess">
+                            <option value="@WebAccess.None">nessuna</option>
+                            <option value="@WebAccess.Http">HTTP</option>
+                            <option value="@WebAccess.Https">HTTPS</option>
+                        </select>
+                        @if (webAccess != WebAccess.None)
+                        {
+                            <label for="dev-web-port" class="small">Porta</label>
+                            <input id="dev-web-port" class="form-control form-control-sm" type="number" min="1" max="65535"
+                                   @bind="webPort" placeholder="@PortPlaceholder(RemoteAccess.DefaultPort(webAccess, AccessDefaults), RemoteAccess.StandardPort(webAccess))" />
+                        }
+                    </div>
+                    @if (WebPreview is { } webUrl)
+                    {
+                        <div class="form-text">Apre <code>@webUrl</code> in una nuova scheda.</div>
+                    }
+                </fieldset>
+
+                <fieldset class="detection mt-3">
+                    <legend class="small fw-semibold mb-1">Terminale (PuTTY)</legend>
+                    <div class="detection-grid">
+                        <label for="dev-term" class="small">Protocollo</label>
+                        <select id="dev-term" class="form-select form-select-sm" @bind="terminalAccess">
+                            <option value="@TerminalAccess.None">nessuno</option>
+                            <option value="@TerminalAccess.Ssh">SSH</option>
+                            <option value="@TerminalAccess.Telnet">Telnet</option>
+                        </select>
+                        @if (terminalAccess != TerminalAccess.None)
+                        {
+                            <label for="dev-term-port" class="small">Porta</label>
+                            <input id="dev-term-port" class="form-control form-control-sm" type="number" min="1" max="65535"
+                                   @bind="terminalPort" placeholder="@PortPlaceholder(RemoteAccess.DefaultPort(terminalAccess, AccessDefaults), RemoteAccess.StandardPort(terminalAccess))" />
+                        }
+                    </div>
+                    @if (TerminalPreview is { } term)
+                    {
+                        <div class="form-text">
+                            Apre PuTTY su <code>@term</code> (serve il gestore dei link sul PC, pagina Gestore dei link).
+                            @if (terminalAccess == TerminalAccess.Telnet)
+                            {
+                                <span class="text-warning-emphasis">Telnet non cifra nulla, password comprese.</span>
+                            }
+                        </div>
                     }
                 </fieldset>
                 break;

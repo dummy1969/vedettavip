@@ -33,17 +33,18 @@ public partial class DeviceEditor : IDisposable
     [Parameter] public IReadOnlyList<RouterOsCredentialDto> RouterOsProfiles { get; set; } = [];
     /// <summary>Soglie generali sulle metriche, mostrate come segnaposto.</summary>
     [Parameter] public MetricThresholdsDto? Metrics { get; set; }
-    /// <summary>Porta generale di WinBox (Impostazioni → WinBox; null = 8291), per il segnaposto.</summary>
-    [Parameter] public int? WinBoxDefaultPort { get; set; }
+    /// <summary>Porte generali di WinBox, web e terminale (Impostazioni → Accesso remoto), per segnaposto e anteprime.</summary>
+    [Parameter] public RemoteAccessSettingsDto? RemoteAccessDefaults { get; set; }
     /// <summary>Notifica il salvataggio con l'Id del dispositivo.</summary>
     [Parameter] public EventCallback<Guid> OnSaved { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
 
-    private enum EditorTab { General, Monitoring, RouterOs, Icon }
+    private enum EditorTab { General, Monitoring, RouterOs, Access, Icon }
 
     private static readonly (EditorTab Tab, string Label)[] Tabs =
     [
-        (EditorTab.General, "Generale"), (EditorTab.Monitoring, "Monitoraggio"), (EditorTab.RouterOs, "RouterOS"), (EditorTab.Icon, "Icona")
+        (EditorTab.General, "Generale"), (EditorTab.Monitoring, "Monitoraggio"), (EditorTab.RouterOs, "RouterOS"),
+        (EditorTab.Access, "Accesso"), (EditorTab.Icon, "Icona")
     ];
 
     // Stato: select testuale (un select legato a un bool in Blazor non si aggancia in modo affidabile)
@@ -87,6 +88,10 @@ public partial class DeviceEditor : IDisposable
     private bool enabled = true;
     private bool notificationsMuted;
     private int? winBoxPort;
+    private WebAccess webAccess;
+    private int? webPort;
+    private TerminalAccess terminalAccess;
+    private int? terminalPort;
     /// <summary>Casella in positivo ("invia notifiche"), il campo resta in negativo come nel DTO.</summary>
     private bool NotifyEnabled { get => !notificationsMuted; set => notificationsMuted = !value; }
     private string EnabledText { get => enabled ? Monitored : NotMonitored; set => enabled = value == Monitored; }
@@ -139,6 +144,10 @@ public partial class DeviceEditor : IDisposable
         enabled = Device?.Enabled ?? true;
         notificationsMuted = Device?.NotificationsMuted ?? false;
         winBoxPort = Device?.WinBoxPort;
+        webAccess = Device?.WebAccess ?? WebAccess.None;
+        webPort = Device?.WebPort;
+        terminalAccess = Device?.TerminalAccess ?? TerminalAccess.None;
+        terminalPort = Device?.TerminalPort;
         downAfterFailures = Device?.DownAfterFailures;
         upAfterSuccesses = Device?.UpAfterSuccesses;
         snmpDegradedAfterFailures = Device?.SnmpDegradedAfterFailures;
@@ -166,6 +175,9 @@ public partial class DeviceEditor : IDisposable
                 return !routerOsApiEnabled ? null
                     : watchCount > 0 ? ($"on · {watchCount}", $"lettura RouterOS attiva, {watchCount} elementi sorvegliati")
                     : ("on", "lettura RouterOS attiva");
+            case EditorTab.Access:
+                var accesses = (webAccess != WebAccess.None ? 1 : 0) + (terminalAccess != TerminalAccess.None ? 1 : 0);
+                return accesses > 0 ? (accesses.ToString(), "accessi web o da terminale configurati") : null;
             case EditorTab.Icon:
                 return icon is not null ? ("•", "icona scelta per questo dispositivo") : null;
             default:
@@ -232,7 +244,11 @@ public partial class DeviceEditor : IDisposable
                 routerOsApiEnabled ? temperatureThresholdC : null,
                 vendor,
                 notificationsMuted,
-                vendor == DeviceVendor.MikroTik ? winBoxPort : Device?.WinBoxPort);
+                vendor == DeviceVendor.MikroTik ? winBoxPort : Device?.WinBoxPort,
+                webAccess,
+                webAccess == WebAccess.None ? null : webPort,
+                terminalAccess,
+                terminalAccess == TerminalAccess.None ? null : terminalPort);
 
             Guid id;
             if (Device is null)
@@ -285,11 +301,23 @@ public partial class DeviceEditor : IDisposable
 
     private static string Placeholder(int? general) => general is { } g ? $"generale: {g}" : "generale";
 
-    private string WinBoxPortPlaceholder => $"generale: {WinBoxDefaultPort ?? WinBoxTarget.DefaultPort}";
+    private RemoteAccessSettingsDto AccessDefaults => RemoteAccessDefaults ?? RemoteAccessSettingsDto.Default;
+
+    /// <summary>"generale: 8443" (porta generale, altrimenti quella standard del protocollo).</summary>
+    private static string PortPlaceholder(int? general, int standard) => $"generale: {general ?? standard}";
 
     /// <summary>Destinazione che riceverà WinBox con i valori del pannello.</summary>
     private string WinBoxPreview => WinBoxTarget.Of(string.IsNullOrWhiteSpace(address) ? "indirizzo" : address,
-        WinBoxTarget.Effective(winBoxPort, WinBoxDefaultPort));
+        WinBoxTarget.Effective(winBoxPort, AccessDefaults.WinBoxPort));
+
+    private DeviceAccessDto Access => RemoteAccess.Resolve(winBoxPort, webAccess, webPort, terminalAccess, terminalPort, AccessDefaults);
+
+    private string? WebPreview => DeviceLinks.Web(string.IsNullOrWhiteSpace(address) ? "indirizzo" : address, Access);
+
+    /// <summary>Destinazione per PuTTY ("192.0.2.1:2222"), senza lo schema del link.</summary>
+    private string? TerminalPreview => DeviceLinks.Terminal(string.IsNullOrWhiteSpace(address) ? "indirizzo" : address, Access) is { } href
+        ? href[(href.IndexOf("://", StringComparison.Ordinal) + 3)..]
+        : null;
 
     private static string IntPlaceholder(int? general) => general is { } g ? $"generale: {g}" : "generale: disattivata";
 
@@ -314,6 +342,10 @@ public partial class DeviceEditor : IDisposable
     internal static string VendorLabel(DeviceVendor v) => v switch
     {
         DeviceVendor.MikroTik => "MikroTik",
+        DeviceVendor.Cisco => "Cisco",
+        DeviceVendor.DrayTek => "DrayTek",
+        DeviceVendor.Fritz => "AVM FRITZ!Box",
+        DeviceVendor.TpLink => "TP-Link",
         _ => "Generico"
     };
 

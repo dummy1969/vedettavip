@@ -1,0 +1,34 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<div class="winbox-downloads">
+    <div class="winbox-os">
+        <h6>Windows</h6>
+        <a class="btn btn-sm btn-primary" href="@Api.LinkHandlerUrl("windows")" download>Scarica l'installer (.cmd)</a>
+        <ol class="small mt-2 mb-1">
+            <li>Doppio clic sul file scaricato (se Windows avvisa che il file viene da internet: "Esegui comunque").</li>
+            <li>@PathText(Settings?.WinBoxWindowsPath, "WinBox", "WinBox.exe")</li>
+            <li>@PathText(Settings?.PuttyWindowsPath, "PuTTY", "putty.exe")</li>
+        </ol>
+        <div class="form-text">
+            Nella finestra di scelta, "Annulla" salta quel programma. Nessun permesso da amministratore: vale per l'utente
+            corrente. Per rimuoverlo: <code>vedettavip-links-windows.cmd /uninstall</code>.
+        </div>
+    </div>
+    <div class="winbox-os">
+        <h6>Linux</h6>
+        <a class="btn btn-sm btn-primary" href="@Api.LinkHandlerUrl("linux")" download>Scarica l'installer (.sh)</a>
+        <ol class="small mt-2 mb-1">
+            <li>In un terminale: <code>sh ~/Downloads/vedettavip-links-linux.sh</code> (senza sudo).</li>
+            <li>@PathText(Settings?.WinBoxLinuxPath, "WinBox", "WinBox")</li>
+            <li>SSH e Telnet: PuTTY se installato (<code>@(Settings?.PuttyLinuxPath ?? "putty")</code>), altrimenti il terminale di
+                sistema con <code>ssh</code> o <code>telnet</code>.</li>
+        </ol>
+        <div class="form-text">
+            Altri percorsi: <code>--winbox /percorso/WinBox</code>, <code>--putty /percorso/putty</code>; sempre il terminale:
+            <code>--terminal</code>. Per rimuoverlo: <code>--uninstall</code>.
+        </div>
+    </div>
+</div>

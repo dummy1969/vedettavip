@@ -1,0 +1,91 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Porte predefinite</strong></div>
+    <div class="card-body">
+        <p class="small text-muted">
+            Porte usate dai link "Apri con WinBox", "Apri interfaccia web" e "Apri con PuTTY" (clic destro su un dispositivo nella
+            mappa, bottoni nella pagina Dispositivi) per i dispositivi senza una porta propria (pannello del dispositivo, scheda
+            Accesso). Vuoto = porta standard. Il tipo di accesso (HTTP/HTTPS, SSH/Telnet) si sceglie sul dispositivo.
+        </p>
+        @if (loaded)
+        {
+            <div class="ports-grid">
+                <label class="small" for="ra-winbox">WinBox</label>
+                <input id="ra-winbox" class="form-control form-control-sm" type="number" min="1" max="65535" @bind="winBoxPort" placeholder="8291" />
+                <label class="small" for="ra-http">HTTP</label>
+                <input id="ra-http" class="form-control form-control-sm" type="number" min="1" max="65535" @bind="httpPort" placeholder="80" />
+                <label class="small" for="ra-https">HTTPS</label>
+                <input id="ra-https" class="form-control form-control-sm" type="number" min="1" max="65535" @bind="httpsPort" placeholder="443" />
+                <label class="small" for="ra-ssh">SSH</label>
+                <input id="ra-ssh" class="form-control form-control-sm" type="number" min="1" max="65535" @bind="sshPort" placeholder="22" />
+                <label class="small" for="ra-telnet">Telnet</label>
+                <input id="ra-telnet" class="form-control form-control-sm" type="number" min="1" max="65535" @bind="telnetPort" placeholder="23" />
+            </div>
+        }
+    </div>
+</section>
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Percorsi dei programmi sui PC degli operatori</strong></div>
+    <div class="card-body">
+        <p class="small text-muted">
+            Un browser non può avviare programmi: WinBox e PuTTY si aprono tramite il <b>gestore dei link</b> di VedettaVip,
+            installato una volta su ogni PC con gli installer qui sotto. I percorsi indicati qui vengono scritti negli installer:
+            gli operatori non devono inserirli. Vuoto = l'installer cerca nelle posizioni comuni e, se non trova il programma,
+            chiede dove si trova (o lo salta). Nessuna password passa da VedettaVip.
+        </p>
+        @if (error is not null)
+        {
+            <div class="alert alert-danger py-1 px-2 small">@error</div>
+        }
+        @if (loaded)
+        {
+            <h6 class="small fw-semibold">WinBox 4</h6>
+            <label class="form-label small mb-1" for="wb-windows">Windows</label>
+            <input id="wb-windows" class="form-control form-control-sm font-monospace" maxlength="@RemoteAccessSettingsDto.MaxPathLength"
+                   @bind="winBoxWindowsPath" placeholder="es. %LOCALAPPDATA%\Programs\WinBox\WinBox.exe" />
+            <label class="form-label small mb-1 mt-2" for="wb-linux">Linux</label>
+            <input id="wb-linux" class="form-control form-control-sm font-monospace" maxlength="@RemoteAccessSettingsDto.MaxPathLength"
+                   @bind="winBoxLinuxPath" placeholder="es. ~/WinBox/WinBox" />
+
+            <h6 class="small fw-semibold mt-3">PuTTY (SSH e Telnet)</h6>
+            <label class="form-label small mb-1" for="pt-windows">Windows</label>
+            <input id="pt-windows" class="form-control form-control-sm font-monospace" maxlength="@RemoteAccessSettingsDto.MaxPathLength"
+                   @bind="puttyWindowsPath" placeholder="es. %ProgramFiles%\PuTTY\putty.exe" />
+            <label class="form-label small mb-1 mt-2" for="pt-linux">Linux</label>
+            <input id="pt-linux" class="form-control form-control-sm font-monospace" maxlength="@RemoteAccessSettingsDto.MaxPathLength"
+                   @bind="puttyLinuxPath" placeholder="es. /usr/bin/putty" />
+            <div class="form-text">
+                Windows: ammesse le variabili d'ambiente (%LOCALAPPDATA%, %USERPROFILE%, %ProgramFiles%). Linux: ~/ = cartella home;
+                senza PuTTY i link SSH e Telnet aprono il terminale di sistema con <code>ssh</code> o <code>telnet</code>.
+            </div>
+        }
+    </div>
+</section>
+
+@if (loaded)
+{
+    <div class="d-flex align-items-baseline gap-2 mt-3">
+        <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="SaveAsync">Salva</button>
+        @if (savedAt is { } at)
+        {
+            <span class="small text-success">Salvato alle @at.ToString("HH:mm:ss"): i link usano le nuove porte, gli installer
+                scaricati da ora i nuovi percorsi.</span>
+        }
+    </div>
+}
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Installer del gestore dei link</strong></div>
+    <div class="card-body">
+        <LinkHandlerDownloads Settings="saved" />
+        <div class="form-text mt-2">
+            Gli operatori trovano gli stessi download nella pagina <a href="@DeviceLinks.HelpPage">Gestore dei link</a>,
+            raggiungibile dal menu del nodo sulla mappa. Dopo aver cambiato un percorso va rilanciato l'installer sui PC.
+        </div>
+    </div>
+</section>

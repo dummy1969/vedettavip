@@ -48,18 +48,28 @@ public sealed record DashboardSettingsDto(
 }
 
 /// <summary>
-/// Percorso di WinBox 4 sui PC degli operatori, scritto negli installer del gestore dei link winbox:// (pagina WinBox).
-/// Null = nessun predefinito: l'installer cerca nelle posizioni comuni e, se non lo trova, chiede il percorso.
-/// Ammesse le variabili d'ambiente (%LOCALAPPDATA%, %USERPROFILE%) su Windows e ~/ su Linux.
-/// DefaultPort: porta di WinBox dei dispositivi senza una propria (null = 8291, standard).
+/// Accesso remoto ai dispositivi (Impostazioni → Accesso remoto, pagina Gestore dei link):
+/// <list type="bullet">
+/// <item>percorsi di WinBox 4 e di PuTTY sui PC degli operatori, scritti negli installer del gestore dei link (null = l'installer
+/// cerca nelle posizioni comuni e, se non trova il programma, chiede dove si trova); ammesse le variabili d'ambiente
+/// (%LOCALAPPDATA%, %USERPROFILE%) su Windows e ~/ su Linux;</item>
+/// <item>porte predefinite di WinBox, HTTP, HTTPS, SSH e Telnet per i dispositivi senza una propria (null = porta standard:
+/// 8291, 80, 443, 22, 23).</item>
+/// </list>
 /// </summary>
-public sealed record WinBoxSettingsDto(
-    [property: StringLength(WinBoxSettingsDto.MaxPathLength, ErrorMessage = "Percorso Windows: al massimo 512 caratteri.")] string? WindowsPath,
-    [property: StringLength(WinBoxSettingsDto.MaxPathLength, ErrorMessage = "Percorso Linux: al massimo 512 caratteri.")] string? LinuxPath,
-    [property: Range(1, 65535, ErrorMessage = "Porta di WinBox: tra 1 e 65535.")] int? DefaultPort = null)
+public sealed record RemoteAccessSettingsDto(
+    [property: StringLength(RemoteAccessSettingsDto.MaxPathLength, ErrorMessage = "Percorso di WinBox per Windows: al massimo 512 caratteri.")] string? WinBoxWindowsPath,
+    [property: StringLength(RemoteAccessSettingsDto.MaxPathLength, ErrorMessage = "Percorso di WinBox per Linux: al massimo 512 caratteri.")] string? WinBoxLinuxPath,
+    [property: Range(1, 65535, ErrorMessage = "Porta di WinBox: tra 1 e 65535.")] int? WinBoxPort = null,
+    [property: StringLength(RemoteAccessSettingsDto.MaxPathLength, ErrorMessage = "Percorso di PuTTY per Windows: al massimo 512 caratteri.")] string? PuttyWindowsPath = null,
+    [property: StringLength(RemoteAccessSettingsDto.MaxPathLength, ErrorMessage = "Percorso di PuTTY per Linux: al massimo 512 caratteri.")] string? PuttyLinuxPath = null,
+    [property: Range(1, 65535, ErrorMessage = "Porta HTTP: tra 1 e 65535.")] int? HttpPort = null,
+    [property: Range(1, 65535, ErrorMessage = "Porta HTTPS: tra 1 e 65535.")] int? HttpsPort = null,
+    [property: Range(1, 65535, ErrorMessage = "Porta SSH: tra 1 e 65535.")] int? SshPort = null,
+    [property: Range(1, 65535, ErrorMessage = "Porta Telnet: tra 1 e 65535.")] int? TelnetPort = null)
 {
     public const int MaxPathLength = 512;
-    public static readonly WinBoxSettingsDto Default = new(null, null);
+    public static readonly RemoteAccessSettingsDto Default = new(null, null);
 }
 
 public enum MaintenanceScope { All, Customer, Map, Device }

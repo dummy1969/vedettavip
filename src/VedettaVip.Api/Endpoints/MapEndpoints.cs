@@ -36,7 +36,7 @@ public static class MapEndpoints
     /// se il dispositivo è disabilitato o se l'ultimo report è più vecchio di <paramref name="staleBefore"/>
     /// (agente fermo: la mappa non deve restare verde). Lo stato dei nodi Submap lo calcola <see cref="WithSubmapStatusAsync"/>.
     /// </summary>
-    internal static Expression<Func<MapNode, MapNodeDto>> ToNodeDto(DateTimeOffset staleBefore, int? winBoxDefaultPort) => n => new MapNodeDto(
+    internal static Expression<Func<MapNode, MapNodeDto>> ToNodeDto(DateTimeOffset staleBefore, RemoteAccessSettingsDto access) => n => new MapNodeDto(
         n.Id,
         n.Kind,
         n.DeviceId,
@@ -55,7 +55,17 @@ public static class MapEndpoints
         null,
         n.Icon,
         n.Device != null ? (DeviceVendor?)n.Device.Vendor : null,
-        n.Device != null ? n.Device.WinBoxPort ?? winBoxDefaultPort : null);
+        // Accessi remoti con le porte già risolte (stessa regola di RemoteAccess.Resolve, scritta qui per EF)
+        n.Device != null
+            ? new DeviceAccessDto(
+                n.Device.WinBoxPort ?? access.WinBoxPort,
+                n.Device.WebAccess,
+                n.Device.WebAccess == WebAccess.None ? null
+                    : n.Device.WebPort ?? (n.Device.WebAccess == WebAccess.Https ? access.HttpsPort : access.HttpPort),
+                n.Device.TerminalAccess,
+                n.Device.TerminalAccess == TerminalAccess.None ? null
+                    : n.Device.TerminalPort ?? (n.Device.TerminalAccess == TerminalAccess.Telnet ? access.TelnetPort : access.SshPort))
+            : null);
 
     internal static DateTimeOffset StaleBefore(TimeProvider time, AgentOptions options) =>
         time.GetUtcNow() - options.StaleAfter;
@@ -84,7 +94,7 @@ public static class MapEndpoints
             .AsNoTracking()
             .Where(n => n.MapId == id)
             .OrderBy(n => n.Id)
-            .Select(ToNodeDto(StaleBefore(time, agentOptions.Value), await SettingsEndpoints.WinBoxDefaultPortAsync(db, ct)))
+            .Select(ToNodeDto(StaleBefore(time, agentOptions.Value), await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
             .ToListAsync(ct);
 
         // Nodi dei device in manutenzione (bordo tratteggiato sulla mappa)

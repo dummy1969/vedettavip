@@ -206,17 +206,40 @@ else if (rows is not null)
                                             title="Grafici" aria-label="Grafici di @d.Name">
                                         <UiIcon Name="@UiIcons.Charts" />
                                     </button>
-                                    @if (WinBoxLink.Href(d.Vendor, d.Address, row.WinBoxPort) is { } winbox)
+                                    @* Posti vuoti: le icone restano in colonna anche sulle righe senza un accesso *@
+                                    @if (DeviceLinks.WinBox(d.Vendor, d.Address, row.Access?.WinBoxPort) is { } winbox)
                                     {
                                         <a class="btn btn-sm btn-outline-secondary btn-icon" href="@winbox"
-                                           title="Apri con WinBox@(WinBoxLink.PortSuffix(d.Address, row.WinBoxPort)) (serve il gestore winbox:// su questo PC: pagina Gestore WinBox)"
+                                           title="@DeviceLinks.WinBoxLabel(d.Address, row.Access?.WinBoxPort) (serve il gestore dei link su questo PC: pagina Gestore dei link)"
                                            aria-label="Apri @d.Name con WinBox">
                                             <UiIcon Name="@UiIcons.WinBox" />
                                         </a>
                                     }
                                     else
                                     {
-                                        @* Posto vuoto: le icone restano in colonna anche sulle righe senza WinBox *@
+                                        <span class="btn-icon-slot" aria-hidden="true"></span>
+                                    }
+                                    @if (DeviceLinks.Web(d.Address, row.Access) is { } web)
+                                    {
+                                        <a class="btn btn-sm btn-outline-secondary btn-icon" href="@web" target="_blank" rel="noopener noreferrer"
+                                           title="@DeviceLinks.WebLabel(row.Access!)" aria-label="Interfaccia web di @d.Name">
+                                            <UiIcon Name="@UiIcons.Web" />
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="btn-icon-slot" aria-hidden="true"></span>
+                                    }
+                                    @if (DeviceLinks.Terminal(d.Address, row.Access) is { } terminal)
+                                    {
+                                        <a class="btn btn-sm btn-outline-secondary btn-icon" href="@terminal"
+                                           title="@DeviceLinks.TerminalLabel(row.Access!) (serve il gestore dei link su questo PC: pagina Gestore dei link)"
+                                           aria-label="Apri @d.Name con PuTTY">
+                                            <UiIcon Name="@UiIcons.Terminal" />
+                                        </a>
+                                    }
+                                    else
+                                    {
                                         <span class="btn-icon-slot" aria-hidden="true"></span>
                                     }
                                     @if (User.CanEdit)
@@ -242,7 +265,7 @@ else if (rows is not null)
         @if (editorOpen)
         {
             <DeviceEditor @key="editorKey" Device="EditingDevice" AllDevices="AllDevices" Defaults="detectionDefaults" Customers="customers" Metrics="metricThresholds"
-                          SnmpProfiles="snmpProfiles" RouterOsProfiles="routerOsProfiles" WinBoxDefaultPort="winBoxDefaultPort"
+                          SnmpProfiles="snmpProfiles" RouterOsProfiles="routerOsProfiles" RemoteAccessDefaults="remoteAccess"
                           OnSaved="SavedAsync" OnClose="CloseEditor" />
         }
     </div>

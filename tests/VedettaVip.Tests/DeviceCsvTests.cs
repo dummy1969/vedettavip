@@ -36,8 +36,9 @@ public class DeviceCsvTests
     }
 
     [Fact]
-    public void Export_columns_put_notify_and_winbox_port_after_enabled() =>
-        Assert.Equal([DeviceCsv.Enabled, DeviceCsv.Notify, DeviceCsv.WinBoxPort, DeviceCsv.Map], DeviceCsv.Columns[^4..]);
+    public void Export_columns_put_notify_and_accesses_after_enabled() =>
+        Assert.Equal([DeviceCsv.Enabled, DeviceCsv.Notify, DeviceCsv.WinBoxPort, DeviceCsv.Web, DeviceCsv.WebPort, DeviceCsv.Terminal,
+            DeviceCsv.TerminalPort, DeviceCsv.Map], DeviceCsv.Columns[^8..]);
 
     [Theory]
     [InlineData("Porta WinBox")]
@@ -135,11 +136,13 @@ public class DeviceCsvTests
     [Fact]
     public void Export_round_trips_through_the_parser()
     {
-        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "mikrotik", "v2c", "Rossi \"A\"", "", "Rossi", "si", "no", "8292", "Sede | Rack"]]);
+        var csv = DeviceCsv.Write([["Core; sede", "10.0.0.1", "router", "mikrotik", "v2c", "Rossi \"A\"", "", "Rossi", "si", "no", "8292", "https", "8443", "ssh", "", "Sede | Rack"]]);
         var row = Assert.Single(DeviceCsv.Parse(csv).Rows);
         Assert.Equal(("Core; sede", "mikrotik", "Rossi \"A\"", "si", "no", "8292", "Sede | Rack"),
             (row.Get(DeviceCsv.Name), row.Get(DeviceCsv.Vendor), row.Get(DeviceCsv.Customer), row.Get(DeviceCsv.Enabled),
              row.Get(DeviceCsv.Notify), row.Get(DeviceCsv.WinBoxPort), row.Get(DeviceCsv.Map)));
+        Assert.Equal(("https", "8443", "ssh", ""),
+            (row.Get(DeviceCsv.Web), row.Get(DeviceCsv.WebPort), row.Get(DeviceCsv.Terminal), row.Get(DeviceCsv.TerminalPort)));
     }
 
     [Theory]

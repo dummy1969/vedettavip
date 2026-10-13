@@ -50,7 +50,7 @@ public partial class Devices : IDisposable
     private IReadOnlyList<CustomerDto> customers = [];
     private IReadOnlyList<SnmpCredentialDto> snmpProfiles = [];
     private IReadOnlyList<RouterOsCredentialDto> routerOsProfiles = [];
-    private int? winBoxDefaultPort;
+    private RemoteAccessSettingsDto? remoteAccess;
     private Dictionary<Guid, RouterOsSampleDto> routerOs = [];
     private MetricThresholdsDto? metricThresholds;
     private DeviceDto? ChartsDevice => rows?.FirstOrDefault(r => r.Device.Id == chartsDeviceId)?.Device;
@@ -76,7 +76,7 @@ public partial class Devices : IDisposable
             snmpProfiles = await Api.GetSnmpCredentialsAsync(cts.Token);
             maps = await Api.GetMapsAsync(cts.Token);
             routerOsProfiles = await Api.GetRouterOsCredentialsAsync(cts.Token);
-            winBoxDefaultPort = (await Api.GetWinBoxSettingsAsync(cts.Token)).DefaultPort;
+            remoteAccess = await Api.GetRemoteAccessSettingsAsync(cts.Token);
         }
         catch (HttpRequestException ex)
         {

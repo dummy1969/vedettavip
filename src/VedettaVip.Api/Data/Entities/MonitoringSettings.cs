@@ -34,6 +34,14 @@ public sealed class MonitoringSettings
     public string? WinBoxLinuxPath { get; set; }
     /// <summary>Porta di WinBox dei dispositivi senza una propria; null = 8291 (standard).</summary>
     public int? WinBoxDefaultPort { get; set; }
+    /// <summary>Percorso di PuTTY sui PC Windows/Linux degli operatori, scritto nell'installer del gestore dei link; null = ricerca.</summary>
+    public string? PuttyWindowsPath { get; set; }
+    public string? PuttyLinuxPath { get; set; }
+    /// <summary>Porte generali degli accessi di gestione dei dispositivi senza una propria; null = standard (80, 443, 22, 23).</summary>
+    public int? HttpDefaultPort { get; set; }
+    public int? HttpsDefaultPort { get; set; }
+    public int? SshDefaultPort { get; set; }
+    public int? TelnetDefaultPort { get; set; }
 
     /// <summary>Profilo SNMP dei device senza profilo proprio né del cliente; null = community del Worker.</summary>
     public Guid? DefaultSnmpCredentialId { get; set; }

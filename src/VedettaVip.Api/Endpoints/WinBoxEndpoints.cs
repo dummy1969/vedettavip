@@ -9,9 +9,10 @@ using VedettaVip.Api.Services;
 namespace VedettaVip.Api.Endpoints;
 
 /// <summary>
-/// "Apri con WinBox": il browser apre il link winbox://&lt;indirizzo&gt;, che un gestore installato sul PC dell'operatore
-/// passa a WinBox 4. Qui si scarica l'installer del gestore, con il percorso di WinBox delle Impostazioni già scritto dentro.
-/// Nessuna credenziale: WinBox chiede utente e password (o usa i suoi indirizzi salvati).
+/// "Apri con WinBox" e "Apri con PuTTY": il browser apre il link (winbox://, vedettavip-ssh://, vedettavip-telnet://), che un
+/// gestore installato sul PC dell'operatore passa al programma. Qui si scarica l'installer del gestore, con i percorsi di
+/// WinBox e PuTTY delle Impostazioni già scritti dentro. Nessuna credenziale: i programmi le chiedono.
+/// La route resta /api/winbox/handler per i link già distribuiti.
 /// </summary>
 public static class WinBoxEndpoints
 {
@@ -26,9 +27,10 @@ public static class WinBoxEndpoints
     private static async Task<Results<FileContentHttpResult, NotFound>> DownloadHandlerAsync(
         string os, VedettaVipDbContext db, CancellationToken ct)
     {
-        var settings = await SettingsEndpoints.LoadWinBoxAsync(db, ct);
-        var path = os.Equals("windows", StringComparison.OrdinalIgnoreCase) ? settings.WindowsPath : settings.LinuxPath;
-        if (WinBoxHandlerScripts.Render(os, path) is not { } script)
+        var settings = await SettingsEndpoints.LoadRemoteAccessAsync(db, ct);
+        var windows = os.Equals("windows", StringComparison.OrdinalIgnoreCase);
+        if (LinkHandlerScripts.Render(os, windows ? settings.WinBoxWindowsPath : settings.WinBoxLinuxPath,
+                windows ? settings.PuttyWindowsPath : settings.PuttyLinuxPath) is not { } script)
             return TypedResults.NotFound();
         return TypedResults.File(Encoding.UTF8.GetBytes(script.Text), script.ContentType, script.FileName);
     }

@@ -28,8 +28,10 @@ schermo di un NOC e veloce da configurare.
   interfacce dai contatori a 64 bit (ripiego a 32 bit per gli apparati senza `ifXTable`), inventario delle interfacce,
   soglie configurabili.
 - **RouterOS**: API classica (`api`/`api-ssl`, v6 e v7) per CPU, memoria, temperatura, tensione, uptime, versione;
-  interfacce e peer WireGuard sorvegliati; soglie di CPU e temperatura; "Apri con WinBox" dal menu del clic destro sulla
-  mappa (link `winbox://` aperto da un piccolo gestore per utente, per Windows e Linux; nessuna credenziale salvata).
+  interfacce e peer WireGuard sorvegliati; soglie di CPU e temperatura.
+- **Accesso remoto** dal menu del clic destro sulla mappa e dalla pagina Dispositivi: "Apri con WinBox" (MikroTik), pagina
+  web del dispositivo (HTTP/HTTPS) e "Apri con PuTTY" (SSH/Telnet), con porte generali e per dispositivo; WinBox e PuTTY
+  si avviano tramite un piccolo gestore dei link per utente (Windows e Linux). Nessuna credenziale salvata.
 - **Scoperta**: vicini (RouterOS `/ip/neighbor`, LLDP-MIB, CDP-MIB), tabelle ARP con i lease DHCP, scansione di subnet
   (ping, DNS, SNMP, porte TCP), produttore dal MAC address (OUI IEEE); proposte da confermare, mai aggiunte da sole.
 - **Metriche** su TimescaleDB (dati grezzi 7 giorni, aggregati a 5 minuti 90 giorni, orari 2 anni) con grafici di

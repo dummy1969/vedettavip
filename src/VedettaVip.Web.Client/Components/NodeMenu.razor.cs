@@ -12,8 +12,9 @@ using VedettaVip.Web.Client.Services;
 namespace VedettaVip.Web.Client.Components;
 
 /// <summary>
-/// Menu contestuale di un nodo della mappa (clic destro), alla posizione del puntatore: "Apri con WinBox" per i MikroTik,
-/// copia dell'indirizzo, grafici o sottomappa, proprietà in modalità Modifica. Si chiude con un clic fuori o con Esc.
+/// Menu contestuale di un nodo della mappa (clic destro), alla posizione del puntatore: accessi remoti ("Apri con WinBox" per i
+/// MikroTik, interfaccia web, PuTTY), copia dell'indirizzo, grafici o sottomappa, proprietà in modalità Modifica. Si chiude con
+/// un clic fuori o con Esc.
 /// </summary>
 public partial class NodeMenu : IAsyncDisposable
 {
@@ -35,8 +36,10 @@ public partial class NodeMenu : IAsyncDisposable
 
     private string Name => Node.Values.GetValueOrDefault("Name") is { Length: > 0 } name ? name : "Nodo";
     private string? Address => Node.Kind == MapNodeKind.Device ? Node.Values.GetValueOrDefault("Address") : null;
-    private string? WinBoxHref => WinBoxLink.Href(Node.Vendor, Address, Node.WinBoxPort);
-    private string WinBoxLabel => "Apri con WinBox" + WinBoxLink.PortSuffix(Address, Node.WinBoxPort);
+    private string? WinBoxHref => DeviceLinks.WinBox(Node.Vendor, Address, Node.Access?.WinBoxPort);
+    private string WinBoxLabel => DeviceLinks.WinBoxLabel(Address, Node.Access?.WinBoxPort);
+    private string? WebHref => Node.Kind == MapNodeKind.Device ? DeviceLinks.Web(Address, Node.Access) : null;
+    private string? TerminalHref => Node.Kind == MapNodeKind.Device ? DeviceLinks.Terminal(Address, Node.Access) : null;
 
     /// <summary>Un nodo statico in sola visualizzazione non ha voci: niente menu.</summary>
     private bool HasItems => Node.Kind != MapNodeKind.Static || Editing;

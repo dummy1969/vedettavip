@@ -20,6 +20,15 @@
         {
             <a class="node-menu-item" role="menuitem" href="@winbox" @onclick="CloseAsync">@WinBoxLabel</a>
         }
+        @if (WebHref is { } web)
+        {
+            <a class="node-menu-item" role="menuitem" href="@web" target="_blank" rel="noopener noreferrer"
+               @onclick="CloseAsync">@DeviceLinks.WebLabel(Node.Access!)</a>
+        }
+        @if (TerminalHref is { } terminal)
+        {
+            <a class="node-menu-item" role="menuitem" href="@terminal" @onclick="CloseAsync">@DeviceLinks.TerminalLabel(Node.Access!)</a>
+        }
         @if (Address is { Length: > 0 })
         {
             <button type="button" class="node-menu-item" role="menuitem" @onclick="CopyAddressAsync">Copia indirizzo</button>
@@ -36,9 +45,11 @@
         {
             <button type="button" class="node-menu-item" role="menuitem" @onclick="PropertiesAsync">Proprietà del nodo</button>
         }
-        @if (WinBoxHref is not null)
+        @if (WinBoxHref is not null || TerminalHref is not null)
         {
-            <a class="node-menu-help" href="@WinBoxLink.HelpPage" @onclick="CloseAsync">WinBox non si apre? Installa il gestore</a>
+            <a class="node-menu-help" href="@DeviceLinks.HelpPage" @onclick="CloseAsync">
+                @(TerminalHref is null ? "WinBox" : WinBoxHref is null ? "PuTTY" : "WinBox o PuTTY") non si apre? Installa il gestore
+            </a>
         }
     </div>
 }

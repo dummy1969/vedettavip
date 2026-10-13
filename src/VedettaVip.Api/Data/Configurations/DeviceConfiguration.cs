@@ -21,6 +21,8 @@ public sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
             t.HasCheckConstraint("CK_Devices_CpuThresholdPct", "\"CpuThresholdPct\" IS NULL OR \"CpuThresholdPct\" BETWEEN 0 AND 100");
             t.HasCheckConstraint("CK_Devices_TemperatureThresholdC", "\"TemperatureThresholdC\" IS NULL OR \"TemperatureThresholdC\" BETWEEN 0 AND 150");
             t.HasCheckConstraint("CK_Devices_WinBoxPort", "\"WinBoxPort\" IS NULL OR \"WinBoxPort\" BETWEEN 1 AND 65535");
+            t.HasCheckConstraint("CK_Devices_WebPort", "\"WebPort\" IS NULL OR \"WebPort\" BETWEEN 1 AND 65535");
+            t.HasCheckConstraint("CK_Devices_TerminalPort", "\"TerminalPort\" IS NULL OR \"TerminalPort\" BETWEEN 1 AND 65535");
         });
 
         b.Property(d => d.Name).HasMaxLength(128);

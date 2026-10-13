@@ -28,7 +28,11 @@ public sealed record DeviceDto(
     int? TemperatureThresholdC = null,
     DeviceVendor Vendor = DeviceVendor.Generic,
     bool NotificationsMuted = false,
-    int? WinBoxPort = null);
+    int? WinBoxPort = null,
+    WebAccess WebAccess = WebAccess.None,
+    int? WebPort = null,
+    TerminalAccess TerminalAccess = TerminalAccess.None,
+    int? TerminalPort = null);
 
 /// <summary>
 /// Creazione/modifica di un device. Le tre soglie di rilevazione sono facoltative: null = valore generale
@@ -58,8 +62,20 @@ public sealed record DeviceUpsertDto(
     DeviceVendor Vendor = DeviceVendor.Generic,
     /// <summary>Notifiche disattivate: monitorato, eventi registrati, nessun avviso.</summary>
     bool NotificationsMuted = false,
-    /// <summary>Porta di WinBox; null = quella generale (Impostazioni → WinBox).</summary>
-    [property: Range(1, 65535, ErrorMessage = "Porta di WinBox: tra 1 e 65535.")] int? WinBoxPort = null);
+    /// <summary>Porta di WinBox; null = quella generale (Impostazioni → Accesso remoto).</summary>
+    [property: Range(1, 65535, ErrorMessage = "Porta di WinBox: tra 1 e 65535.")] int? WinBoxPort = null,
+    /// <summary>Accesso web di gestione e porta (null = generale del protocollo).</summary>
+    WebAccess WebAccess = WebAccess.None,
+    [property: Range(1, 65535, ErrorMessage = "Porta web: tra 1 e 65535.")] int? WebPort = null,
+    /// <summary>Accesso da terminale (PuTTY) e porta (null = generale del protocollo).</summary>
+    TerminalAccess TerminalAccess = TerminalAccess.None,
+    [property: Range(1, 65535, ErrorMessage = "Porta del terminale: tra 1 e 65535.")] int? TerminalPort = null);
+
+/// <summary>
+/// Accessi remoti effettivi di un dispositivo, per i link "Apri con WinBox / interfaccia web / PuTTY": tipo dal dispositivo,
+/// porte già risolte (del dispositivo, altrimenti generali; null = porta standard del protocollo).
+/// </summary>
+public sealed record DeviceAccessDto(int? WinBoxPort, WebAccess Web, int? WebPort, TerminalAccess Terminal, int? TerminalPort);
 
 /// <summary>Corpo della risposta 409 quando si tenta di eliminare un dispositivo ancora in uso.</summary>
 public sealed record DeviceInUseDto(
@@ -83,5 +99,5 @@ public sealed record DeviceOverviewDto(
     IReadOnlyList<MapRefDto> Maps,
     /// <summary>Nome della finestra di manutenzione attiva che copre il device (null = nessuna).</summary>
     string? Maintenance = null,
-    /// <summary>Porta di WinBox effettiva (del device, altrimenti generale; null = 8291).</summary>
-    int? WinBoxPort = null);
+    /// <summary>Accessi remoti effettivi (WinBox, web, terminale).</summary>
+    DeviceAccessDto? Access = null);

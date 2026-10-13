@@ -264,6 +264,8 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
   `AddDeviceVendorAndWinBox`, che ha segnato MikroTik i device con `RouterOsApiEnabled`). NotificationsMuted (bool,
   migration `DeviceNotificationsMuted`): notifiche disattivate, il device resta monitorato. WinBoxPort? (CHECK 1–65535,
   migration `WinBoxPort`, con `MonitoringSettings.WinBoxDefaultPort`): porta per "Apri con WinBox", null = generale.
+  WebAccess/TerminalAccess (testo, default None) + WebPort?/TerminalPort? (CHECK 1–65535; migration `RemoteAccess`, con le
+  porte generali e i percorsi di PuTTY in `MonitoringSettings`): accessi di gestione, vedi "Accesso remoto".
 - **MonitoringSettings** (riga unica, CHECK Id = 1, creata dalla migration): DownAfterFailures, UpAfterSuccesses,
   SnmpDegradedAfterFailures (1–100), soglie generali di rilevazione; DashboardEventHours (1–168, default 4, migration
   `AddDashboardSettings`); WinBoxWindowsPath?/WinBoxLinuxPath? (512, migration `AddDeviceVendorAndWinBox`).
@@ -376,8 +378,8 @@ usare ASP.NET Core Data Protection o un secret store.
 | GET/POST, DELETE | `/api/discovery/scans`, `/api/discovery/scans/{id}` | scansioni di subnet (ultime 20 con avanzamento); Operatore per avviare/eliminare |
 | GET/POST | `/api/agent/scans/{id}` | **X-Agent-Key** + `X-Agent-Id`: presa del compito (409 se di un altro agente) e avanzamento/esito |
 | POST | `/api/discovery/accept`, `/ignore`, `/refresh` | conferma (`DiscoveryAcceptDto`), ignora/ripristina, "Scopri ora"; Operatore |
-| GET/PUT | `/api/settings/winbox` | `WinBoxSettingsDto` (percorsi di WinBox 4 per Windows e Linux, null = ricerca; porta predefinita, null = 8291); GET per tutti, PUT Admin |
-| GET | `/api/winbox/handler/{windows\|linux}` | installer del gestore `winbox://` con il percorso già scritto (`.cmd` / `.sh`) |
+| GET/PUT | `/api/settings/remote-access` | `RemoteAccessSettingsDto` (percorsi di WinBox 4 e PuTTY per Windows e Linux, null = ricerca; porte predefinite WinBox/HTTP/HTTPS/SSH/Telnet, null = standard); GET per tutti, PUT Admin |
+| GET | `/api/winbox/handler/{windows\|linux}` | installer del gestore dei link (`winbox://`, `vedettavip-ssh://`, `vedettavip-telnet://`) con i percorsi già scritti (`.cmd` / `.sh`) |
 | GET | `/api/outages` | `?deviceId&customerId&status=All\|Active\|Resolved&service&from&before&limit` (max 2000) → `OutageDto[]`, più recenti prima; senza deviceId = vista globale |
 | GET | `/api/outages/export` | stessi filtri di `/api/outages` (senza limit) → CSV (max 100.000 righe) |
 | DELETE | `/api/outages/resolved` | `?deviceId&service` → `OutageDeleteResultDto` ("Rimuovi risolte"; gli eventi restano); Operatore |
@@ -487,36 +489,57 @@ usare ASP.NET Core Data Protection o un secret store.
   nella colonna RouterOS); la lettura completa è in `GET /api/devices/{id}/routeros`.
 - Da fare: IPsec, PPP, EoIP/GRE con regole specifiche, MNDP.
 
-### Apri con WinBox (implementato)
+### Accesso remoto: WinBox, interfaccia web, PuTTY (implementato)
 
-- **Produttore** `Device.Vendor` (`DeviceVendor`: Generic, MikroTik): select "Produttore" nel pannello del device; abilitare
-  l'API RouterOS lo porta a MikroTik (UI e API, `DeviceEndpoints.VendorOf`); colonna CSV `produttore` (mikrotik/generic);
-  la Scoperta propone MikroTik se la proposta è RouterOS o il MAC è MikroTik (`DiscoveryPlanner.VendorOf`).
-  `MapNodeDto.Vendor` e `DeviceDto.Vendor` lo portano al client.
-- **Porta** (`VedettaVip.Shared/Models/WinBoxTarget`, coperto da test): generale in Impostazioni → WinBox
-  (`WinBoxSettingsDto.DefaultPort`, null = 8291) e per device (`Device.WinBoxPort`, scheda RouterOS del pannello, colonna CSV
-  `winbox_port`/`porta_winbox`). L'API manda la porta **effettiva** (device → generale) in `MapNodeDto.WinBoxPort` e
-  `DeviceOverviewDto.WinBoxPort`; cambiare la generale invia `MapsChanged` a tutte le mappe. Il link diventa
-  `winbox://<indirizzo>:<porta>` solo se la porta non è 8291 (WinBox accetta `indirizzo:porta` anche da riga di comando);
-  per IPv6 la porta non si passa (servirebbero le parentesi quadre, rifiutate dai gestori installati). I gestori già
-  installati accettano `:porta` senza reinstallarli. Il menu del nodo mostra "Apri con WinBox (porta N)".
-- **Link** `winbox://<indirizzo>` (`Services/WinBoxLink`), **senza credenziali**: WinBox chiede utente e password o usa i
-  suoi indirizzi salvati. Nessuna password di accesso ai router è salvata in VedettaVip (scelta voluta).
-- **Menu contestuale del nodo** (`Components/NodeMenu`, clic destro su un nodo, anche in sola visualizzazione): Apri con
-  WinBox (solo MikroTik), Copia indirizzo, Grafici / Apri la sottomappa, Proprietà del nodo (in Modifica), link alla pagina
-  del gestore. Pagina Dispositivi: bottone **WinBox** sulle righe MikroTik.
-- **Gestore sul PC** (un browser non avvia programmi): installer generati da `Services/WinBoxHandlerScripts` dai modelli in
-  `VedettaVip.Api/Resources/WinBox/` (risorse incorporate), con il percorso delle Impostazioni al posto di `__WINBOX_PATH__`
-  (quotato per PowerShell, apici tipografici compresi, o per sh). Per l'utente corrente, senza admin/sudo:
-  - Windows: un solo `.cmd` (prima riga `<# :` = etichetta batch + commento PowerShell: la parte batch esegue il resto
-    con PowerShell). Cerca WinBox (percorso impostato con variabili d'ambiente, posizioni comuni, poi finestra "Apri file"),
-    scrive `%LOCALAPPDATA%\VedettaVip\winbox-handler.ps1` e `HKCU\Software\Classes\winbox`. `/uninstall` toglie tutto.
-  - Linux: `sh vedettavip-winbox-linux.sh [percorso]` → `~/.local/bin/vedettavip-winbox`, `.desktop` con
-    `x-scheme-handler/winbox`, `xdg-mime default`. `--uninstall`.
-  - Il gestore accetta solo IP, hostname o MAC (`^[A-Za-z0-9:][A-Za-z0-9.:-]{0,252}$`): qualsiasi sito può aprire un link
-    `winbox://`. Coperto da test (anche l'installer Linux eseguito davvero con un finto WinBox).
-- **Impostazioni → WinBox** (Admin): percorsi per Windows e Linux, porta predefinita + download. Pagina **`/winbox`** ("Gestore WinBox", per
-  tutti gli utenti, raggiungibile dal menu del nodo): download e istruzioni. macOS non ancora previsto.
+- **Produttore** `Device.Vendor` (`DeviceVendor`: Generic, MikroTik, Cisco, DrayTek, Fritz (AVM FRITZ!Box), TpLink; testo):
+  select "Produttore" nel pannello del device; abilitare l'API RouterOS lo porta a MikroTik (UI e API,
+  `DeviceEndpoints.VendorOf`); colonna CSV `produttore` (mikrotik, cisco, draytek/vigor, fritz/avm, tplink, generic). La
+  Scoperta lo deduce (`DiscoveryPlanner.VendorFromName`): RouterOS, poi produttore del MAC ("Cisco Systems", "DrayTek",
+  "AVM (Fritz!Box)", "TP-Link"). `MapNodeDto.Vendor` e `DeviceDto.Vendor` lo portano al client. Solo MikroTik ha WinBox.
+- **Accessi per dispositivo** (scheda **Accesso** del pannello; migration `RemoteAccess`), indipendenti tra loro:
+  - WinBox (solo MikroTik): `Device.WinBoxPort`;
+  - interfaccia web: `Device.WebAccess` (`WebAccess`: None/Http/Https, testo) + `WebPort`;
+  - terminale con PuTTY: `Device.TerminalAccess` (`TerminalAccess`: None/Ssh/Telnet, testo) + `TerminalPort`.
+  Porta null = generale del protocollo (Impostazioni → **Accesso remoto**, `MonitoringSettings.WinBoxDefaultPort`,
+  `HttpDefaultPort`, `HttpsDefaultPort`, `SshDefaultPort`, `TelnetDefaultPort`), poi standard (8291, 80, 443, 22, 23).
+  Accesso None = porta azzerata. Nessun nome utente né password nei link (scelta voluta).
+- **Porte effettive** calcolate dall'API: `DeviceAccessDto` (WinBoxPort, Web, WebPort, Terminal, TerminalPort) in
+  `MapNodeDto.Access` (proiezione `MapEndpoints.ToNodeDto`, stessa regola di `RemoteAccess.Resolve`) e
+  `DeviceOverviewDto.Access`; cambiare le porte generali invia `MapsChanged` a tutte le mappe.
+- **Link** (`VedettaVip.Shared/Models/RemoteAccess` e `WinBoxTarget`, coperti da test; client `Services/DeviceLinks`), porta
+  solo se non standard:
+  - `winbox://<indirizzo>[:porta]` (WinBox accetta `indirizzo:porta` da riga di comando; IPv6 senza porta: i gestori
+    installati prima della 1.3.0 non accettano le parentesi quadre);
+  - `http(s)://<host>[:porta]/` in una nuova scheda (nessun gestore; IPv6 tra parentesi quadre);
+  - `vedettavip-ssh://<host>[:porta]` / `vedettavip-telnet://<host>[:porta]` (schemi propri: nessun conflitto con altri
+    programmi che gestiscono `ssh://`; IPv6 come `[2001:db8::1]:2222`). Host ammessi: lettere, cifre, punti e trattini con
+    iniziale alfanumerica, o IPv6.
+- **Menu contestuale del nodo** (`Components/NodeMenu`, clic destro, anche in sola visualizzazione): Apri con WinBox
+  (porta N), Apri interfaccia web (HTTPS :8443), Apri con PuTTY (SSH :2222), Copia indirizzo, Grafici / Apri la sottomappa,
+  Proprietà del nodo (in Modifica), link alla pagina del gestore. Pagina Dispositivi: bottoni WinBox, web, terminale (posti
+  vuoti `.btn-icon-slot` per tenere le colonne allineate).
+- **Gestore dei link sul PC** (un browser non avvia programmi): un solo installer per WinBox e PuTTY, generato da
+  `Services/LinkHandlerScripts` dai modelli in `VedettaVip.Api/Resources/LinkHandler/` (risorse incorporate), con i percorsi
+  delle Impostazioni al posto di `__WINBOX_PATH__` e `__PUTTY_PATH__` (quotati per PowerShell, apici tipografici compresi, o
+  per sh). Download da `GET /api/winbox/handler/{windows|linux}` (route invariata). Per l'utente corrente, senza admin/sudo:
+  - Windows `vedettavip-links-windows.cmd` (prima riga `<# :` = etichetta batch + commento PowerShell): cerca WinBox e
+    PuTTY (percorso impostato con variabili d'ambiente, posizioni comuni, `putty.exe` nel PATH, poi finestra "Apri file";
+    Annulla = programma saltato, almeno uno serve), scrive `%LOCALAPPDATA%\VedettaVip\winbox-handler.ps1` e
+    `putty-handler.ps1`, registra `HKCU\Software\Classes\winbox`, `vedettavip-ssh`, `vedettavip-telnet`. `/uninstall` toglie tutto.
+  - Linux `sh vedettavip-links-linux.sh [--winbox P] [--putty P] [--terminal] [--no-winbox]` (un percorso senza opzione =
+    WinBox, come il vecchio installer) → `~/.local/bin/vedettavip-winbox` e `vedettavip-terminal`, `.desktop` con
+    `x-scheme-handler/...`, `xdg-mime default`. Senza PuTTY (o con `--terminal`) SSH/Telnet si aprono nel terminale di
+    sistema (`x-terminal-emulator`, gnome-terminal, konsole, xfce4-terminal, mate-terminal, tilix, xterm) con `ssh -p` o
+    `telnet host porta`. `--uninstall`.
+  - **Sicurezza** (qualsiasi sito può aprire questi link): WinBox riceve solo `^[A-Za-z0-9:][A-Za-z0-9.:-]{0,252}$`; PuTTY solo
+    `-ssh`/`-telnet`, `-P <1–65535>` e l'host validato (anche dopo la decodifica `%xx` su Windows); `host:` senza porta,
+    `user@`, opzioni travestite da host, `;`, `$()`, spazi: rifiutati. Coperto da test che **eseguono davvero** l'installer e
+    i gestori Linux con programmi finti, e i gestori Windows con `pwsh` se è nel PATH (altrimenti il test si salta; per
+    provarli: `dotnet tool install PowerShell --tool-path <cartella>` e quella cartella nel PATH).
+- **Impostazioni → Accesso remoto** (`/settings/remote-access`, alias `/settings/winbox`; Admin): porte predefinite,
+  percorsi di WinBox e PuTTY per Windows e Linux, download. Pagina **`/winbox`** ("Gestore dei link", per tutti, dal menu
+  del nodo): download e istruzioni. Settings via `GET/PUT /api/settings/remote-access` (`RemoteAccessSettingsDto`). macOS
+  non ancora previsto.
 
 ### Discovery (prima tappa: vicini e link)
 
@@ -635,7 +658,7 @@ usare ASP.NET Core Data Protection o un secret store.
 
 - `Components/SettingsShell`: sottomenu a sinistra (a schede sotto i 900 px) e titolo/azioni della pagina; dentro c'è
   già `AdminOnly`. Sezioni: **Monitoraggio** (`/settings` e `/settings/monitoring`: rilevazione dello stato, soglie delle
-  metriche), **Profili SNMP**, **Profili RouterOS**, **WinBox** (percorso, gestore `winbox://`), **Notifiche** (SMTP, Telegram, invio), **Contatti**, **Clienti**, **Utenti**, **Dashboard**.
+  metriche), **Profili SNMP**, **Profili RouterOS**, **Accesso remoto** (porte, percorsi di WinBox e PuTTY, gestore dei link), **Notifiche** (SMTP, Telegram, invio), **Contatti**, **Clienti**, **Utenti**, **Dashboard**.
 - Menu principale: Home, Mappa, Dispositivi, Eventi, Manutenzione, Impostazioni. Le vecchie route `/users`,
   `/customers`, `/contacts` restano valide e attivano la stessa voce del sottomenu.
 - Una nuova sezione: pagina con `<SettingsShell Title="...">` e voce in `SettingsShell.Sections`.
@@ -683,12 +706,13 @@ usare ASP.NET Core Data Protection o un secret store.
 
 ### Icone (implementate)
 
-- **Tabler Icons** (MIT), sottoinsieme di 43 icone outline (39 per nodi e dispositivi, 4 per i comandi: `UiIcons`) in `third-party/tabler-icons/` (`LICENSE`, `VERSION`, `icons/`,
+- **Tabler Icons** (MIT), sottoinsieme di 45 icone outline (39 per nodi e dispositivi, 6 per i comandi: `UiIcons`) in `third-party/tabler-icons/` (`LICENSE`, `VERSION`, `icons/`,
   `generate.py`). Lo script genera `VedettaVip.Web.Client/Services/MapIcons.g.cs` (chiave, etichetta, contenuto SVG):
   incorporate nel client, nessuna dipendenza da internet in esecuzione. Per aggiungerne una vedere il commento in `generate.py`.
 - **Icone dei comandi** (`UI_ICONS` in `generate.py` → `Services/UiIcons.g.cs`, componente `UiIcon`): bottoni a sola icona
-  (`.btn-icon` in `app.css`, testo in `title` e `aria-label`; `DeleteButton IconOnly`). Pagina Dispositivi: Grafici, WinBox
-  (posto vuoto `.btn-icon-slot` sulle righe senza, per tenere le colonne allineate), Modifica, Elimina.
+  (`.btn-icon` in `app.css`, testo in `title` e `aria-label`; `DeleteButton IconOnly`). Pagina Dispositivi: Grafici, WinBox,
+  interfaccia web (`world-www`), terminale (`terminal-2`) (posto vuoto `.btn-icon-slot` sulle righe senza, per tenere le
+  colonne allineate), Modifica, Elimina.
 - `Services/MapIcons`: icona effettiva = quella del nodo (`MapNode.Icon`, `MapNodeDto.OwnIcon`) → del dispositivo
   (`Device.Icon`) → predefinita del tipo (`DefaultFor`; sottomappe `sitemap`, nodi statici nessuna). Chiave sconosciuta =
   predefinita. Sulla mappa solo le icone usate diventano `<symbol>` nei defs, il nodo le richiama con `<use>` a sinistra
@@ -772,7 +796,8 @@ usare ASP.NET Core Data Protection o un secret store.
   segnalibri riaprono la stessa vista. "N di M" e "Azzera filtri".
 - Pannello `Components/DeviceEditor` (420 px) a **schede**: Generale (nome, indirizzo, tipo, stato, cliente, padre, mappa
   alla creazione), Monitoraggio (invio delle notifiche, SNMP, profilo SNMP, soglie di rilevazione e delle metriche), RouterOS (API e profilo),
-  Icona. Badge sulla scheda con valori personalizzati; un solo Salva per tutte le schede.
+  Accesso (WinBox, interfaccia web, terminale), Icona. Badge sulla scheda con valori personalizzati; un solo Salva per tutte
+  le schede.
   Alla creazione "Aggiungi alla mappa" (mappe ad albero, `Services/MapHierarchy`): il nodo va **sempre sotto i nodi
   esistenti** (`MapPlacement.NextBelow` nell'API, coperto da test): mappa vuota in alto a sinistra, poi una "riga dei
   nuovi arrivi" sotto il nodo più basso, continuata verso destra finché i suoi nodi restano sulle celle della griglia
@@ -784,7 +809,8 @@ usare ASP.NET Core Data Protection o un secret store.
   N eventi)" con conferma: `DELETE ...?purgeEvents=true`, eventi e device nella stessa transazione.
 - Badge "soglie" sui device con soglie di rilevazione specifiche (tooltip con i valori).
 - **Import/export CSV** (`Components/DeviceImportPanel`, `Services/DeviceCsv` + `Endpoints/DeviceImportEndpoints` nell'API,
-  parser coperto da test): colonne nome, indirizzo, tipo, produttore, snmp, cliente, padre, profilo_snmp, abilitato, notifiche, porta_winbox, mappa (alias italiani e
+  parser coperto da test): colonne nome, indirizzo, tipo, produttore, snmp, cliente, padre, profilo_snmp, abilitato, notifiche, porta_winbox, web,
+  porta_web, terminale, porta_terminale, mappa (alias italiani e
   inglesi, separatore `;` `,` o tab rilevato dall'intestazione, UTF-8 o Latin-1). Anteprima riga per riga (nessuna scrittura)
   e conferma in un unico SaveChanges; duplicati per indirizzo saltati o aggiornati (una colonna presente sovrascrive anche se
   vuota); padre per indirizzo o nome, anche di una riga del file, con controllo dei cicli; clienti mancanti creati solo se
@@ -937,6 +963,8 @@ OID utili:
       Da fare: IPsec, MNDP.
 - [x] "Apri con WinBox": produttore dei device (MikroTik), menu contestuale del nodo, link `winbox://` senza credenziali,
       installer del gestore per Windows e Linux con il percorso delle Impostazioni. Da fare: macOS.
+- [x] Accesso remoto (1.3.0): produttori Cisco, DrayTek, FRITZ!Box, TP-Link; interfaccia web (HTTP/HTTPS) e terminale con
+      PuTTY (SSH/Telnet) per dispositivo, porte generali e per device, un solo gestore dei link per WinBox e PuTTY.
 - [x] Discovery, prima tappa: vicini (RouterOS /ip/neighbor, LLDP-MIB, CDP-MIB) → link mancanti e dispositivi nuovi da
       confermare (pagina Scoperta).
 - [x] Discovery, seconda tappa: tabella ARP dei router (con lease DHCP) e scansione di subnet (ping, DNS, SNMP, porte),

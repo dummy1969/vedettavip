@@ -308,9 +308,21 @@ public static class DiscoveryPlanner
     /// sysDescr, porte API 8728/8729) o se il MAC è registrato a MikroTik.
     /// </summary>
     public static DeviceVendor VendorOf(DiscoveryDeviceProposalDto proposal) =>
-        proposal.RouterOs || string.Equals(proposal.Vendor, "MikroTik", StringComparison.OrdinalIgnoreCase)
-            ? DeviceVendor.MikroTik
+        proposal.RouterOs ? DeviceVendor.MikroTik : VendorFromName(proposal.Vendor);
+
+    /// <summary>Produttore noto dal nome (produttore del MAC, es. "AVM (Fritz!Box)", "Cisco Systems"); Generic se nessuno.</summary>
+    public static DeviceVendor VendorFromName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return DeviceVendor.Generic;
+        bool Has(string word) => name.Contains(word, StringComparison.OrdinalIgnoreCase);
+        return Has("MikroTik") || Has("Routerboard") ? DeviceVendor.MikroTik
+            : Has("Cisco") ? DeviceVendor.Cisco
+            : Has("DrayTek") ? DeviceVendor.DrayTek
+            : Has("Fritz") || name.StartsWith("AVM", StringComparison.OrdinalIgnoreCase) ? DeviceVendor.Fritz
+            : Has("TP-Link") || Has("TPLink") ? DeviceVendor.TpLink
             : DeviceVendor.Generic;
+    }
 
     public static bool IsRouterOs(NeighborDto n) => n.Platform?.Contains("MikroTik", StringComparison.OrdinalIgnoreCase) == true;
 

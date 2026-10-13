@@ -47,8 +47,8 @@ public sealed record MapNodeDto(
     string? OwnIcon = null,
     /// <summary>Produttore del dispositivo del nodo (null per sottomappe e nodi statici): decide le voci del menu contestuale.</summary>
     DeviceVendor? Vendor = null,
-    /// <summary>Porta di WinBox effettiva del dispositivo (sua, altrimenti generale; null = 8291).</summary>
-    int? WinBoxPort = null);
+    /// <summary>Accessi remoti effettivi del dispositivo (null per sottomappe e nodi statici).</summary>
+    DeviceAccessDto? Access = null);
 
 public sealed record SubmapMemberDto(Guid DeviceId, NodeState State, bool InMaintenance);
 

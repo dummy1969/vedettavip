@@ -43,7 +43,7 @@ public static class MapNodeEndpoints
             .AsNoTracking()
             .Where(n => n.Id == nodeId && n.MapId == mapId)
             .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value),
-                await SettingsEndpoints.WinBoxDefaultPortAsync(db, ct)))
+                await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
             .FirstOrDefaultAsync(ct);
 
         return node is null ? TypedResults.NotFound() : TypedResults.Ok(node);
@@ -96,7 +96,7 @@ public static class MapNodeEndpoints
         var created = await db.MapNodes.AsNoTracking()
             .Where(n => n.Id == node.Id)
             .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value),
-                await SettingsEndpoints.WinBoxDefaultPortAsync(db, ct)))
+                await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
             .FirstAsync(ct);
 
         // La sottomappa agganciata cambia mappa padre (collegamento "torna alla mappa padre")
@@ -125,7 +125,7 @@ public static class MapNodeEndpoints
         var updated = await db.MapNodes.AsNoTracking()
             .Where(n => n.Id == nodeId)
             .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value),
-                await SettingsEndpoints.WinBoxDefaultPortAsync(db, ct)))
+                await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
             .FirstAsync(ct);
 
         await notifier.MapsChangedAsync(db, [mapId]);
@@ -192,7 +192,7 @@ public static class MapNodeEndpoints
         var moved = await db.MapNodes.AsNoTracking()
             .Where(n => n.Id == nodeId)
             .Select(MapEndpoints.ToNodeDto(MapEndpoints.StaleBefore(time, agentOptions.Value),
-                await SettingsEndpoints.WinBoxDefaultPortAsync(db, ct)))
+                await SettingsEndpoints.LoadRemoteAccessAsync(db, ct)))
             .FirstAsync(ct);
 
         await notifier.MapsChangedAsync(db, [mapId, targetMapId, .. Submap(node)]);

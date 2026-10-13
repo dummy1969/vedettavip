@@ -15,10 +15,11 @@ public static class DeviceCsv
 {
     public const string Name = "name", Address = "address", Type = "type", Vendor = "vendor", Snmp = "snmp", Customer = "customer",
         Parent = "parent", SnmpProfile = "snmp_profile", Enabled = "enabled", Notify = "notify",
-        WinBoxPort = "winbox_port", Map = "map";
+        WinBoxPort = "winbox_port", Web = "web", WebPort = "web_port", Terminal = "terminal",
+        TerminalPort = "terminal_port", Map = "map";
 
     /// <summary>Ordine delle colonne nell'export (e nel modello).</summary>
-    public static readonly string[] Columns = [Name, Address, Type, Vendor, Snmp, Customer, Parent, SnmpProfile, Enabled, Notify, WinBoxPort, Map];
+    public static readonly string[] Columns = [Name, Address, Type, Vendor, Snmp, Customer, Parent, SnmpProfile, Enabled, Notify, WinBoxPort, Web, WebPort, Terminal, TerminalPort, Map];
 
     private static readonly Dictionary<string, string> Aliases = new()
     {
@@ -34,6 +35,10 @@ public static class DeviceCsv
         ["enabled"] = Enabled, ["abilitato"] = Enabled, ["attivo"] = Enabled,
         ["notify"] = Notify, ["notifiche"] = Notify, ["notifica"] = Notify, ["notifications"] = Notify,
         ["winboxport"] = WinBoxPort, ["portawinbox"] = WinBoxPort, ["winbox"] = WinBoxPort,
+        ["web"] = Web, ["accessoweb"] = Web, ["interfacciaweb"] = Web,
+        ["webport"] = WebPort, ["portaweb"] = WebPort,
+        ["terminal"] = Terminal, ["terminale"] = Terminal, ["accessoterminale"] = Terminal,
+        ["terminalport"] = TerminalPort, ["portaterminale"] = TerminalPort,
         ["map"] = Map, ["mappa"] = Map, ["maps"] = Map, ["mappe"] = Map
     };
 
@@ -209,6 +214,10 @@ public static class DeviceCsv
         {
             "" or "generic" or "generico" or "altro" or "other" => DeviceVendor.Generic,
             "mikrotik" or "routeros" or "routerboard" => DeviceVendor.MikroTik,
+            "cisco" => DeviceVendor.Cisco,
+            "draytek" or "vigor" => DeviceVendor.DrayTek,
+            "fritz" or "fritzbox" or "avm" => DeviceVendor.Fritz,
+            "tplink" or "tplinkomada" or "omada" => DeviceVendor.TpLink,
             _ => (DeviceVendor)(-1)
         };
         return Enum.IsDefined(vendor);
@@ -226,6 +235,36 @@ public static class DeviceCsv
         };
         return Enum.IsDefined(version);
     }
+
+    /// <summary>Accesso web: vuoto/no/nessuno = nessuno, http, https.</summary>
+    public static bool TryParseWeb(string s, out WebAccess web)
+    {
+        web = Key(s) switch
+        {
+            "" or "no" or "none" or "nessuno" => WebAccess.None,
+            "http" => WebAccess.Http,
+            "https" => WebAccess.Https,
+            _ => (WebAccess)(-1)
+        };
+        return Enum.IsDefined(web);
+    }
+
+    /// <summary>Accesso da terminale: vuoto/no/nessuno = nessuno, ssh, telnet.</summary>
+    public static bool TryParseTerminal(string s, out TerminalAccess terminal)
+    {
+        terminal = Key(s) switch
+        {
+            "" or "no" or "none" or "nessuno" => TerminalAccess.None,
+            "ssh" or "putty" => TerminalAccess.Ssh,
+            "telnet" => TerminalAccess.Telnet,
+            _ => (TerminalAccess)(-1)
+        };
+        return Enum.IsDefined(terminal);
+    }
+
+    public static string WebText(WebAccess w) => w switch { WebAccess.Http => "http", WebAccess.Https => "https", _ => "" };
+
+    public static string TerminalText(TerminalAccess t) => t switch { TerminalAccess.Ssh => "ssh", TerminalAccess.Telnet => "telnet", _ => "" };
 
     /// <summary>Porta di WinBox: vuota = generale (null), altrimenti 1–65535.</summary>
     public static bool TryParsePort(string s, out int? port)
@@ -280,6 +319,10 @@ public static class DeviceCsv
     public static string VendorText(DeviceVendor v) => v switch
     {
         DeviceVendor.MikroTik => "mikrotik",
+        DeviceVendor.Cisco => "cisco",
+        DeviceVendor.DrayTek => "draytek",
+        DeviceVendor.Fritz => "fritz",
+        DeviceVendor.TpLink => "tplink",
         _ => "generic"
     };
 

@@ -6,23 +6,31 @@ using System.Text.RegularExpressions;
 namespace VedettaVip.Api.Services;
 
 /// <summary>
-/// Installer del gestore dei link winbox:// (Resources/WinBox): il browser non può avviare programmi, ma apre i protocolli
-/// registrati sul PC. Ogni installer ha il percorso di WinBox impostato in VedettaVip scritto dentro (al posto di
-/// <see cref="Placeholder"/>, in una stringa tra apici), così l'operatore non deve indicarlo.
+/// Installer del gestore dei link di VedettaVip (Resources/LinkHandler): il browser non può avviare programmi, ma apre i
+/// protocolli registrati sul PC. Lo stesso installer registra winbox:// (WinBox 4) e vedettavip-ssh:// / vedettavip-telnet://
+/// (PuTTY; su Linux in mancanza il terminale con ssh/telnet). I percorsi impostati in VedettaVip sono scritti dentro (al posto
+/// di <see cref="WinBoxPlaceholder"/> e <see cref="PuttyPlaceholder"/>, in stringhe tra apici): l'operatore non li indica.
 /// </summary>
-public static partial class WinBoxHandlerScripts
+public static partial class LinkHandlerScripts
 {
-    public const string Placeholder = "__WINBOX_PATH__";
+    public const string WinBoxPlaceholder = "__WINBOX_PATH__";
+    public const string PuttyPlaceholder = "__PUTTY_PATH__";
 
     public sealed record Script(string FileName, string ContentType, string Text);
 
     /// <summary>Installer per "windows" (cmd + PowerShell in un file) o "linux" (sh); null se il sistema non è previsto.</summary>
-    public static Script? Render(string os, string? winBoxPath) => os.ToLowerInvariant() switch
+    public static Script? Render(string os, string? winBoxPath, string? puttyPath) => os.ToLowerInvariant() switch
     {
-        "windows" => new Script("vedettavip-winbox-windows.cmd", "application/octet-stream",
-            Load("vedettavip-winbox-windows.cmd").Replace(Placeholder, PowerShellQuoted(winBoxPath ?? "")).ReplaceLineEndings("\r\n")),
-        "linux" => new Script("vedettavip-winbox-linux.sh", "text/x-shellscript; charset=utf-8",
-            Load("vedettavip-winbox-linux.sh").Replace(Placeholder, ShellQuoted(winBoxPath ?? "")).ReplaceLineEndings("\n")),
+        "windows" => new Script("vedettavip-links-windows.cmd", "application/octet-stream",
+            Load("vedettavip-links-windows.cmd")
+                .Replace(WinBoxPlaceholder, PowerShellQuoted(winBoxPath ?? ""))
+                .Replace(PuttyPlaceholder, PowerShellQuoted(puttyPath ?? ""))
+                .ReplaceLineEndings("\r\n")),
+        "linux" => new Script("vedettavip-links-linux.sh", "text/x-shellscript; charset=utf-8",
+            Load("vedettavip-links-linux.sh")
+                .Replace(WinBoxPlaceholder, ShellQuoted(winBoxPath ?? ""))
+                .Replace(PuttyPlaceholder, ShellQuoted(puttyPath ?? ""))
+                .ReplaceLineEndings("\n")),
         _ => null
     };
 
@@ -49,7 +57,7 @@ public static partial class WinBoxHandlerScripts
 
     private static string Load(string name)
     {
-        using var stream = typeof(WinBoxHandlerScripts).Assembly.GetManifestResourceStream($"VedettaVip.Api.WinBox.{name}")
+        using var stream = typeof(LinkHandlerScripts).Assembly.GetManifestResourceStream($"VedettaVip.Api.LinkHandler.{name}")
                            ?? throw new InvalidOperationException($"Risorsa {name} mancante");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();

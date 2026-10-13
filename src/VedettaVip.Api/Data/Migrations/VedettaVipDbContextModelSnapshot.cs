@@ -420,6 +420,14 @@ namespace VedettaVip.Api.Data.Migrations
                     b.Property<int?>("TemperatureThresholdC")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TerminalAccess")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int?>("TerminalPort")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -432,6 +440,14 @@ namespace VedettaVip.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<string>("WebAccess")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int?>("WebPort")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("WinBoxPort")
                         .HasColumnType("integer");
@@ -460,7 +476,11 @@ namespace VedettaVip.Api.Data.Migrations
 
                             t.HasCheckConstraint("CK_Devices_TemperatureThresholdC", "\"TemperatureThresholdC\" IS NULL OR \"TemperatureThresholdC\" BETWEEN 0 AND 150");
 
+                            t.HasCheckConstraint("CK_Devices_TerminalPort", "\"TerminalPort\" IS NULL OR \"TerminalPort\" BETWEEN 1 AND 65535");
+
                             t.HasCheckConstraint("CK_Devices_UpAfterSuccesses", "\"UpAfterSuccesses\" IS NULL OR \"UpAfterSuccesses\" BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_Devices_WebPort", "\"WebPort\" IS NULL OR \"WebPort\" BETWEEN 1 AND 65535");
 
                             t.HasCheckConstraint("CK_Devices_WinBoxPort", "\"WinBoxPort\" IS NULL OR \"WinBoxPort\" BETWEEN 1 AND 65535");
                         });
@@ -475,8 +495,10 @@ namespace VedettaVip.Api.Data.Migrations
                             NotificationsMuted = false,
                             RouterOsApiEnabled = true,
                             SnmpVersion = "V2c",
+                            TerminalAccess = "None",
                             Type = "Router",
-                            Vendor = "MikroTik"
+                            Vendor = "MikroTik",
+                            WebAccess = "None"
                         },
                         new
                         {
@@ -488,8 +510,10 @@ namespace VedettaVip.Api.Data.Migrations
                             ParentDeviceId = new Guid("0198f000-0000-7000-8000-000000000101"),
                             RouterOsApiEnabled = true,
                             SnmpVersion = "V2c",
+                            TerminalAccess = "None",
                             Type = "Switch",
-                            Vendor = "MikroTik"
+                            Vendor = "MikroTik",
+                            WebAccess = "None"
                         },
                         new
                         {
@@ -501,8 +525,10 @@ namespace VedettaVip.Api.Data.Migrations
                             ParentDeviceId = new Guid("0198f000-0000-7000-8000-000000000101"),
                             RouterOsApiEnabled = true,
                             SnmpVersion = "V2c",
+                            TerminalAccess = "None",
                             Type = "Switch",
-                            Vendor = "MikroTik"
+                            Vendor = "MikroTik",
+                            WebAccess = "None"
                         },
                         new
                         {
@@ -514,8 +540,10 @@ namespace VedettaVip.Api.Data.Migrations
                             ParentDeviceId = new Guid("0198f000-0000-7000-8000-000000000102"),
                             RouterOsApiEnabled = true,
                             SnmpVersion = "V2c",
+                            TerminalAccess = "None",
                             Type = "AccessPoint",
-                            Vendor = "MikroTik"
+                            Vendor = "MikroTik",
+                            WebAccess = "None"
                         });
                 });
 
@@ -1242,11 +1270,25 @@ namespace VedettaVip.Api.Data.Migrations
                     b.Property<int>("DownAfterFailures")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("HttpDefaultPort")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("HttpsDefaultPort")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("LinkUtilizationThresholdPct")
                         .HasColumnType("integer");
 
                     b.Property<double?>("LossThresholdPct")
                         .HasColumnType("double precision");
+
+                    b.Property<string>("PuttyLinuxPath")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("PuttyWindowsPath")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<int?>("RouterOsCpuThresholdPct")
                         .HasColumnType("integer");
@@ -1258,6 +1300,12 @@ namespace VedettaVip.Api.Data.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("SnmpDegradedAfterFailures")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SshDefaultPort")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TelnetDefaultPort")
                         .HasColumnType("integer");
 
                     b.Property<int>("ThresholdWindowMinutes")
@@ -1285,6 +1333,8 @@ namespace VedettaVip.Api.Data.Migrations
 
                     b.ToTable("MonitoringSettings", null, t =>
                         {
+                            t.HasCheckConstraint("CK_MonitoringSettings_AccessPorts", "(\"HttpDefaultPort\" IS NULL OR \"HttpDefaultPort\" BETWEEN 1 AND 65535) AND (\"HttpsDefaultPort\" IS NULL OR \"HttpsDefaultPort\" BETWEEN 1 AND 65535) AND (\"SshDefaultPort\" IS NULL OR \"SshDefaultPort\" BETWEEN 1 AND 65535) AND (\"TelnetDefaultPort\" IS NULL OR \"TelnetDefaultPort\" BETWEEN 1 AND 65535)");
+
                             t.HasCheckConstraint("CK_MonitoringSettings_DashboardHours", "\"DashboardEventHours\" BETWEEN 1 AND 168");
 
                             t.HasCheckConstraint("CK_MonitoringSettings_Singleton", "\"Id\" = 1");

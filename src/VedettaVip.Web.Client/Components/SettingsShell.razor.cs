@@ -25,7 +25,7 @@ public partial class SettingsShell
         new("settings/monitoring", "Monitoraggio", "rilevazione, soglie", "settings"),
         new("settings/snmp", "Profili SNMP", "community per cliente"),
         new("settings/routeros", "Profili RouterOS", "API dei MikroTik"),
-        new("settings/winbox", "WinBox", "percorso, gestore winbox://"),
+        new("settings/remote-access", "Accesso remoto", "WinBox, web, PuTTY", "settings/winbox"),
         new("settings/notifications", "Notifiche", "email, Telegram, invio"),
         new("settings/contacts", "Contatti", "chi riceve cosa", "contacts"),
         new("settings/customers", "Clienti", "anagrafica, SNMP", "customers"),

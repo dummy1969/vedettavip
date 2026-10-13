@@ -176,7 +176,7 @@ public partial class Map : IAsyncDisposable
             OwnIcon = dto.OwnIcon,
             DeviceType = dto.DeviceType,
             Vendor = dto.Vendor,
-            WinBoxPort = dto.WinBoxPort
+            Access = dto.Access
         };
         node.Values["Name"] = dto.Name ?? "";
         node.Values["Address"] = dto.Address ?? "";

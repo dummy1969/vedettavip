@@ -30,7 +30,7 @@ public partial class About
         new("Blazor-ApexCharts", "6.0.2", "MIT", "https://github.com/apexcharts/Blazor-ApexCharts", "grafici"),
         new("ApexCharts.js", "4.7.0", "MIT", "https://github.com/apexcharts/apexcharts.js", "grafici (incluso in Blazor-ApexCharts)"),
         new("Bootstrap", "5.3.3", "MIT", "https://getbootstrap.com/", "stili dell'interfaccia"),
-        new("Tabler Icons", "3.49.0", "MIT", "https://tabler.io/icons", "icone della mappa"),
+        new("Tabler Icons", "3.49.0", "MIT", "https://tabler.io/icons", "icone della mappa e dei comandi"),
         new("IEEE Registration Authority (MA-L, MA-M, MA-S)", "", "dati pubblici IEEE", "https://standards-oui.ieee.org/", "produttore dal MAC address"),
         new("PostgreSQL", "17", "PostgreSQL License", "https://www.postgresql.org/", "database"),
         new("TimescaleDB", "2.30.2", "Apache-2.0 / Timescale License", "https://github.com/timescale/timescaledb", "metriche (immagine Docker)"),
