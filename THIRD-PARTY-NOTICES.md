@@ -16,14 +16,14 @@ network, so their licenses do not need to be compatible with the AGPL, but you m
 
 | Component | Version | License | Used by | AGPLv3 |
 |---|---|---|---|---|
-| .NET runtime, ASP.NET Core, Blazor, SignalR, Microsoft.Extensions.* | 10.0.12 | MIT | all | compatible |
-| Microsoft.EntityFrameworkCore, .Relational, .Abstractions | 10.0.12 | MIT | Api | compatible |
-| Microsoft.AspNetCore.Identity.EntityFrameworkCore | 10.0.12 | MIT | Api | compatible |
-| Microsoft.AspNetCore.DataProtection.EntityFrameworkCore | 10.0.12 | MIT | Api | compatible |
-| Microsoft.AspNetCore.OpenApi | 10.0.12 | MIT | Api | compatible |
+| .NET runtime, ASP.NET Core, Blazor, SignalR, Microsoft.Extensions.* | 10.0.13 | MIT | all | compatible |
+| Microsoft.EntityFrameworkCore, .Relational, .Abstractions | 10.0.13 | MIT | Api | compatible |
+| Microsoft.AspNetCore.Identity.EntityFrameworkCore | 10.0.13 | MIT | Api | compatible |
+| Microsoft.AspNetCore.DataProtection.EntityFrameworkCore | 10.0.13 | MIT | Api | compatible |
+| Microsoft.AspNetCore.OpenApi | 10.0.13 | MIT | Api | compatible |
 | Microsoft.OpenApi | 2.12.0 | MIT | Api | compatible |
-| Microsoft.AspNetCore.SignalR.Client | 10.0.12 | MIT | Worker, Web | compatible |
-| Microsoft.AspNetCore.Components.WebAssembly.Server | 10.0.12 | MIT | Web | compatible |
+| Microsoft.AspNetCore.SignalR.Client | 10.0.13 | MIT | Worker, Web | compatible |
+| Microsoft.AspNetCore.Components.WebAssembly.Server | 10.0.13 | MIT | Web | compatible |
 | Npgsql | 10.0.3 | PostgreSQL License | Api | compatible |
 | Npgsql.EntityFrameworkCore.PostgreSQL | 10.0.3 | PostgreSQL License | Api | compatible |
 | MailKit | 4.18.1 | MIT | Api | compatible |
@@ -31,14 +31,14 @@ network, so their licenses do not need to be compatible with the AGPL, but you m
 | BouncyCastle.Cryptography | 2.7.0 | MIT | Api (via MimeKit) | compatible |
 | Net.Codecrete.QrCodeGenerator | 3.2.1 | MIT | Api (two-factor setup QR code) | compatible |
 | Lextm.SharpSnmpLib | 12.5.7 | MIT | Worker | compatible |
-| System.Security.Cryptography.Pkcs | 10.0.0 | MIT | Api | compatible |
-| System.Diagnostics.EventLog | 10.0.12 | MIT | Worker | compatible |
+| System.Security.Cryptography.Pkcs | 10.0.13 | MIT | Api | compatible |
+| System.Diagnostics.EventLog | 10.0.13 | MIT | Worker | compatible |
 
 ### Browser (VedettaVip.Web.Client, WebAssembly, and static files)
 
 | Component | Version | License | Notes | AGPLv3 |
 |---|---|---|---|---|
-| .NET WebAssembly runtime, Blazor, Microsoft.JSInterop, Microsoft.Extensions.* | 10.0.12 | MIT | | compatible |
+| .NET WebAssembly runtime, Blazor, Microsoft.JSInterop, Microsoft.Extensions.* | 10.0.13 | MIT | | compatible |
 | Blazor-ApexCharts | 6.0.2 | MIT | NuGet package | compatible |
 | ApexCharts.js | 4.7.0 | MIT | bundled in Blazor-ApexCharts 6.0.2 (`apexcharts.esm.js`) | compatible |
 | Bootstrap | 5.3.3 | MIT | `src/VedettaVip.Web/wwwroot/lib/bootstrap` | compatible |
@@ -82,14 +82,14 @@ complying with the TSL.
 
 | Component | Version | License |
 |---|---|---|
-| Microsoft.EntityFrameworkCore.Design (+ Microsoft.CodeAnalysis.*, Microsoft.Build.Framework, Humanizer.Core, Mono.TextTemplating, System.CodeDom, System.Composition.*, Newtonsoft.Json, Microsoft.VisualStudio.SolutionPersistence) | 10.0.12 (Design) | MIT |
-| dotnet-ef (migration bundle, in the API Dockerfile) | 10.0.12 | MIT |
-| Microsoft.NET.ILLink.Tasks, Microsoft.NET.Sdk.WebAssembly.Pack, Microsoft.DotNet.HotReload.WebAssembly.Browser | 10.0.12 / 10.0.112 | MIT |
+| Microsoft.EntityFrameworkCore.Design (+ Microsoft.CodeAnalysis.*, Microsoft.Build.Framework, Humanizer.Core, Mono.TextTemplating, System.CodeDom, System.Composition.*, Newtonsoft.Json, Microsoft.VisualStudio.SolutionPersistence) | 10.0.13 (Design) | MIT |
+| dotnet-ef (migration bundle, in the API Dockerfile) | 10.0.13 | MIT |
+| Microsoft.NET.ILLink.Tasks, Microsoft.NET.Sdk.WebAssembly.Pack, Microsoft.DotNet.HotReload.WebAssembly.Browser | 10.0.13 / 10.0.113 | MIT |
 | xunit, xunit.core, xunit.assert, xunit.analyzers, xunit.extensibility.*, xunit.runner.visualstudio | 2.9.3 / 1.18.0 / 3.1.4 | Apache-2.0 |
 | xunit.abstractions | 2.0.3 | Apache-2.0 (license URL in the package metadata) |
 | Microsoft.NET.Test.Sdk, Microsoft.TestPlatform.*, Microsoft.CodeCoverage | 17.14.1 | MIT |
 | coverlet.collector | 6.0.4 | MIT |
-| Microsoft.EntityFrameworkCore.InMemory | 10.0.12 | MIT |
+| Microsoft.EntityFrameworkCore.InMemory | 10.0.13 | MIT |
 
 ## License texts
 

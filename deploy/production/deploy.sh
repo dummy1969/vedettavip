@@ -169,7 +169,9 @@ done
 REMOTE
 
 echo "==> Build e avvio"
-ssh "$HOST" "$COMPOSE up -d --build --remove-orphans"
+# --pull: immagini base .NET sempre all'ultima patch (le correzioni di sicurezza del runtime arrivano da lì)
+ssh "$HOST" "$COMPOSE build --pull"
+ssh "$HOST" "$COMPOSE up -d --remove-orphans"
 # Il Caddyfile è montato dalla cartella del codice appena sostituita: riavvio per rileggerlo
 ssh "$HOST" "$COMPOSE restart caddy"
 ssh "$HOST" "$COMPOSE ps"

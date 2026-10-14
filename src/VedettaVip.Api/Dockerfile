@@ -12,7 +12,7 @@ COPY src/ src/
 RUN dotnet publish src/VedettaVip.Api/VedettaVip.Api.csproj -c Release -o /app --no-self-contained
 
 FROM build AS bundle
-RUN dotnet tool install --global dotnet-ef --version 10.0.12
+RUN dotnet tool install --global dotnet-ef --version 10.0.13
 ENV PATH="${PATH}:/root/.dotnet/tools"
 # Il tool avvia Program.cs fino a Build(): serve una connection string, ma non si collega a nulla
 RUN ConnectionStrings__VedettaVip="Host=build;Database=build" \
