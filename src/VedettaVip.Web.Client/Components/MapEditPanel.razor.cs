@@ -24,6 +24,7 @@ public partial class MapEditPanel : IDisposable
 
     [Parameter, EditorRequired] public Guid MapId { get; set; }
     [Parameter, EditorRequired] public List<MapNode> Nodes { get; set; } = [];
+    [Parameter] public List<MapLink> Links { get; set; } = [];
     [Parameter] public MapNode? SelectedNode { get; set; }
     [Parameter] public MapLink? SelectedLink { get; set; }
     [Parameter] public MapPoint? PlacePoint { get; set; }
@@ -32,6 +33,8 @@ public partial class MapEditPanel : IDisposable
     [Parameter] public EventCallback OnPlaceCancel { get; set; }
     [Parameter] public EventCallback<MapNodeDto> OnNodeSaved { get; set; }
     [Parameter] public EventCallback<Guid> OnNodeDeleted { get; set; }
+    /// <summary>Nodo spostato su un'altra mappa: la pagina lo toglie con i suoi link.</summary>
+    [Parameter] public EventCallback<NodeMovedArgs> OnNodeMoved { get; set; }
     [Parameter] public EventCallback<MapLinkDto> OnLinkSaved { get; set; }
     [Parameter] public EventCallback<Guid> OnLinkDeleted { get; set; }
     /// <summary>Apre il grafico del traffico del link sotto la mappa.</summary>
@@ -54,6 +57,8 @@ public partial class MapEditPanel : IDisposable
     // Nodo selezionato
     private string labelTemplate = "";
     private string? nodeIcon;
+    private string moveTargetId = "";
+    private bool moveConfirm;
 
     // Link selezionato
     private long linkSpeedMbps;
@@ -91,6 +96,8 @@ public partial class MapEditPanel : IDisposable
         {
             labelTemplate = node.LabelTemplate;
             nodeIcon = node.OwnIcon;
+            moveTargetId = "";
+            moveConfirm = false;
         }
 
         if (SelectedLink is { } link)
@@ -235,6 +242,19 @@ public partial class MapEditPanel : IDisposable
         return maps.Where(m => m.ParentMapId is null && !excluded.Contains(m.Id));
     }
 
+    /// <summary>
+    /// Mappe di destinazione per lo spostamento, ad albero: tutte tranne questa; per un nodo Submap anche la sottomappa
+    /// stessa e le sue discendenti (l'API rifiuterebbe il ciclo).
+    /// </summary>
+    private IEnumerable<(MapSummaryDto Map, int Depth)> MoveTargets(MapNode node)
+    {
+        var excluded = node.SubmapId is { } submapId ? MapHierarchy.Subtree(maps, submapId) : new HashSet<Guid>();
+        excluded.Add(MapId);
+        return MapHierarchy.Order(maps).Where(t => !excluded.Contains(t.Map.Id));
+    }
+
+    private int LinkCount(MapNode node) => Links.Count(l => l.FromId == node.Id || l.ToId == node.Id);
+
     /// <summary>Dispositivi proposti come sorgente del traffico: quelli dei due estremi, più quello già impostato.</summary>
     private IEnumerable<(string Id, string Name)> LinkDeviceOptions(MapLink link)
     {
@@ -323,6 +343,21 @@ public partial class MapEditPanel : IDisposable
         });
     }
 
+    private async Task MoveNodeAsync()
+    {
+        if (SelectedNode is not { } node || !Guid.TryParse(moveTargetId, out var targetId)) return;
+
+        await RunAsync(async ct =>
+        {
+            await Api.MoveNodeAsync(MapId, node.Id, targetId, ct);
+            moveConfirm = false;
+            var targetName = maps.Find(m => m.Id == targetId)?.Name ?? "?";
+            await OnNodeMoved.InvokeAsync(new NodeMovedArgs(node.Id, NodeName(node), targetId, targetName));
+            if (node.Kind == MapNodeKind.Submap)
+                await LoadListsAsync(); // cambia la mappa padre della sottomappa
+        });
+    }
+
     private async Task SaveLinkAsync(bool swap)
     {
         if (SelectedLink is not { } link) return;
@@ -399,3 +434,6 @@ public partial class MapEditPanel : IDisposable
     private static string SpeedText(long mbps) =>
         mbps >= 1_000 ? (mbps / 1_000d).ToString("0.#", CultureInfo.InvariantCulture) + "G" : mbps + "M";
 }
+
+/// <summary>Esito di "Sposta su un'altra mappa".</summary>
+public sealed record NodeMovedArgs(Guid NodeId, string NodeName, Guid TargetMapId, string TargetMapName);

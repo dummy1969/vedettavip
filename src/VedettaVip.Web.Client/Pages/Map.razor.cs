@@ -57,6 +57,8 @@ public partial class Map : IAsyncDisposable
     private bool mapRefreshCurrent;
     // Avviso informativo nell'intestazione (es. mappa eliminata da un altro utente)
     private string? mapNotice;
+    /// <summary>Mappa da proporre accanto all'avviso (es. destinazione di uno spostamento).</summary>
+    private Guid? noticeMapId;
 
     // Modalità modifica (default: sola visualizzazione, adatta ai monitor NOC)
     private NetworkMap? mapView;
@@ -238,6 +240,7 @@ public partial class Map : IAsyncDisposable
     private void OnMapSelected(ChangeEventArgs e)
     {
         mapNotice = null;
+        noticeMapId = null;
         if (Guid.TryParse(e.Value?.ToString(), out var id) && id != map?.Id)
             Navigation.NavigateTo($"map/{id}");
     }
@@ -557,6 +560,7 @@ public partial class Map : IAsyncDisposable
             await ReloadAsync(); // già su /map: si ricarica la mappa iniziale
         else
             Navigation.NavigateTo("map");
+        noticeMapId = null;
         mapNotice = $"La mappa \"{name}\" è stata eliminata da un altro utente: aperta la mappa iniziale.";
     }
 
@@ -714,6 +718,25 @@ public partial class Map : IAsyncDisposable
         nodes.RemoveAll(n => n.Id == nodeId);
         links.RemoveAll(l => l.FromId == nodeId || l.ToId == nodeId); // CASCADE lato database
         Select(null);
+    }
+
+    /// <summary>Nodo spostato su un'altra mappa: sparisce da questa con i suoi link; per le sottomappe cambia l'albero delle mappe.</summary>
+    private async Task NodeMovedAsync(NodeMovedArgs moved)
+    {
+        NodeDeleted(moved.NodeId);
+        mapNotice = $"\"{moved.NodeName}\" spostato su \"{moved.TargetMapName}\".";
+        noticeMapId = moved.TargetMapId;
+        try
+        {
+            allMaps = await Api.GetMapsAsync(cts.Token);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning("Elenco delle mappe non aggiornato dopo lo spostamento: {Message}", ex.Message);
+        }
     }
 
     private void LinkSaved(MapLinkDto dto)

@@ -79,11 +79,14 @@ public sealed record UpdateMapNodeDto(
     [property: StringLength(512, ErrorMessage = "L'etichetta supera i 512 caratteri.")] string? LabelTemplate,
     [property: StringLength(64)] string? Icon = null);
 
-/// <summary>Sposta un nodo su un'altra mappa; i link del nodo sulla mappa di origine vengono eliminati.</summary>
+/// <summary>
+/// Sposta un nodo su un'altra mappa; i link del nodo sulla mappa di origine vengono eliminati. Un nodo Submap porta con
+/// sé la sottomappa con tutto il suo contenuto. Senza X/Y il nodo va sotto i nodi esistenti della mappa di destinazione.
+/// </summary>
 public sealed record MoveMapNodeDto(
     [property: Required] Guid? TargetMapId,
-    [property: Range(-1_000_000d, 1_000_000d)] double X,
-    [property: Range(-1_000_000d, 1_000_000d)] double Y);
+    [property: Range(-1_000_000d, 1_000_000d)] double? X = null,
+    [property: Range(-1_000_000d, 1_000_000d)] double? Y = null);
 
 /// <summary>
 /// Creazione o modifica di una mappa. ParentMapId non è modificabile qui: lo mantiene l'API

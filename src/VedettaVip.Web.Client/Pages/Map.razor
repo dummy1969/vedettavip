@@ -37,7 +37,12 @@
     }
     @if (mapNotice is not null)
     {
-        <span class="map-notice">@mapNotice <button type="button" class="btn-close" aria-label="Chiudi"
+        <span class="map-notice">@mapNotice
+            @if (noticeMapId is { } noticeMap)
+            {
+                <a href="map/@noticeMap" @onclick="() => mapNotice = null">Apri la mappa</a>
+            }
+            <button type="button" class="btn-close" aria-label="Chiudi"
                                                     @onclick="() => mapNotice = null"></button></span>
     }
 
@@ -124,10 +129,10 @@ else
         }
         @if (editMode)
         {
-            <MapEditPanel MapId="map.Id" Nodes="nodes"
+            <MapEditPanel MapId="map.Id" Nodes="nodes" Links="links"
                           SelectedNode="SelectedNode" SelectedLink="SelectedLink" PlacePoint="placePoint"
                           OnPlaceAtCenter="PlaceAtCenterAsync" OnPlaceCancel="() => placePoint = null"
-                          OnNodeSaved="NodeSaved" OnNodeDeleted="NodeDeleted"
+                          OnNodeSaved="NodeSaved" OnNodeDeleted="NodeDeleted" OnNodeMoved="NodeMovedAsync"
                           OnLinkSaved="LinkSaved" OnLinkDeleted="LinkDeleted" OnShowChart="OpenChart" />
         }
     </div>

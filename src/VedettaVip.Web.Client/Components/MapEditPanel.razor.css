@@ -63,3 +63,9 @@
 .interfaces-status .btn-link {
     font-size: inherit;
 }
+
+.move-node {
+    margin-top: 0.9rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid #e3e6ea;
+}

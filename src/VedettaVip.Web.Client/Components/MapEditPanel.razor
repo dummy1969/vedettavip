@@ -43,6 +43,36 @@
         {
             <div class="form-text">Eliminando il nodo si eliminano anche i suoi link.</div>
         }
+
+        <div class="move-node">
+            <label class="form-label small mb-1" for="move-target">Sposta su un'altra mappa</label>
+            <select id="move-target" class="form-select form-select-sm" @bind="moveTargetId" @bind:after="() => moveConfirm = false">
+                <option value="">scegli la mappa...</option>
+                @foreach (var (m, depth) in MoveTargets(node))
+                {
+                    <option value="@m.Id">@MapHierarchy.Indent(depth)@m.Name</option>
+                }
+            </select>
+            <div class="form-text">
+                @if (node.Kind == MapNodeKind.Submap)
+                {
+                    <span>La sottomappa si sposta con tutto il suo contenuto (nodi, link e sottomappe).</span>
+                }
+                Il nodo va sotto i nodi della mappa scelta@(LinkCount(node) is > 0 and var count ? $"; i suoi {count} link su questa mappa vengono eliminati" : "").
+            </div>
+            <div class="panel-actions">
+                @if (moveConfirm)
+                {
+                    <button class="btn btn-sm btn-warning" disabled="@busy" @onclick="MoveNodeAsync">Conferma lo spostamento</button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => moveConfirm = false">Annulla</button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-outline-primary" disabled="@(busy || !Guid.TryParse(moveTargetId, out _))"
+                            @onclick="() => moveConfirm = true">Sposta</button>
+                }
+            </div>
+        </div>
     }
     else if (SelectedLink is { } link)
     {

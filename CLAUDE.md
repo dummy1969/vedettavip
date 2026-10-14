@@ -329,7 +329,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | POST | `/api/maps/{mapId}/nodes` | `CreateMapNodeDto` → 201; 400 se incoerente, 409 se duplicato o ciclo |
 | PUT | `/api/maps/{mapId}/nodes/{nodeId}` | `UpdateMapNodeDto` (LabelTemplate, Icon) → 200 `MapNodeDto`; vuoto = etichetta di default |
 | PUT | `/api/maps/{mapId}/nodes/{nodeId}/position` | `{ "x", "y" }` → 204 / 404 |
-| POST | `/api/maps/{mapId}/nodes/{nodeId}/move` | `MoveMapNodeDto` → 200; elimina i link del nodo |
+| POST | `/api/maps/{mapId}/nodes/{nodeId}/move` | `MoveMapNodeDto` (TargetMapId, X?/Y?: senza = sotto i nodi esistenti) → 200; elimina i link del nodo; un nodo Submap porta con sé la sottomappa e tutto il contenuto |
 | DELETE | `/api/maps/{mapId}/nodes/{nodeId}` | 204; i link cadono in CASCADE |
 | GET/PUT/DELETE | `/api/maps/{mapId}/links/{linkId}` | `MapLinkDto` / `MapLinkUpsertDto` → 204 / 204 |
 | POST | `/api/maps/{mapId}/links` | `MapLinkUpsertDto` → 201; nodi diversi e della stessa mappa, IfIndex solo con DeviceId |
@@ -673,6 +673,11 @@ usare ASP.NET Core Data Protection o un secret store.
 - **Clic destro su un nodo** (anche fuori da Modifica): menu contestuale (`NodeMenu`, vedi "Apri con WinBox").
 - **Clic destro** su un punto vuoto (o "Usa il centro della vista") → mirino e form "Aggiungi nodo":
   dispositivo non ancora sulla mappa, sottomappa (mappe radice esistenti o nuova mappa), nodo statico.
+- **Sposta su un'altra mappa** (pannello del nodo, conferma al secondo clic): selettore ad albero senza la mappa corrente e,
+  per un nodo Submap, senza la sottomappa e le sue discendenti; il nodo va sotto i nodi della destinazione
+  (`MapPlacement.NextBelow`), i suoi link sulla mappa di origine vengono eliminati. Un nodo Submap si sposta con tutta la
+  sottomappa (nodi, link, discendenti: cambia solo `ParentMapId`), es. una sottomappa dentro una sorella. Avviso con
+  "Apri la mappa" verso la destinazione.
 - **Clic** su nodo o link → pannello laterale (`Components/MapEditPanel`): template dell'etichetta; per i link
   velocità (preset 100M…100G), device + IfIndex sorgente del traffico (proposti i device dei due estremi),
   Inverti (scambia From/To, cioè tx/rx), Elimina con conferma al secondo clic (`DeleteButton`).

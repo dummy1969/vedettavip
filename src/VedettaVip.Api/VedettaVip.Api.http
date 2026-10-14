@@ -30,9 +30,9 @@ Content-Type: application/json
 
 { "labelTemplate": "[Name]\n[Address]\nCPU: [Cpu]%" }
 
-### Sposta un nodo su un'altra mappa (i suoi link vengono eliminati)
+### Sposta un nodo su un'altra mappa (i suoi link vengono eliminati; un nodo Submap porta con sé tutta la sottomappa)
 # POST {{VedettaVip.Api_HostAddress}}/api/maps/{{mainMap}}/nodes/<nodeId>/move
-# { "targetMapId": "<mapId>", "x": 100, "y": 100 }
+# { "targetMapId": "<mapId>", "x": 100, "y": 100 }     (senza x/y: sotto i nodi esistenti della destinazione)
 
 ### Nuova mappa (nasce radice; diventa sottomappa creando un nodo Submap che la punta)
 POST {{VedettaVip.Api_HostAddress}}/api/maps

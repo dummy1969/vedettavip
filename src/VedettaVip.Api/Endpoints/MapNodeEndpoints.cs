@@ -161,7 +161,8 @@ public static class MapNodeEndpoints
             return DbProblems.Problem(StatusCodes.Status400BadRequest, "Spostamento non valido",
                 "La mappa di destinazione coincide con quella attuale: usare PUT .../position.");
 
-        if (!await db.Maps.AnyAsync(m => m.Id == targetMapId, ct))
+        var targetMap = await db.Maps.AsNoTracking().FirstOrDefaultAsync(m => m.Id == targetMapId, ct);
+        if (targetMap is null)
             return DbProblems.Problem(StatusCodes.Status400BadRequest, "Mappa inesistente", $"La mappa {targetMapId} non esiste.");
 
         switch (node.Kind)
@@ -182,9 +183,10 @@ public static class MapNodeEndpoints
             .ToListAsync(ct);
         db.MapLinks.RemoveRange(links);
 
+        var (x, y) = (dto.X, dto.Y) is ({ } px, { } py) ? (px, py) : await NextFreePositionAsync(db, targetMap, ct);
         node.MapId = targetMapId;
-        node.X = dto.X;
-        node.Y = dto.Y;
+        node.X = x;
+        node.Y = y;
 
         if (await db.TrySaveChangesAsync(ct) is { } saveProblem)
             return saveProblem;
@@ -222,6 +224,14 @@ public static class MapNodeEndpoints
 
         await notifier.MapsChangedAsync(db, [mapId, .. Submap(node)]);
         return TypedResults.NoContent();
+    }
+
+    /// <summary>Posizione sotto i nodi esistenti della mappa (<see cref="MapPlacement.NextBelow"/>).</summary>
+    private static async Task<(double X, double Y)> NextFreePositionAsync(VedettaVipDbContext db, Data.Entities.Map map, CancellationToken ct)
+    {
+        var occupied = (await db.MapNodes.AsNoTracking().Where(n => n.MapId == map.Id).Select(n => new { n.X, n.Y }).ToListAsync(ct))
+            .Select(n => (n.X, n.Y)).ToList();
+        return MapPlacement.NextBelow(occupied, map.GridSize);
     }
 
     private static IEnumerable<Guid> Submap(MapNode node) => node.SubmapId is { } id ? [id] : [];
