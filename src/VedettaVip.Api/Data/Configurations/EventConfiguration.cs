@@ -13,7 +13,7 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
     {
         // Un evento riguarda un device oppure un agente
         b.ToTable("Events", t =>
-            t.HasCheckConstraint("CK_Events_Subject", "\"DeviceId\" IS NOT NULL OR \"AgentId\" IS NOT NULL"));
+            t.HasCheckConstraint("CK_Events_Subject", "\"DeviceId\" IS NOT NULL OR \"AgentId\" IS NOT NULL OR \"Type\" IN ('NotificationsFailing', 'NotificationsRestored')"));
 
         b.Property(e => e.Type).HasMaxLength(64);
         b.Property(e => e.Message).HasMaxLength(2048);

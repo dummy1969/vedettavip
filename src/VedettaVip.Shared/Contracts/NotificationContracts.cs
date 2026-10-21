@@ -158,3 +158,29 @@ public sealed record DeliveryDto(
 
 /// <summary>Presa in carico (o rilascio) di un evento: PUT /api/events/{id}/ack.</summary>
 public sealed record EventAckDto(bool Acknowledged);
+
+/// <summary>
+/// Stato di un canale di notifica attivo (GET /api/notifications/health). In errore con almeno 3 tentativi falliti
+/// dopo l'ultimo invio riuscito su quel canale; FailingSince = creazione del primo invio non riuscito.
+/// </summary>
+public sealed record NotificationChannelHealthDto(
+    NotificationChannel Channel,
+    bool Failing,
+    DateTimeOffset? FailingSince,
+    int FailedAttempts,
+    int FailedDeliveries,
+    string? LastError,
+    DateTimeOffset? LastSentAt)
+{
+    /// <summary>"email" / "Telegram", come nei testi.</summary>
+    public static string ChannelName(NotificationChannel channel) => channel == NotificationChannel.Email ? "email" : "Telegram";
+
+    /// <summary>Testo del banner (Home e mappa), null se il canale funziona.</summary>
+    public string? Warning() => Failing
+        ? $"Le notifiche {ChannelName(Channel)} non vengono inviate" +
+          (FailingSince is { } since ? $" dal {since.ToLocalTime():dd/MM HH:mm}" : "") +
+          $": {FailedAttempts} tentativi falliti su {FailedDeliveries} {(FailedDeliveries == 1 ? "invio" : "invii")}" +
+          (LastError is { Length: > 0 } error ? $". Ultimo errore: {error}" : "") +
+          ". Gli avvisi su questo canale non arrivano."
+        : null;
+}

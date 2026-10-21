@@ -1,0 +1,17 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Contracts
+
+@* Stato di un canale di notifica nelle Impostazioni: errore in rosso, altrimenti l'ultimo invio riuscito. *@
+@if (Health is { Failing: true } failing)
+{
+    <div class="alert alert-danger py-1 px-2 small">
+        @failing.Warning() Dopo una prova riuscita gli avvisi in coda vengono ritentati subito.
+    </div>
+}
+else if (Health is { LastSentAt: { } sent })
+{
+    <p class="small text-muted mb-2">Ultimo avviso inviato: @sent.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+}
+

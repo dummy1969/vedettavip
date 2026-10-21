@@ -17,7 +17,7 @@ namespace VedettaVip.Api.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -928,7 +928,7 @@ namespace VedettaVip.Api.Data.Migrations
 
                     b.ToTable("Events", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Events_Subject", "\"DeviceId\" IS NOT NULL OR \"AgentId\" IS NOT NULL");
+                            t.HasCheckConstraint("CK_Events_Subject", "\"DeviceId\" IS NOT NULL OR \"AgentId\" IS NOT NULL OR \"Type\" IN ('NotificationsFailing', 'NotificationsRestored')");
                         });
                 });
 

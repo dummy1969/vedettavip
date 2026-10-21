@@ -37,6 +37,7 @@ public partial class Home : IDisposable
     private List<EventDto>? events;
     private Dictionary<Guid, string> customers = [];
     private List<AgentDto> offlineAgents = [];
+    private List<NotificationChannelHealthDto> failingChannels = [];
     private string? loadError;
     private DateTime? updatedAt;
     private int defaultEventHours = DashboardSettingsDto.Default.RecentEventHours;
@@ -64,6 +65,7 @@ public partial class Home : IDisposable
         {
             rows = [.. await Api.GetDeviceOverviewAsync(cts.Token)];
             offlineAgents = [.. (await Api.GetAgentsAsync(cts.Token)).Where(a => !a.IsOnline).OrderBy(a => a.AgentId)];
+            failingChannels = [.. (await Api.GetNotificationHealthAsync(cts.Token)).Where(h => h.Failing)];
             loadError = null;
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)

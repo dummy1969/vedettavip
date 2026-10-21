@@ -256,6 +256,11 @@ public partial class Events : IDisposable
 
     internal static string SeverityText(EventSeverity s) => Labels.Severity(s);
 
+    /// <summary>Oggetto dell'evento: device, agente o canale di notifica (né device né agente).</summary>
+    internal static string SubjectText(EventDto e) =>
+        e.DeviceName ?? (e.AgentId is not null ? $"agente {e.AgentId}"
+            : e.Type is "NotificationsFailing" or "NotificationsRestored" ? "notifiche" : "?");
+
     internal static string ChangeText(EventDto e) => e.Type switch
     {
         "AgentOffline" => "agente offline",

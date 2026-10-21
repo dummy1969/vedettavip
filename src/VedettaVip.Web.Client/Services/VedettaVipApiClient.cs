@@ -27,6 +27,10 @@ public sealed class VedettaVipApiClient(HttpClient http)
     public async Task<IReadOnlyList<AgentDto>> GetAgentsAsync(CancellationToken ct) =>
         await http.GetFromJsonAsync<List<AgentDto>>("api/agents", Json, ct) ?? [];
 
+    /// <summary>Stato dei canali di notifica attivi (in errore se gli invii falliscono).</summary>
+    public async Task<IReadOnlyList<NotificationChannelHealthDto>> GetNotificationHealthAsync(CancellationToken ct) =>
+        await http.GetFromJsonAsync<List<NotificationChannelHealthDto>>("api/notifications/health", Json, ct) ?? [];
+
     /// <summary>Traffico storico di un'interfaccia; sorgente e risoluzione le sceglie l'API in base al periodo.</summary>
     public Task<InterfaceSeriesDto> GetInterfaceTrafficAsync(Guid deviceId, int ifIndex, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         SendAsync<InterfaceSeriesDto>(HttpMethod.Get,

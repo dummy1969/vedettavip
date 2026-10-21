@@ -288,7 +288,9 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
   `Events` ha in più AgentId?, FromState?, ToState?, NotifyState (`None/Pending/Done/Suppressed`; gli eventi
   esistenti prima della migration sono `None`; `Maintenance` = rimandato per manutenzione), NotifyAfter?, NotifyNote?,
   AlertKey?, LastReminderAt?, ReminderCount. Migration `AddEventResolvedAt`: ResolvedAt?
-  (chiusura automatica al ripristino); gli eventi Info esistenti sono stati marcati presi in carico.
+  (chiusura automatica al ripristino); gli eventi Info esistenti sono stati marcati presi in carico. Migration
+  `NotificationChannelEvents`: `CK_Events_Subject` ammette anche gli eventi senza device né agente di tipo
+  `NotificationsFailing`/`NotificationsRestored` (canali di notifica, AlertKey `notify:Email`/`notify:Telegram`).
 
 Decisioni:
 - **Tutte le FK verso Device sono RESTRICT** (tranne ParentDeviceId, `SET NULL`, e DeviceStatus, `CASCADE`:
@@ -343,7 +345,8 @@ usare ASP.NET Core Data Protection o un secret store.
 | GET | `/api/devices/overview` | `DeviceOverviewDto[]`: device + stato (Unknown se disabilitato o report vecchio), RTT, SNMP ok, agente, mappe |
 | GET | `/api/agent/targets` | **X-Agent-Key**; `AgentTargetDto[]` dei device abilitati, con interfacce da misurare e soglie effettive |
 | GET/PUT | `/api/settings/notifications` | `NotificationSettingsDto` / `NotificationSettingsUpdateDto` (segreti write-only) |
-| POST | `/api/settings/notifications/test-email`, `/test-telegram` | prova con le impostazioni salvate; 502 con l'errore del server |
+| GET | `/api/notifications/health` | `NotificationChannelHealthDto[]` dei canali attivi (in errore, da quando, tentativi, ultimo errore, ultimo invio); per tutti |
+| POST | `/api/settings/notifications/test-email`, `/test-telegram` | prova con le impostazioni salvate; 502 con l'errore del server; se riesce, le consegne in coda di quel canale si ritentano subito |
 | GET/POST, PUT/DELETE | `/api/customers`, `/api/customers/{id}` | clienti (DELETE: device senza cliente, iscrizioni eliminate) |
 | GET/POST, PUT/DELETE | `/api/contacts`, `/api/contacts/{id}` | contatti con iscrizioni (sostituite per intero nel PUT) |
 | GET | `/api/events` | `?unacknowledgedOnly&since&before&limit&deviceId&customerId&noCustomer&severity` (max 1000; `noCustomer` = device senza cliente ed eventi degli agenti) → `EventDto[]` con esito delle notifiche |
@@ -614,6 +617,21 @@ usare ASP.NET Core Data Protection o un secret store.
 - **Agenti**: `Services/AgentMonitor` (ogni 30 s) marca offline l'agente senza report da 2 intervalli di snapshot
   (`Agent.OfflineSince`) ed emette `AgentOffline`; il primo report successivo emette `AgentOnline`.
   `Event.DeviceId` è nullable, con `AgentId` (CHECK: almeno uno dei due).
+- **Stato dei canali** (`Services/NotificationHealth`, regole pure in `NotificationHealthRules`, coperte da test): un canale
+  attivo è **in errore** con almeno 3 tentativi falliti tra le consegne create dopo l'ultimo invio riuscito su quel canale
+  (un errore precedente all'ultimo invio riuscito riguarda il destinatario, non il canale). Motivo: nell'ottobre 2026, dopo
+  un riavvio della VM, Docker è partito prima del DHCP con il DNS dei container vuoto e per due giorni nessuna email è
+  uscita ("Resource temporarily unavailable") senza che nessuno se ne accorgesse.
+  - Il dispatcher (passo 5, dopo ogni giro con invii e almeno ogni minuto) apre l'evento `NotificationsFailing` (Error,
+    né device né agente, AlertKey `notify:<canale>`) e lo chiude con `NotificationsRestored` (Info: durata, avvisi non
+    consegnati e ancora in coda) quando il canale torna a inviare o viene disattivato. Stato letto dagli eventi (riavvii ok).
+  - Destinatari: iscritti a "Tutto", qualsiasi filtro, anche senza ripristini (`AlertKind.ChannelFailing`/`ChannelRestored`).
+    Il guasto va **sugli altri canali** (`AlertRules.ExcludedChannel`: email giù → Telegram), il ripristino su tutti.
+  - UI: banner rosso nella Home e sulla mappa (`NotificationChannelHealthDto.Warning()`), stato del canale in Impostazioni →
+    Notifiche (`Components/ChannelHealthStatus`: errore o ultimo avviso inviato), oggetto "notifiche" nella pagina Eventi.
+  - Una prova riuscita ("Salva e invia prova") non crea consegne: per non aspettare il backoff (fino a 2 h) anticipa a
+    subito il prossimo tentativo delle consegne in coda di quel canale.
+  - **Server**: `/etc/docker/daemon.json` con `"dns"` fissi evita il DNS vuoto nei container se Docker parte prima del DHCP.
 - **Canali**: email con **MailKit** (`EmailSender`): sicurezza `None` / `StartTls` / `SslOnConnect` (465) / `Auto`,
   autenticazione se c'è l'utente (meccanismo negoziato), verifica certificato disattivabile. Telegram Bot API
   (`TelegramSender`): l'HttpClient è registrato con `RemoveAllLoggers()` perché il token è nell'URL.

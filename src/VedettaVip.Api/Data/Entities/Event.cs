@@ -13,7 +13,7 @@ namespace VedettaVip.Api.Data.Entities;
 public sealed class Event
 {
     public long Id { get; set; }
-    /// <summary>Device dell'evento; null per gli eventi di un agente (AgentId).</summary>
+    /// <summary>Device dell'evento; null per gli eventi di un agente (AgentId) e di un canale di notifica (AlertKey "notify:…").</summary>
     public Guid? DeviceId { get; set; }
     public Device? Device { get; set; }
     public string? AgentId { get; set; }
@@ -57,4 +57,7 @@ public static class EventTypes
     public const string AgentOnline = "AgentOnline";
     public const string ThresholdRaised = "ThresholdRaised";
     public const string ThresholdCleared = "ThresholdCleared";
+    /// <summary>Un canale di notifica non invia più (né device né agente: AlertKey "notify:Email" / "notify:Telegram").</summary>
+    public const string NotificationsFailing = "NotificationsFailing";
+    public const string NotificationsRestored = "NotificationsRestored";
 }

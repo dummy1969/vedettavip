@@ -9,7 +9,7 @@ using VedettaVip.Shared.Models;
 
 namespace VedettaVip.Api.Services;
 
-public enum AlertKind { Down, Partial, Recovery, AgentOffline, AgentOnline, Threshold, ThresholdCleared }
+public enum AlertKind { Down, Partial, Recovery, AgentOffline, AgentOnline, Threshold, ThresholdCleared, ChannelFailing, ChannelRestored }
 
 /// <summary>Regole di notifica (pure, coperte da test).</summary>
 public static class AlertRules
@@ -27,6 +27,8 @@ public static class AlertRules
         EventTypes.AgentOnline => AlertKind.AgentOnline,
         EventTypes.ThresholdRaised => AlertKind.Threshold,
         EventTypes.ThresholdCleared => AlertKind.ThresholdCleared,
+        EventTypes.NotificationsFailing => AlertKind.ChannelFailing,
+        EventTypes.NotificationsRestored => AlertKind.ChannelRestored,
         EventTypes.StateChange => to switch
         {
             NodeState.Down => AlertKind.Down,
@@ -40,11 +42,13 @@ public static class AlertRules
     /// <summary>
     /// L'iscrizione riceve l'avviso? Down sempre; Partial con "Down e Partial" o "tutti i problemi"; soglie solo con
     /// "tutti i problemi"; ripristino/rientro solo se richiesto e se il problema era tra quelli notificati
-    /// all'iscrizione; agente offline sempre, agente online come un ripristino.
+    /// all'iscrizione; agente offline sempre, agente online come un ripristino. Canale di notifica in errore e
+    /// ripristinato sempre: il ripristino dice quanti avvisi non sono arrivati, ed è l'unico modo di saperlo se il
+    /// canale in errore era l'unico del contatto.
     /// </summary>
     public static bool Qualifies(AlertFilter filter, bool notifyRecovery, AlertKind kind, NodeState? from) => kind switch
     {
-        AlertKind.Down or AlertKind.AgentOffline => true,
+        AlertKind.Down or AlertKind.AgentOffline or AlertKind.ChannelFailing or AlertKind.ChannelRestored => true,
         AlertKind.Partial => filter != AlertFilter.DownOnly,
         AlertKind.Threshold => filter == AlertFilter.AllProblems,
         AlertKind.Recovery => notifyRecovery && (from == NodeState.Down || filter != AlertFilter.DownOnly),
@@ -54,7 +58,15 @@ public static class AlertRules
     };
 
     /// <summary>Problemi (aperti finché non rientrano): possono essere rimandati per manutenzione e avere promemoria.</summary>
-    public static bool IsProblem(AlertKind kind) => kind is AlertKind.Down or AlertKind.Partial or AlertKind.Threshold or AlertKind.AgentOffline;
+    public static bool IsProblem(AlertKind kind) =>
+        kind is AlertKind.Down or AlertKind.Partial or AlertKind.Threshold or AlertKind.AgentOffline or AlertKind.ChannelFailing;
+
+    /// <summary>
+    /// Canale da non usare per l'avviso: quello in errore (l'avviso di un canale guasto passa dagli altri). Il
+    /// ripristino invece va su tutti i canali, compreso quello tornato a funzionare.
+    /// </summary>
+    public static NotificationChannel? ExcludedChannel(AlertKind kind, string? alertKey) =>
+        kind == AlertKind.ChannelFailing ? NotificationHealthRules.ChannelOf(alertKey) : null;
 
     /// <summary>Promemoria: Down e agenti offline; Partial e soglie solo se richiesto nelle impostazioni.</summary>
     public static bool RemindAbout(AlertKind kind, bool includeWarnings) =>
@@ -130,6 +142,10 @@ public static class AlertMessage
                 $"L'agente di polling {c.Subject} non invia dati: gli stati dei suoi dispositivi non sono aggiornati."),
             AlertKind.Threshold => ($"[VedettaVip] {ProblemLabel(c.AlertKey)}: {who}", DetailAfterName(c.Detail) ?? $"{who}: soglia superata."),
             AlertKind.ThresholdCleared => ($"[VedettaVip] {RecoveryLabel(c.AlertKey)}: {who}", DetailAfterName(c.Detail) ?? $"{who}: valore rientrato sotto la soglia."),
+            AlertKind.ChannelFailing => ($"[VedettaVip] NOTIFICHE {c.Subject.ToUpperInvariant()} NON INVIATE",
+                c.Detail ?? $"Le notifiche {c.Subject} non vengono inviate."),
+            AlertKind.ChannelRestored => ($"[VedettaVip] NOTIFICHE {c.Subject.ToUpperInvariant()} RIPRISTINATE",
+                c.Detail ?? $"Le notifiche {c.Subject} vengono di nuovo inviate."),
             _ => ($"[VedettaVip] AGENTE ONLINE: {c.Subject}", $"L'agente di polling {c.Subject} ha ripreso a inviare dati.")
         };
 

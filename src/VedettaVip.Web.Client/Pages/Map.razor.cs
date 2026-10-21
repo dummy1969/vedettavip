@@ -47,6 +47,8 @@ public partial class Map : IAsyncDisposable
     private string? loadError;
     private string? saveError;
     private string? agentWarning;
+    /// <summary>Canali di notifica che non inviano (stesso controllo periodico degli agenti).</summary>
+    private List<string> notificationWarnings = [];
     private Guid? loadedMapId;
     private bool backgroundStarted;
     private HubConnection? hub;
@@ -570,7 +572,10 @@ public partial class Map : IAsyncDisposable
         StateHasChanged();
     });
 
-    /// <summary>Banner se un agente non invia report da più di 2 intervalli di snapshot (calcolato dall'API).</summary>
+    /// <summary>
+    /// Banner se un agente non invia report da più di 2 intervalli di snapshot (calcolato dall'API) o se un canale
+    /// di notifica non invia.
+    /// </summary>
     private async Task MonitorAgentsAsync(CancellationToken ct)
     {
         using var timer = new PeriodicTimer(AgentCheckInterval);
@@ -596,9 +601,20 @@ public partial class Map : IAsyncDisposable
                     warning = null; // l'errore di API non raggiungibile è già mostrato dal caricamento della mappa
                 }
 
+                List<string> notifications;
+                try
+                {
+                    notifications = [.. (await Api.GetNotificationHealthAsync(ct)).Select(h => h.Warning()).OfType<string>()];
+                }
+                catch (HttpRequestException)
+                {
+                    notifications = [];
+                }
+
                 await InvokeAsync(() =>
                 {
                     agentWarning = warning;
+                    notificationWarnings = notifications;
                     StateHasChanged();
                 });
             }

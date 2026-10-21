@@ -34,7 +34,8 @@ look at on a NOC screen and quick to set up.
 - **Metrics** on TimescaleDB (raw 7 days, 5-minute aggregates 90 days, hourly aggregates 2 years) with traffic,
   latency/loss and RouterOS charts.
 - **Notifications** by email (SMTP) and Telegram: recipients by customer, map or global; parent/child dependencies
-  to avoid alert storms; flap suppression; maintenance windows (one-off and weekly); reminders; acknowledgement.
+  to avoid alert storms; flap suppression; maintenance windows (one-off and weekly); reminders; acknowledgement;
+  a channel that stops delivering (e.g. SMTP unreachable) raises an alert on the other channels and a banner.
 - **Users and roles** (Admin, Operator, Viewer), local accounts, optional two-factor authentication (TOTP authenticator
   apps, recovery codes), CSRF protection, secrets encrypted with ASP.NET Core Data Protection.
 - **Device management**: overview page with filters, CSV import/export.

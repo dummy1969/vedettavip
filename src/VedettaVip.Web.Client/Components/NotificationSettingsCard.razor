@@ -17,6 +17,7 @@
         else
         {
             <h6 class="section-title">Email (SMTP)</h6>
+            <ChannelHealthStatus Health="@HealthOf(NotificationChannel.Email)" />
             <div class="form-check form-switch mb-2">
                 <input id="n-email" class="form-check-input" type="checkbox" @bind="emailEnabled" />
                 <label class="form-check-label" for="n-email">Invia notifiche via email</label>
@@ -72,6 +73,7 @@
             </div>
 
             <h6 class="section-title mt-4">Telegram</h6>
+            <ChannelHealthStatus Health="@HealthOf(NotificationChannel.Telegram)" />
             <div class="form-check form-switch mb-2">
                 <input id="n-tg" class="form-check-input" type="checkbox" @bind="telegramEnabled" />
                 <label class="form-check-label" for="n-tg">Invia notifiche via Telegram</label>

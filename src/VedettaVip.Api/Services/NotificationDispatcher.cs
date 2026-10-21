@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Marcello Anderlini
 
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using VedettaVip.Api.Data;
 using VedettaVip.Api.Data.Entities;
@@ -17,7 +18,9 @@ namespace VedettaVip.Api.Services;
 /// <item><b>preparazione</b> degli eventi Pending scaduti: manutenzione, dipendenze, flap, destinatari; una consegna
 /// per contatto e canale (NotificationDeliveries);</item>
 /// <item><b>promemoria</b> per i problemi ancora aperti, se attivati in Impostazioni;</item>
-/// <item><b>invio</b> delle consegne con ritentativi e backoff (<see cref="AlertRules.RetryDelay"/>).</item>
+/// <item><b>invio</b> delle consegne con ritentativi e backoff (<see cref="AlertRules.RetryDelay"/>);</item>
+/// <item><b>stato dei canali</b> (<see cref="NotificationHealthRules"/>): un canale che non invia più genera l'evento
+/// NotificationsFailing, notificato sugli altri canali; quando torna a funzionare NotificationsRestored lo chiude.</item>
 /// </list>
 /// Tutto passa dal database: un riavvio dell'API o un server SMTP giù non fanno perdere avvisi.
 /// Con più istanze dell'API servirà un lock (FOR UPDATE SKIP LOCKED).
@@ -30,6 +33,9 @@ public sealed class NotificationDispatcher(
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
     private const int EventBatch = 100;
     private const int DeliveryBatch = 20;
+    /// <summary>Controllo dello stato dei canali senza invii in corso (es. canale disattivato mentre era in errore).</summary>
+    private static readonly TimeSpan HealthCheckInterval = TimeSpan.FromMinutes(1);
+    private DateTimeOffset nextHealthCheck = DateTimeOffset.MinValue;
 
     private sealed record DeviceInfo(Guid Id, string Name, string Address, Guid? ParentId, Guid? CustomerId, NodeState State,
         bool Muted);
@@ -107,7 +113,12 @@ public sealed class NotificationDispatcher(
                     await ReleaseMaintenanceAsync(db, routing, stoppingToken);
                     await PrepareDueEventsAsync(db, settings, routing, stoppingToken);
                     await SendRemindersAsync(db, settings, routing, stoppingToken);
-                    await SendDueDeliveriesAsync(scope.ServiceProvider, db, settingsService, stoppingToken);
+                    var attempted = await SendDueDeliveriesAsync(scope.ServiceProvider, db, settingsService, stoppingToken);
+                    if (attempted > 0 || time.GetUtcNow() >= nextHealthCheck)
+                    {
+                        await CheckChannelsAsync(db, settings, settingsService.TimeZone(settings), stoppingToken);
+                        nextHealthCheck = time.GetUtcNow() + HealthCheckInterval;
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -201,9 +212,12 @@ public sealed class NotificationDispatcher(
             }
 
             var contacts = routing.Recipients(ev, kind.Value);
-            var created = AddDeliveries(db, ev, contacts, settings, isReminder: false, now);
+            var excluded = AlertRules.ExcludedChannel(kind.Value, ev.AlertKey);
+            var created = AddDeliveries(db, ev, contacts, settings, isReminder: false, now, excluded);
             await FinishAsync(db, ev, NotifyState.Done, created == 1 ? "1 invio" : created > 1 ? $"{created} invii"
-                : contacts.Count == 0 ? "nessun destinatario iscritto" : "nessun canale attivo per i destinatari", ct);
+                : contacts.Count == 0 ? "nessun destinatario iscritto"
+                : excluded is { } channel ? $"nessun canale attivo oltre a {NotificationChannelHealthDto.ChannelName(channel)}"
+                : "nessun canale attivo per i destinatari", ct);
         }
     }
 
@@ -265,14 +279,15 @@ public sealed class NotificationDispatcher(
         return null;
     }
 
-    private static int AddDeliveries(VedettaVipDbContext db, Event ev, List<Contact> contacts, NotificationSettings settings, bool isReminder, DateTimeOffset now)
+    private static int AddDeliveries(VedettaVipDbContext db, Event ev, List<Contact> contacts, NotificationSettings settings, bool isReminder,
+        DateTimeOffset now, NotificationChannel? excluded = null)
     {
         var created = 0;
         foreach (var contact in contacts)
         {
-            if (settings.EmailEnabled && contact.Email is { } email)
+            if (settings.EmailEnabled && excluded != NotificationChannel.Email && contact.Email is { } email)
                 created += AddDelivery(db, ev, contact, NotificationChannel.Email, email, isReminder, now);
-            if (settings.TelegramEnabled && contact.TelegramChatId is { } chat)
+            if (settings.TelegramEnabled && excluded != NotificationChannel.Telegram && contact.TelegramChatId is { } chat)
                 created += AddDelivery(db, ev, contact, NotificationChannel.Telegram, chat, isReminder, now);
         }
         return created;
@@ -356,7 +371,8 @@ public sealed class NotificationDispatcher(
 
     // ---------- 4. Invio con ritentativi ----------
 
-    private async Task SendDueDeliveriesAsync(IServiceProvider services, VedettaVipDbContext db, NotificationSettingsService settingsService, CancellationToken ct)
+    /// <summary>Invia le consegne scadute; restituisce quante ne ha tentate.</summary>
+    private async Task<int> SendDueDeliveriesAsync(IServiceProvider services, VedettaVipDbContext db, NotificationSettingsService settingsService, CancellationToken ct)
     {
         var now = time.GetUtcNow();
         var due = await db.NotificationDeliveries
@@ -366,7 +382,7 @@ public sealed class NotificationDispatcher(
             .Take(DeliveryBatch)
             .ToListAsync(ct);
         if (due.Count == 0)
-            return;
+            return 0;
 
         var settings = await settingsService.LoadAsync(db, ct);
         var timeZone = settingsService.TimeZone(settings);
@@ -425,6 +441,80 @@ public sealed class NotificationDispatcher(
             // Salvataggio a ogni invio: un riavvio a metà non fa ripartire messaggi già spediti
             await db.SaveChangesAsync(ct);
         }
+        return due.Count;
+    }
+
+    // ---------- 5. Stato dei canali ----------
+
+    /// <summary>
+    /// Apre l'evento NotificationsFailing quando un canale attivo entra in errore e lo chiude con NotificationsRestored
+    /// quando torna a inviare (o viene disattivato). Lo stato aperto/chiuso si legge dagli eventi: sopravvive ai riavvii.
+    /// </summary>
+    private async Task CheckChannelsAsync(VedettaVipDbContext db, NotificationSettings settings, TimeZoneInfo zone, CancellationToken ct)
+    {
+        var enabled = NotificationHealth.EnabledChannels(settings).ToHashSet();
+        foreach (var channel in Enum.GetValues<NotificationChannel>())
+        {
+            var key = NotificationHealthRules.AlertKey(channel);
+            var last = await db.Events
+                .Where(e => e.DeviceId == null && e.AlertKey == key
+                            && (e.Type == EventTypes.NotificationsFailing || e.Type == EventTypes.NotificationsRestored))
+                .OrderByDescending(e => e.Time).ThenByDescending(e => e.Id)
+                .FirstOrDefaultAsync(ct);
+            var open = last?.Type == EventTypes.NotificationsFailing ? last : null;
+            var health = enabled.Contains(channel) ? await NotificationHealth.LoadAsync(db, channel, ct) : null;
+            var name = NotificationChannelHealthDto.ChannelName(channel);
+            var now = time.GetUtcNow();
+
+            if (open is null && health is { Failing: true })
+            {
+                var error = health.LastError is { Length: > 500 } e ? e[..500] : health.LastError;
+                var since = health.FailingSince is { } s ? TimeZoneInfo.ConvertTime(s, zone).ToString("dd/MM HH:mm", CultureInfo.InvariantCulture) : "?";
+                db.Events.Add(new Event
+                {
+                    Time = now,
+                    Severity = EventSeverity.Error,
+                    Type = EventTypes.NotificationsFailing,
+                    AlertKey = key,
+                    Message = $"Le notifiche {name} non vengono inviate dal {since}: {health.FailedAttempts} tentativi falliti " +
+                              $"su {health.FailedDeliveries} {(health.FailedDeliveries == 1 ? "invio" : "invii")}. Ultimo errore: {error ?? "?"}",
+                    NotifyState = NotifyState.Pending,
+                    NotifyAfter = now
+                });
+                await db.SaveChangesAsync(ct);
+                logger.LogError("Notifiche {Channel} non inviate: {Attempts} tentativi falliti, ultimo errore: {Error}",
+                    channel, health.FailedAttempts, error);
+            }
+            else if (open is not null && health is not { Failing: true })
+            {
+                // Avvisi persi durante il guasto: consegne del canale create dopo l'ultimo invio riuscito precedente
+                var deliveries = db.NotificationDeliveries.AsNoTracking().Where(d => d.Channel == channel);
+                var sentBefore = await deliveries.Where(d => d.Status == DeliveryStatus.Sent && d.SentAt < open.Time).MaxAsync(d => d.SentAt, ct);
+                var during = deliveries.Where(d => d.Status != DeliveryStatus.Sent && d.Attempts > 0 && (sentBefore == null || d.CreatedAt > sentBefore));
+                var failed = await during.CountAsync(d => d.Status == DeliveryStatus.Failed, ct);
+                var retrying = await during.CountAsync(d => d.Status == DeliveryStatus.Pending, ct);
+
+                var lost = failed == 0 ? "nessun avviso perso" : $"{failed} {(failed == 1 ? "avviso non consegnato" : "avvisi non consegnati")} (vedi la pagina Eventi)";
+                var queued = retrying > 0 ? $", {retrying} ancora in coda" : "";
+                db.Events.Add(new Event
+                {
+                    Time = now,
+                    Severity = EventSeverity.Info,
+                    Type = EventTypes.NotificationsRestored,
+                    AlertKey = key,
+                    Message = health is null
+                        ? $"Canale {name} disattivato nelle impostazioni: {lost}{queued}."
+                        : $"Le notifiche {name} vengono di nuovo inviate dopo {AlertMessage.Duration(now - open.Time)}: {lost}{queued}.",
+                    Acknowledged = true, // gli eventi Info nascono presi in carico
+                    NotifyState = NotifyState.Pending,
+                    NotifyAfter = now
+                });
+                open.Acknowledged = true;
+                open.ResolvedAt = now;
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Notifiche {Channel} di nuovo inviate ({Failed} avvisi non consegnati durante il guasto)", channel, failed);
+            }
+        }
     }
 
     private static async Task<AlertContext> BuildContextAsync(
@@ -435,8 +525,13 @@ public sealed class NotificationDispatcher(
         TimeSpan? openFor = isReminder ? now - ev.Time : null;
 
         if (ev.DeviceId is not { } deviceId)
-            return new AlertContext(kind, ev.AgentId ?? "?", null, null, [], ev.Time, timeZone, null, openFor, [],
-                baseUrl is null ? null : $"{baseUrl}/events", ev.Message, isReminder);
+        {
+            // Agente, oppure canale di notifica (AlertKey "notify:…": Subject = "email" / "Telegram")
+            var subject = ev.AgentId
+                          ?? (NotificationHealthRules.ChannelOf(ev.AlertKey) is { } channel ? NotificationChannelHealthDto.ChannelName(channel) : "?");
+            return new AlertContext(kind, subject, null, null, [], ev.Time, timeZone, null, openFor, [],
+                baseUrl is null ? null : $"{baseUrl}/events", ev.Message, isReminder, ev.AlertKey);
+        }
 
         var device = await db.Devices.AsNoTracking()
             .Where(d => d.Id == deviceId)

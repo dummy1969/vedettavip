@@ -20,6 +20,12 @@
 {
     <div class="alert alert-danger py-1 px-2 small">@loadError</div>
 }
+@foreach (var h in failingChannels)
+{
+    <div class="alert alert-danger py-1 px-2 small">
+        @h.Warning() <a href="settings/notifications">Impostazioni → Notifiche</a>
+    </div>
+}
 @foreach (var a in offlineAgents)
 {
     <div class="alert alert-warning py-1 px-2 small">
@@ -169,7 +175,7 @@ else
                                         <b>@Ago(e.Time)</b> <span class="text-muted">@e.Time.ToLocalTime().ToString("HH:mm")</span>
                                     </td>
                                     <td><span class="severity @e.Severity.ToString().ToLowerInvariant()">@Events.SeverityText(e.Severity)</span></td>
-                                    <td>@(e.DeviceName ?? (e.AgentId is not null ? $"agente {e.AgentId}" : "?"))</td>
+                                    <td>@Events.SubjectText(e)</td>
                                     <td class="small">@e.CustomerName</td>
                                     <td class="small">
                                         @Events.ChangeText(e)

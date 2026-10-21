@@ -95,7 +95,7 @@ else
                     <tr class="@(e.Acknowledged ? "acknowledged" : "")" @key="e.Id">
                         <td class="text-nowrap small">@e.Time.ToLocalTime().ToString("dd/MM HH:mm:ss")</td>
                         <td><span class="severity @e.Severity.ToString().ToLowerInvariant()" title="@e.Severity">@SeverityText(e.Severity)</span></td>
-                        <td>@(e.DeviceName ?? (e.AgentId is not null ? $"agente {e.AgentId}" : "?"))</td>
+                        <td>@SubjectText(e)</td>
                         <td class="small">@e.CustomerName</td>
                         <td class="small change">
                             @ChangeText(e)

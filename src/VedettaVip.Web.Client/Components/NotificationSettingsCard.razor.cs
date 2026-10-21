@@ -46,12 +46,16 @@ public partial class NotificationSettingsCard : IDisposable
     private int reminderMinutes;
     private bool reminderIncludeWarnings;
 
+    /// <summary>Stato dei canali attivi (ultimo invio riuscito, errori), ricaricato dopo ogni salvataggio o prova.</summary>
+    private IReadOnlyList<NotificationChannelHealthDto> health = [];
+
     protected override async Task OnInitializedAsync()
     {
         try
         {
             Load(await Api.GetNotificationSettingsAsync(cts.Token));
             loaded = true;
+            await LoadHealthAsync();
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -141,6 +145,24 @@ public partial class NotificationSettingsCard : IDisposable
         finally
         {
             busy = false;
+        }
+        await LoadHealthAsync();
+    }
+
+    private NotificationChannelHealthDto? HealthOf(NotificationChannel channel) => health.FirstOrDefault(h => h.Channel == channel);
+
+    private async Task LoadHealthAsync()
+    {
+        try
+        {
+            health = await Api.GetNotificationHealthAsync(cts.Token);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        catch (HttpRequestException)
+        {
+            health = []; // solo informativo: le impostazioni restano utilizzabili
         }
     }
 

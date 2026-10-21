@@ -100,6 +100,10 @@
 {
     <div class="alert alert-warning py-2">@agentWarning</div>
 }
+@foreach (var w in notificationWarnings)
+{
+    <div class="alert alert-danger py-2">@w</div>
+}
 
 @if (loadError is not null)
 {

@@ -37,7 +37,8 @@ schermo di un NOC e veloce da configurare.
 - **Metriche** su TimescaleDB (dati grezzi 7 giorni, aggregati a 5 minuti 90 giorni, orari 2 anni) con grafici di
   traffico, latenza/perdita e RouterOS.
 - **Notifiche** via email (SMTP) e Telegram: destinatari per cliente, mappa o tutto; dipendenze padre/figlio contro le
-  tempeste di avvisi; soppressione dei flap; finestre di manutenzione (singole e settimanali); promemoria; presa in carico.
+  tempeste di avvisi; soppressione dei flap; finestre di manutenzione (singole e settimanali); promemoria; presa in carico;
+  un canale che smette di inviare (es. SMTP irraggiungibile) genera un avviso sugli altri canali e un banner.
 - **Utenti e ruoli** (Admin, Operatore, Lettura), account locali, verifica in due passaggi facoltativa (app TOTP, codici di
   recupero), protezione CSRF, segreti cifrati con ASP.NET Core Data Protection.
 - **Gestione dei dispositivi**: pagina riepilogativa con filtri, import/export CSV.

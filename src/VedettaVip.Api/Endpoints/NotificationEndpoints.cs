@@ -25,6 +25,9 @@ public static partial class NotificationEndpoints
         settings.MapPost("/test-email", TestEmailAsync);
         settings.MapPost("/test-telegram", TestTelegramAsync);
 
+        // Per tutti gli utenti: banner nella Home e sulla mappa se un canale non invia
+        app.MapGet("/api/notifications/health", GetHealthAsync).WithTags("Settings");
+
         var customers = app.MapGroup("/api/customers").WithTags("Customers");
         customers.MapGet("/", GetCustomersAsync);
         customers.MapPost("/", CreateCustomerAsync).RequireAdmin();
@@ -47,6 +50,11 @@ public static partial class NotificationEndpoints
     }
 
     // ---------- Impostazioni dei canali ----------
+
+    /// <summary>Stato dei canali attivi: in errore se dopo l'ultimo invio riuscito i tentativi falliscono.</summary>
+    private static async Task<Ok<List<NotificationChannelHealthDto>>> GetHealthAsync(
+        VedettaVipDbContext db, NotificationSettingsService service, CancellationToken ct) =>
+        TypedResults.Ok(await NotificationHealth.LoadAsync(db, await service.LoadAsync(db, ct), ct));
 
     private static async Task<Ok<NotificationSettingsDto>> GetSettingsAsync(
         VedettaVipDbContext db, NotificationSettingsService service, CancellationToken ct) =>
@@ -114,6 +122,7 @@ public static partial class NotificationEndpoints
             await email.SendAsync(config, dto.To, "[VedettaVip] Email di prova",
                 $"Email di prova inviata da VedettaVip alle {TimeZoneInfo.ConvertTime(time.GetUtcNow(), service.TimeZone(s)):dd/MM/yyyy HH:mm:ss}.\n" +
                 $"Server {config.Host}:{config.Port}, sicurezza {config.Security}.", ct);
+            await RetryQueuedNowAsync(db, NotificationChannel.Email, time, ct);
             return TypedResults.NoContent();
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
@@ -123,7 +132,7 @@ public static partial class NotificationEndpoints
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> TestTelegramAsync(
-        TestTelegramDto dto, VedettaVipDbContext db, NotificationSettingsService service, TelegramSender telegram, CancellationToken ct)
+        TestTelegramDto dto, VedettaVipDbContext db, NotificationSettingsService service, TelegramSender telegram, TimeProvider time, CancellationToken ct)
     {
         var (token, problem) = service.Telegram(await service.LoadAsync(db, ct));
         if (token is null)
@@ -134,12 +143,25 @@ public static partial class NotificationEndpoints
         try
         {
             await telegram.SendAsync(token, dto.ChatId.Trim(), "VedettaVip: messaggio di prova.", ct);
+            await RetryQueuedNowAsync(db, NotificationChannel.Telegram, time, ct);
             return TypedResults.NoContent();
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             return DbProblems.Problem(StatusCodes.Status502BadGateway, "Invio Telegram non riuscito", ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Prova riuscita: le consegne del canale in attesa di un nuovo tentativo partono subito invece di aspettare il
+    /// backoff (fino a 2 ore), così il canale torna "ok" e il dispatcher chiude l'avviso NotificationsFailing.
+    /// </summary>
+    private static Task<int> RetryQueuedNowAsync(VedettaVipDbContext db, NotificationChannel channel, TimeProvider time, CancellationToken ct)
+    {
+        var now = time.GetUtcNow();
+        return db.NotificationDeliveries
+            .Where(d => d.Channel == channel && d.Status == DeliveryStatus.Pending && d.Attempts > 0 && d.NextAttemptAt > now)
+            .ExecuteUpdateAsync(u => u.SetProperty(d => d.NextAttemptAt, now), ct);
     }
 
     // ---------- Clienti ----------
