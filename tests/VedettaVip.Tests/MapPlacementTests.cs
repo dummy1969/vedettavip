@@ -41,4 +41,31 @@ public class MapPlacementTests
     [Fact]
     public void Positions_are_aligned_to_the_map_grid() =>
         Assert.Equal((275d, 100d), MapPlacement.Cell(1, 100, 25)); // 270 → multiplo di 25 più vicino
+
+    [Fact]
+    public void Chosen_point_is_used_aligned_to_the_grid()
+    {
+        (double, double)[] layout = [(400, 160)];
+        Assert.Equal((520d, 240d), MapPlacement.At(527, 233, layout, 20));
+        Assert.Equal((-40d, 0d), MapPlacement.At(-37.5, 4, layout, 20));
+    }
+
+    [Fact]
+    public void Without_a_point_goes_below_the_existing_nodes()
+    {
+        (double, double)[] layout = [(400, 160)];
+        Assert.Equal(MapPlacement.NextBelow(layout, 20), MapPlacement.At(null, null, layout, 20));
+    }
+
+    [Theory]
+    [InlineData(null, null, true)]
+    [InlineData(10d, 20d, true)]
+    [InlineData(-1_000_000d, 1_000_000d, true)]
+    [InlineData(10d, null, false)]
+    [InlineData(null, 20d, false)]
+    [InlineData(1_000_001d, 0d, false)]
+    [InlineData(0d, double.NaN, false)]
+    [InlineData(double.PositiveInfinity, 0d, false)]
+    public void Point_needs_both_finite_coordinates_within_limits(double? x, double? y, bool valid) =>
+        Assert.Equal(valid, MapPlacement.ValidatePoint(x, y) is null);
 }

@@ -12,7 +12,31 @@ public static class MapPlacement
     public const int Columns = 8;
     public const double CellWidth = 170, CellHeight = 130, Margin = 100;
 
+    /// <summary>Limite delle coordinate dei nodi, come nei DTO (<c>Range(-1_000_000, 1_000_000)</c>).</summary>
+    public const double MaxCoordinate = 1_000_000;
+
     public static double Snap(double v, int gridSize) => gridSize > 0 ? Math.Round(v / gridSize, MidpointRounding.AwayFromZero) * gridSize : v;
+
+    /// <summary>
+    /// Punto scelto a mano (clic destro sulla mappa) per un nodo nuovo: errore se manca una delle due coordinate o se
+    /// sono fuori dai limiti (anche NaN e infinito, accettati dal binding dei parametri di query).
+    /// </summary>
+    public static string? ValidatePoint(double? x, double? y)
+    {
+        if (x is null && y is null)
+            return null;
+        if (x is null || y is null)
+            return "Servono entrambe le coordinate x e y.";
+        return IsValidCoordinate(x.Value) && IsValidCoordinate(y.Value)
+            ? null
+            : $"Le coordinate devono essere comprese tra -{MaxCoordinate:0} e {MaxCoordinate:0}.";
+    }
+
+    private static bool IsValidCoordinate(double v) => double.IsFinite(v) && Math.Abs(v) <= MaxCoordinate;
+
+    /// <summary>Posizione di un nodo nuovo: il punto scelto, allineato alla griglia; senza punto, <see cref="NextBelow"/>.</summary>
+    public static (double X, double Y) At(double? x, double? y, IReadOnlyCollection<(double X, double Y)> nodes, int gridSize) =>
+        x is { } px && y is { } py ? (Snap(px, gridSize), Snap(py, gridSize)) : NextBelow(nodes, gridSize);
 
     /// <summary>Centro della cella <paramref name="index"/> (riga per riga) a partire da <paramref name="startY"/>.</summary>
     public static (double X, double Y) Cell(int index, double startY, int gridSize) =>

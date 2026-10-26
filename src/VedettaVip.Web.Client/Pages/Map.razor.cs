@@ -70,6 +70,10 @@ public partial class Map : IAsyncDisposable
     private MapPoint? placePoint;
     // Menu contestuale del nodo (clic destro)
     private NodeMenuRequest? nodeMenu;
+    // Nuovo dispositivo creato dalla mappa nel punto scelto: il pannello del device prende il posto di quello di modifica
+    private MapPoint? newDeviceAt;
+    private int newDeviceKey;
+    private NewDeviceData? newDeviceData;
 
     // Ultimo campione per interfaccia (DeviceId, IfIndex), da GET /api/traffic e dal messaggio "TrafficUpdated"
     private readonly Dictionary<(Guid DeviceId, int IfIndex), InterfaceTrafficDto> traffic = [];
@@ -121,6 +125,7 @@ public partial class Map : IAsyncDisposable
         map = null;
         selectedId = null;
         placePoint = null;
+        newDeviceAt = null;
         nodeMenu = null;
         chartLinkId = null;
         chartNodeId = null;
@@ -664,19 +669,79 @@ public partial class Map : IAsyncDisposable
         tool = MapTool.Move;
         selectedId = null;
         placePoint = null;
+        newDeviceAt = null;
     }
 
     private void Select(Guid? id)
     {
         selectedId = id;
         placePoint = null;
+        newDeviceAt = null;
     }
 
     private void PlaceAt(MapPoint point)
     {
         selectedId = null;
         placePoint = point;
+        newDeviceAt = null;
     }
+
+    /// <summary>
+    /// "Nuovo dispositivo…" nel form "Aggiungi nodo": apre il pannello del dispositivo per crearlo su questa mappa nel
+    /// punto scelto. Clienti, profili e soglie servono solo qui: si caricano all'apertura, non con la mappa.
+    /// </summary>
+    private async Task OpenNewDeviceAsync(MapPoint point)
+    {
+        saveError = null;
+        try
+        {
+            var devices = Api.GetDevicesAsync(cts.Token);
+            var detection = Api.GetDetectionSettingsAsync(cts.Token);
+            var customers = Api.GetCustomersAsync(cts.Token);
+            var metrics = Api.GetMetricThresholdsAsync(cts.Token);
+            var snmp = Api.GetSnmpCredentialsAsync(cts.Token);
+            var routerOs = Api.GetRouterOsCredentialsAsync(cts.Token);
+            var remoteAccess = Api.GetRemoteAccessSettingsAsync(cts.Token);
+            newDeviceData = new NewDeviceData(await devices, await detection, await customers, await metrics, await snmp,
+                await routerOs, await remoteAccess);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Dati per il nuovo dispositivo non caricati");
+            saveError = $"Impossibile aprire il nuovo dispositivo: {ex.Message}";
+            return;
+        }
+
+        newDeviceKey++;
+        newDeviceAt = point;
+    }
+
+    /// <summary>Dispositivo creato con il suo nodo: ricarica la mappa (conserva la vista) e seleziona il nodo nuovo.</summary>
+    private async Task NewDeviceSavedAsync(Guid deviceId)
+    {
+        newDeviceAt = null;
+        placePoint = null;
+        newDeviceData = null;
+        await RefreshFromServerAsync(current: true);
+        selectedId = nodes.Find(n => n.DeviceId == deviceId)?.Id;
+    }
+
+    /// <summary>Annulla: si torna al form "Aggiungi nodo" con lo stesso punto.</summary>
+    private void CloseNewDevice()
+    {
+        newDeviceAt = null;
+        newDeviceData = null;
+    }
+
+    /// <summary>Elenchi e impostazioni che il pannello del dispositivo mostra in creazione.</summary>
+    private sealed record NewDeviceData(
+        IReadOnlyList<DeviceDto> Devices, DetectionThresholdsDto Detection, IReadOnlyList<CustomerDto> Customers,
+        MetricThresholdsDto Metrics, IReadOnlyList<SnmpCredentialDto> SnmpProfiles,
+        IReadOnlyList<RouterOsCredentialDto> RouterOsProfiles, RemoteAccessSettingsDto RemoteAccess);
 
     private async Task PlaceAtCenterAsync()
     {

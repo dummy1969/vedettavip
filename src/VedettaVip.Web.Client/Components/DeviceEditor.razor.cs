@@ -35,6 +35,13 @@ public partial class DeviceEditor : IDisposable
     [Parameter] public MetricThresholdsDto? Metrics { get; set; }
     /// <summary>Porte generali di WinBox, web e terminale (Impostazioni → Accesso remoto), per segnaposto e anteprime.</summary>
     [Parameter] public RemoteAccessSettingsDto? RemoteAccessDefaults { get; set; }
+    /// <summary>
+    /// Creazione dalla mappa (clic destro in modalità Modifica): il nodo nasce su questa mappa nel punto
+    /// <see cref="PlaceAt"/>, senza il select "Aggiungi alla mappa".
+    /// </summary>
+    [Parameter] public Guid? PlaceOnMapId { get; set; }
+    [Parameter] public string? PlaceOnMapName { get; set; }
+    [Parameter] public MapPoint? PlaceAt { get; set; }
     /// <summary>Notifica il salvataggio con l'Id del dispositivo.</summary>
     [Parameter] public EventCallback<Guid> OnSaved { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
@@ -105,7 +112,7 @@ public partial class DeviceEditor : IDisposable
     /// <summary>Le mappe servono solo alla creazione ("Aggiungi alla mappa").</summary>
     protected override async Task OnInitializedAsync()
     {
-        if (Device is not null)
+        if (Device is not null || PlaceOnMapId is not null)
             return;
         try
         {
@@ -253,7 +260,9 @@ public partial class DeviceEditor : IDisposable
             Guid id;
             if (Device is null)
             {
-                id = (await Api.CreateDeviceAsync(dto, cts.Token, Guid.TryParse(mapId, out var m) ? m : null)).Id;
+                id = PlaceOnMapId is { } placeOn
+                    ? (await Api.CreateDeviceAsync(dto, cts.Token, placeOn, PlaceAt)).Id
+                    : (await Api.CreateDeviceAsync(dto, cts.Token, Guid.TryParse(mapId, out var m) ? m : null)).Id;
             }
             else
             {

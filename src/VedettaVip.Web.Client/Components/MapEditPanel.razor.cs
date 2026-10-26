@@ -17,6 +17,7 @@ namespace VedettaVip.Web.Client.Components;
 public partial class MapEditPanel : IDisposable
 {
     private const string NewMapOption = "new";
+    private const string NewDeviceOption = "new";
     private static readonly long[] SpeedPresetsMbps = [100, 1_000, 2_500, 10_000, 25_000, 40_000, 100_000];
 
     [Inject] private VedettaVipApiClient Api { get; set; } = default!;
@@ -31,6 +32,8 @@ public partial class MapEditPanel : IDisposable
 
     [Parameter] public EventCallback OnPlaceAtCenter { get; set; }
     [Parameter] public EventCallback OnPlaceCancel { get; set; }
+    /// <summary>"+ Nuovo dispositivo...": la pagina apre il pannello del dispositivo per crearlo nel punto scelto.</summary>
+    [Parameter] public EventCallback<MapPoint> OnNewDevice { get; set; }
     [Parameter] public EventCallback<MapNodeDto> OnNodeSaved { get; set; }
     [Parameter] public EventCallback<Guid> OnNodeDeleted { get; set; }
     /// <summary>Nodo spostato su un'altra mappa: la pagina lo toglie con i suoi link.</summary>
@@ -266,6 +269,16 @@ public partial class MapEditPanel : IDisposable
             ids.Add(current);
 
         return ids.Select(id => (id.ToString(), devices.Find(d => d.Id == id)?.Name ?? id.ToString()));
+    }
+
+    private async Task OnAddDeviceChangedAsync()
+    {
+        if (addDeviceId != NewDeviceOption)
+            return;
+
+        addDeviceId = ""; // il select torna a "scegli..." se si annulla
+        if (PlacePoint is { } p)
+            await OnNewDevice.InvokeAsync(p);
     }
 
     private bool CanAdd() => addKind switch

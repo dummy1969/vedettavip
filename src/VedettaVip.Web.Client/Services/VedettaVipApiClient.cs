@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Marcello Anderlini
 
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using VedettaVip.Shared.Contracts;
+using VedettaVip.Web.Client.Components;
 
 namespace VedettaVip.Web.Client.Services;
 
@@ -361,8 +363,14 @@ public sealed class VedettaVipApiClient(HttpClient http)
         SendAsync<DeviceDto>(HttpMethod.Get, $"api/devices/{id}", null, ct);
 
     /// <summary>Crea il device; con <paramref name="mapId"/> lo aggiunge anche a quella mappa (posizione scelta dall'API).</summary>
-    public Task<DeviceDto> CreateDeviceAsync(DeviceUpsertDto dto, CancellationToken ct, Guid? mapId = null) =>
-        SendAsync<DeviceDto>(HttpMethod.Post, mapId is { } m ? $"api/devices?mapId={m}" : "api/devices", dto, ct);
+    /// <summary>Con <paramref name="mapId"/> crea anche il nodo: nel punto <paramref name="at"/> o, senza, sotto i nodi esistenti.</summary>
+    public Task<DeviceDto> CreateDeviceAsync(DeviceUpsertDto dto, CancellationToken ct, Guid? mapId = null, MapPoint? at = null)
+    {
+        var url = mapId is { } m ? $"api/devices?mapId={m}" : "api/devices";
+        if (mapId is not null && at is { } p)
+            url += string.Create(CultureInfo.InvariantCulture, $"&x={p.X}&y={p.Y}");
+        return SendAsync<DeviceDto>(HttpMethod.Post, url, dto, ct);
+    }
 
     public Task UpdateDeviceAsync(Guid id, DeviceUpsertDto dto, CancellationToken ct) =>
         SendAsync(HttpMethod.Put, $"api/devices/{id}", dto, ct);

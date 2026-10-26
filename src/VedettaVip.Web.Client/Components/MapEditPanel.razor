@@ -183,8 +183,9 @@
             {
                 case MapNodeKind.Device:
                     <label class="form-label small mb-1 mt-2" for="add-device">Dispositivo</label>
-                    <select id="add-device" class="form-select form-select-sm" @bind="addDeviceId">
+                    <select id="add-device" class="form-select form-select-sm" @bind="addDeviceId" @bind:after="OnAddDeviceChangedAsync">
                         <option value="">scegli...</option>
+                        <option value="@NewDeviceOption">+ Nuovo dispositivo...</option>
                         @foreach (var d in AvailableDevices())
                         {
                             <option value="@d.Id">@d.Name (@d.Address)</option>
@@ -194,6 +195,7 @@
                     {
                         <div class="form-text">Tutti i dispositivi sono già su questa mappa.</div>
                     }
+                    <div class="form-text">"+ Nuovo dispositivo..." lo crea e lo mette nel punto scelto.</div>
                     break;
 
                 case MapNodeKind.Submap:

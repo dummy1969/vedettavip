@@ -335,7 +335,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | DELETE | `/api/maps/{mapId}/nodes/{nodeId}` | 204; i link cadono in CASCADE |
 | GET/PUT/DELETE | `/api/maps/{mapId}/links/{linkId}` | `MapLinkDto` / `MapLinkUpsertDto` → 204 / 204 |
 | POST | `/api/maps/{mapId}/links` | `MapLinkUpsertDto` → 201; nodi diversi e della stessa mappa, IfIndex solo con DeviceId |
-| GET/POST | `/api/devices` | `DeviceDto[]` / `DeviceUpsertDto` → 201; `?mapId=` aggiunge anche il nodo su quella mappa (sotto i nodi esistenti, stesso SaveChanges) |
+| GET/POST | `/api/devices` | `DeviceDto[]` / `DeviceUpsertDto` → 201; `?mapId=` aggiunge anche il nodo su quella mappa (stesso SaveChanges): in `&x=&y=` (allineato alla griglia, `MapPlacement.At`/`ValidatePoint`: entrambe, finite, ±1.000.000, solo con mapId) o sotto i nodi esistenti |
 | GET/PUT/DELETE | `/api/devices/{id}` | DELETE → 409 `DeviceInUseDto` se su una mappa o con eventi; `?purgeEvents=true` cancella anche gli eventi (le mappe bloccano sempre) |
 | POST | `/api/devices/import` | `DeviceImportRequestDto` (CSV, DryRun, duplicati Skip/Update, mappa, crea clienti solo Admin) → `DeviceImportResultDto` riga per riga; Operatore |
 | GET | `/api/devices/export` | CSV di tutti i device (stesse colonne dell'import, `;`, BOM UTF-8) |
@@ -691,6 +691,10 @@ usare ASP.NET Core Data Protection o un secret store.
 - **Clic destro su un nodo** (anche fuori da Modifica): menu contestuale (`NodeMenu`, vedi "Apri con WinBox").
 - **Clic destro** su un punto vuoto (o "Usa il centro della vista") → mirino e form "Aggiungi nodo":
   dispositivo non ancora sulla mappa, sottomappa (mappe radice esistenti o nuova mappa), nodo statico.
+  **"+ Nuovo dispositivo..."** (voce del select Dispositivo) apre `DeviceEditor` al posto del pannello di modifica
+  (`PlaceOnMapId`/`PlaceAt`: niente select "Aggiungi alla mappa"); clienti, profili e soglie si caricano solo all'apertura.
+  Il salvataggio crea device e nodo nel punto scelto (`POST /api/devices?mapId=&x=&y=`), ricarica la mappa in modo morbido
+  e seleziona il nodo; "Chiudi" torna al form con lo stesso punto. Solo in Modifica: la sola visualizzazione non cambia.
 - **Sposta su un'altra mappa** (pannello del nodo, conferma al secondo clic): selettore ad albero senza la mappa corrente e,
   per un nodo Submap, senza la sottomappa e le sue discendenti; il nodo va sotto i nodi della destinazione
   (`MapPlacement.NextBelow`), i suoi link sulla mappa di origine vengono eliminati. Un nodo Submap si sposta con tutta la

@@ -131,11 +131,19 @@ else
             <NodeMenu @key="m" Node="m.Node" X="m.ClientX" Y="m.ClientY" Editing="editMode"
                       OnClose="() => nodeMenu = null" OnOpen="OpenNode" OnProperties="Select" />
         }
-        @if (editMode)
+        @if (editMode && newDeviceAt is { } newAt && newDeviceData is { } data)
+        {
+            <DeviceEditor @key="newDeviceKey" AllDevices="data.Devices" Defaults="data.Detection" Customers="data.Customers"
+                          Metrics="data.Metrics" SnmpProfiles="data.SnmpProfiles" RouterOsProfiles="data.RouterOsProfiles"
+                          RemoteAccessDefaults="data.RemoteAccess" PlaceOnMapId="map.Id" PlaceOnMapName="@map.Name" PlaceAt="newAt"
+                          OnSaved="NewDeviceSavedAsync" OnClose="CloseNewDevice" />
+        }
+        else if (editMode)
         {
             <MapEditPanel MapId="map.Id" Nodes="nodes" Links="links"
                           SelectedNode="SelectedNode" SelectedLink="SelectedLink" PlacePoint="placePoint"
                           OnPlaceAtCenter="PlaceAtCenterAsync" OnPlaceCancel="() => placePoint = null"
+                          OnNewDevice="OpenNewDeviceAsync"
                           OnNodeSaved="NodeSaved" OnNodeDeleted="NodeDeleted" OnNodeMoved="NodeMovedAsync"
                           OnLinkSaved="LinkSaved" OnLinkDeleted="LinkDeleted" OnShowChart="OpenChart" />
         }

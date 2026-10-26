@@ -87,17 +87,23 @@ public static class DeviceEndpoints
     }
 
     /// <summary>
-    /// Crea il device; con <paramref name="mapId"/> lo aggiunge anche a quella mappa (sotto i nodi esistenti),
-    /// nello stesso SaveChanges: o nascono entrambi o nessuno dei due.
+    /// Crea il device; con <paramref name="mapId"/> lo aggiunge anche a quella mappa, nello stesso SaveChanges: o
+    /// nascono entrambi o nessuno dei due. Il nodo va nel punto <paramref name="x"/>, <paramref name="y"/> (clic destro
+    /// sulla mappa, allineato alla griglia) o, senza punto, sotto i nodi esistenti.
     /// </summary>
     private static async Task<Results<Created<DeviceDto>, ValidationProblem, ProblemHttpResult>> CreateDeviceAsync(
-        DeviceUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, CancellationToken ct, Guid? mapId = null)
+        DeviceUpsertDto dto, VedettaVipDbContext db, AgentNotifier agents, MapNotifier notifier, CancellationToken ct,
+        Guid? mapId = null, double? x = null, double? y = null)
     {
         var id = Guid.CreateVersion7();
         var errors = await ValidateAsync(db, dto, id, ct) ?? [];
-        var map = mapId is { } m ? await db.Maps.AsNoTracking().FirstOrDefaultAsync(x => x.Id == m, ct) : null;
+        var map = mapId is { } m ? await db.Maps.AsNoTracking().FirstOrDefaultAsync(mp => mp.Id == m, ct) : null;
         if (mapId is not null && map is null)
             errors["mapId"] = ["La mappa non esiste."];
+        if (MapPlacement.ValidatePoint(x, y) is { } pointError)
+            errors["x"] = [pointError];
+        else if (x is not null && mapId is null)
+            errors["x"] = ["Le coordinate valgono solo con mapId."];
         if (errors.Count > 0)
             return TypedResults.ValidationProblem(errors);
 
@@ -109,11 +115,11 @@ public static class DeviceEndpoints
         {
             var occupied = (await db.MapNodes.AsNoTracking().Where(n => n.MapId == map.Id).Select(n => new { n.X, n.Y }).ToListAsync(ct))
                 .Select(n => (n.X, n.Y)).ToList();
-            var (x, y) = MapPlacement.NextBelow(occupied, map.GridSize);
+            var (nodeX, nodeY) = MapPlacement.At(x, y, occupied, map.GridSize);
             db.MapNodes.Add(new Data.Entities.MapNode
             {
                 Id = Guid.CreateVersion7(), MapId = map.Id, Kind = MapNodeKind.Device, DeviceId = id,
-                X = x, Y = y, LabelTemplate = Data.Entities.MapNode.DefaultLabelTemplate
+                X = nodeX, Y = nodeY, LabelTemplate = Data.Entities.MapNode.DefaultLabelTemplate
             });
         }
 

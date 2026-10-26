@@ -97,7 +97,11 @@
                 <div class="form-text">Il dispositivo a monte (es. lo switch o il router di sede): se cade il padre, i
                     dispositivi che dipendono da lui non generano un avviso ciascuno.</div>
 
-                @if (Device is null)
+                @if (Device is null && PlaceOnMapId is not null)
+                {
+                    <div class="form-text mt-2">Verrà aggiunto alla mappa «@PlaceOnMapName» nel punto scelto.</div>
+                }
+                else if (Device is null)
                 {
                     <label class="form-label small mb-1 mt-2" for="dev-map">Aggiungi alla mappa</label>
                     <select id="dev-map" class="form-select form-select-sm" @bind="mapId">
