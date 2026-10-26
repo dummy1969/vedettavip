@@ -420,6 +420,10 @@ public sealed class VedettaVipApiClient(HttpClient http)
     public Task UpdateNodePositionAsync(Guid mapId, Guid nodeId, double x, double y, CancellationToken ct) =>
         SendAsync(HttpMethod.Put, $"api/maps/{mapId}/nodes/{nodeId}/position", new NodePositionDto(x, y), ct);
 
+    /// <summary>Posizioni di più nodi della mappa, salvate insieme (tutte o nessuna).</summary>
+    public Task UpdateNodePositionsAsync(Guid mapId, NodePositionsDto dto, CancellationToken ct) =>
+        SendAsync(HttpMethod.Put, $"api/maps/{mapId}/nodes/positions", dto, ct);
+
     /// <summary>Sposta il nodo su un'altra mappa (sotto i nodi esistenti); i suoi link vengono eliminati.</summary>
     public Task<MapNodeDto> MoveNodeAsync(Guid mapId, Guid nodeId, Guid targetMapId, CancellationToken ct) =>
         SendAsync<MapNodeDto>(HttpMethod.Post, $"api/maps/{mapId}/nodes/{nodeId}/move", new MoveMapNodeDto(targetMapId), ct);

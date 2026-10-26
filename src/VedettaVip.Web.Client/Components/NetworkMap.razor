@@ -84,8 +84,7 @@
             var lines = LabelTemplate.Render(node.LabelTemplate, node.Values).Split('\n');
             var hasIcon = MapIcons.Find(node.Icon) is not null;
             var iconSpace = hasIcon ? IconSpace : 0;
-            var w = Math.Max(70, lines.Max(l => l.Length) * 7 + 20) + iconSpace;
-            var h = Math.Max(lines.Length * 15 + 12, hasIcon ? IconSize + 10 : 0);
+            var (w, h) = MapLayout.NodeSize(lines, hasIcon);
             var textX = iconSpace + (w - iconSpace) / 2.0;
             var textY = h / 2.0 - (lines.Length - 1) * 7.5 + 4;
 

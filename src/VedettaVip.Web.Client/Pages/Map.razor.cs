@@ -70,6 +70,8 @@ public partial class Map : IAsyncDisposable
     private MapPoint? placePoint;
     // Menu contestuale del nodo (clic destro)
     private NodeMenuRequest? nodeMenu;
+    // Menu dello sfondo in modifica (clic destro su un punto vuoto): aggiungi nodo, metti in colonna le sottomappe
+    private BackgroundMenuRequest? backgroundMenu;
     // Nuovo dispositivo creato dalla mappa nel punto scelto: il pannello del device prende il posto di quello di modifica
     private MapPoint? newDeviceAt;
     private int newDeviceKey;
@@ -127,6 +129,7 @@ public partial class Map : IAsyncDisposable
         placePoint = null;
         newDeviceAt = null;
         nodeMenu = null;
+        backgroundMenu = null;
         chartLinkId = null;
         chartNodeId = null;
 
@@ -666,6 +669,7 @@ public partial class Map : IAsyncDisposable
         mapNotice = null;
         editMode = !editMode;
         nodeMenu = null;
+        backgroundMenu = null;
         tool = MapTool.Move;
         selectedId = null;
         placePoint = null;
@@ -684,6 +688,43 @@ public partial class Map : IAsyncDisposable
         selectedId = null;
         placePoint = point;
         newDeviceAt = null;
+    }
+
+    private IEnumerable<MapNode> SubmapNodes() => nodes.Where(n => n.Kind == MapNodeKind.Submap);
+
+    /// <summary>
+    /// "Metti in colonna le sottomappe" (menu dello sfondo): ordine alfabetico dall'alto, allineate a sinistra
+    /// (<see cref="MapLayout.Column"/>, con la larghezza dei nodi come vengono disegnati). Un solo salvataggio per tutte,
+    /// poi ricarica morbida: vista e zoom restano.
+    /// </summary>
+    private async Task ArrangeSubmapsAsync()
+    {
+        if (map is null) return;
+
+        var items = SubmapNodes()
+            .Select(n => new ColumnItem(n.Id, NodeName(n.Id), n.X, n.Y, NetworkMap.NodeSize(n).Width))
+            .ToList();
+        if (items.Count < 2) return;
+
+        var placements = MapLayout.Column(items, StringComparer.CurrentCultureIgnoreCase);
+        try
+        {
+            await Api.UpdateNodePositionsAsync(map.Id,
+                new NodePositionsDto([.. placements.Select(p => new NodePositionItemDto(p.Id, p.X, p.Y))]), cts.Token);
+            saveError = null;
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Sottomappe non messe in colonna");
+            saveError = $"Sottomappe non messe in colonna: {ex.Message}";
+            return;
+        }
+
+        await RefreshFromServerAsync(current: true);
     }
 
     /// <summary>

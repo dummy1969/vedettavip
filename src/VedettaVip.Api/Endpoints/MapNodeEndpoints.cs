@@ -30,6 +30,7 @@ public static class MapNodeEndpoints
         nodes.MapPost("/", CreateNodeAsync).RequireOperator();
         nodes.MapPut("/{nodeId:guid}", UpdateNodeAsync).RequireOperator();
         nodes.MapPut("/{nodeId:guid}/position", UpdatePositionAsync).RequireOperator();
+        nodes.MapPut("/positions", UpdatePositionsAsync).RequireOperator();
         nodes.MapPost("/{nodeId:guid}/move", MoveNodeAsync).RequireOperator();
         nodes.MapDelete("/{nodeId:guid}", DeleteNodeAsync).RequireOperator();
 
@@ -142,6 +143,44 @@ public static class MapNodeEndpoints
                 .SetProperty(n => n.Y, dto.Y), ct);
         if (updated == 0)
             return TypedResults.NotFound();
+
+        await notifier.MapsChangedAsync(db, [mapId]);
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>
+    /// Posizioni di più nodi della mappa in un solo SaveChanges (tutte o nessuna) e un solo MapsChanged, es. "Metti in
+    /// colonna le sottomappe". 400 se un nodo compare due volte, non è di questa mappa o ha coordinate non valide.
+    /// </summary>
+    private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdatePositionsAsync(
+        Guid mapId, NodePositionsDto dto, VedettaVipDbContext db, MapNotifier notifier, CancellationToken ct)
+    {
+        if (!await db.Maps.AnyAsync(m => m.Id == mapId, ct))
+            return TypedResults.NotFound();
+
+        var errors = new Dictionary<string, string[]>();
+        if (dto.Nodes.Count is 0 or > NodePositionsDto.MaxNodes)
+            errors["nodes"] = [$"Servono da 1 a {NodePositionsDto.MaxNodes} nodi."];
+        else if (dto.Nodes.Select(n => n.NodeId).Distinct().Count() != dto.Nodes.Count)
+            errors["nodes"] = ["Un nodo compare più di una volta."];
+        else if (dto.Nodes.Select(n => MapPlacement.ValidatePoint(n.X, n.Y)).FirstOrDefault(e => e is not null) is { } pointError)
+            errors["nodes"] = [pointError];
+        if (errors.Count > 0)
+            return TypedResults.ValidationProblem(errors);
+
+        var ids = dto.Nodes.Select(n => n.NodeId).ToList();
+        var entities = await db.MapNodes.Where(n => n.MapId == mapId && ids.Contains(n.Id)).ToDictionaryAsync(n => n.Id, ct);
+        if (entities.Count != ids.Count)
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["nodes"] = [$"{ids.Count - entities.Count} nodi non esistono o non sono di questa mappa."]
+            });
+
+        foreach (var item in dto.Nodes)
+            (entities[item.NodeId].X, entities[item.NodeId].Y) = (item.X, item.Y);
+
+        if (await db.TrySaveChangesAsync(ct) is { } saveProblem)
+            return saveProblem;
 
         await notifier.MapsChangedAsync(db, [mapId]);
         return TypedResults.NoContent();

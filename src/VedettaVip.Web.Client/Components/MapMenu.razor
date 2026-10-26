@@ -1,0 +1,24 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+<div class="map-menu-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault></div>
+<div class="map-menu" role="menu" tabindex="-1" @ref="menu" @onkeydown="OnKeyDown"
+     style="left: @Px(X); top: @Px(Y)" @oncontextmenu:preventDefault>
+    <button type="button" class="map-menu-item" role="menuitem" @onclick="AddNodeAsync">Aggiungi nodo qui</button>
+    @if (arrangeConfirm)
+    {
+        <button type="button" class="map-menu-item confirm" role="menuitem" @onclick="ArrangeAsync">
+            Conferma: metti in colonna @SubmapCount sottomappe
+        </button>
+    }
+    else
+    {
+        <button type="button" class="map-menu-item" role="menuitem" disabled="@(SubmapCount < 2)"
+                title="@(SubmapCount < 2 ? "Servono almeno due sottomappe su questa mappa" : null)"
+                @onclick="() => arrangeConfirm = true">
+            Metti in colonna le sottomappe (A→Z)
+        </button>
+    }
+    <div class="map-menu-help">In ordine alfabetico dall'alto, allineate a sinistra a partire dalla sottomappa più in alto
+        e più a sinistra. Dispositivi, nodi statici e link non si spostano.</div>
+</div>

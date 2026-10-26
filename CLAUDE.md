@@ -331,6 +331,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | POST | `/api/maps/{mapId}/nodes` | `CreateMapNodeDto` → 201; 400 se incoerente, 409 se duplicato o ciclo |
 | PUT | `/api/maps/{mapId}/nodes/{nodeId}` | `UpdateMapNodeDto` (LabelTemplate, Icon) → 200 `MapNodeDto`; vuoto = etichetta di default |
 | PUT | `/api/maps/{mapId}/nodes/{nodeId}/position` | `{ "x", "y" }` → 204 / 404 |
+| PUT | `/api/maps/{mapId}/nodes/positions` | `NodePositionsDto` (1–1000 `{ nodeId, x, y }`) → 204; un solo SaveChanges e un solo `MapsChanged`; 400 se un nodo è ripetuto, non è della mappa o ha coordinate non valide |
 | POST | `/api/maps/{mapId}/nodes/{nodeId}/move` | `MoveMapNodeDto` (TargetMapId, X?/Y?: senza = sotto i nodi esistenti) → 200; elimina i link del nodo; un nodo Submap porta con sé la sottomappa e tutto il contenuto |
 | DELETE | `/api/maps/{mapId}/nodes/{nodeId}` | 204; i link cadono in CASCADE |
 | GET/PUT/DELETE | `/api/maps/{mapId}/links/{linkId}` | `MapLinkDto` / `MapLinkUpsertDto` → 204 / 204 |
@@ -689,7 +690,14 @@ usare ASP.NET Core Data Protection o un secret store.
   **Collega** (trascina da un nodo a un altro; in Sposta anche con **Shift + trascina**). Il link nasce a 1 Gbps
   senza sorgente di traffico e resta selezionato per completarlo.
 - **Clic destro su un nodo** (anche fuori da Modifica): menu contestuale (`NodeMenu`, vedi "Apri con WinBox").
-- **Clic destro** su un punto vuoto (o "Usa il centro della vista") → mirino e form "Aggiungi nodo":
+- **Clic destro** su un punto vuoto in Modifica → menu dello sfondo (`Components/MapMenu`, `NetworkMap.OnBackgroundMenu`):
+  **"Aggiungi nodo qui"** e **"Metti in colonna le sottomappe (A→Z)"** (conferma al secondo clic, almeno due sottomappe).
+  L'incolonnamento (`VedettaVip.Shared/Models/MapLayout.Column`, coperto da test) mette solo i nodi Submap in ordine
+  alfabetico (`CurrentCultureIgnoreCase`, a parità di nome l'Id), dall'alto in basso ogni 60 px, **allineati a sinistra** sul
+  bordo del nodo più a sinistra e a partire da quello più in alto; dispositivi, nodi statici e link non si muovono. Le
+  coordinate dei nodi sono il centro e la larghezza dipende dall'etichetta: la calcola il client con `MapLayout.NodeSize`, la
+  stessa formula del disegno, e salva tutto con `PUT .../nodes/positions`; la X non è sulla griglia (vince l'allineamento).
+- **"Aggiungi nodo qui"** (o "Usa il centro della vista") → mirino e form "Aggiungi nodo":
   dispositivo non ancora sulla mappa, sottomappa (mappe radice esistenti o nuova mappa), nodo statico.
   **"+ Nuovo dispositivo..."** (voce del select Dispositivo) apre `DeviceEditor` al posto del pannello di modifica
   (`PlaceOnMapId`/`PlaceAt`: niente select "Aggiungi alla mappa"); clienti, profili e soglie si caricano solo all'apertura.

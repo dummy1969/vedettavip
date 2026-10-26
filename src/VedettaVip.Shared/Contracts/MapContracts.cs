@@ -65,6 +65,19 @@ public sealed record NodePositionDto(
     [property: Range(-1_000_000d, 1_000_000d)] double X,
     [property: Range(-1_000_000d, 1_000_000d)] double Y);
 
+/// <summary>Nuova posizione di un nodo in un salvataggio in blocco (es. "Metti in colonna le sottomappe").</summary>
+public sealed record NodePositionItemDto(
+    Guid NodeId,
+    [property: Range(-1_000_000d, 1_000_000d)] double X,
+    [property: Range(-1_000_000d, 1_000_000d)] double Y);
+
+/// <summary>Posizioni di più nodi della stessa mappa, salvate insieme (tutte o nessuna).</summary>
+public sealed record NodePositionsDto(
+    [property: Required, MinLength(1), MaxLength(NodePositionsDto.MaxNodes)] IReadOnlyList<NodePositionItemDto> Nodes)
+{
+    public const int MaxNodes = 1000;
+}
+
 public sealed record CreateMapNodeDto(
     [property: Required] MapNodeKind? Kind,
     Guid? DeviceId,

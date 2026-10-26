@@ -22,6 +22,9 @@ public readonly record struct LinkRequest(Guid FromNodeId, Guid ToNodeId);
 /// <summary>Clic destro su un nodo, alla posizione del puntatore nella finestra: apre il menu contestuale.</summary>
 public readonly record struct NodeMenuRequest(MapNode Node, double ClientX, double ClientY);
 
+/// <summary>Clic destro sullo sfondo in modifica: punto della mappa (allineato alla griglia) e posizione del puntatore.</summary>
+public readonly record struct BackgroundMenuRequest(MapPoint Point, double ClientX, double ClientY);
+
 public partial class NetworkMap : IAsyncDisposable
 {
     // Sotto questa distanza (pixel schermo) un pointerdown/up è un clic, non un trascinamento
@@ -58,6 +61,8 @@ public partial class NetworkMap : IAsyncDisposable
     [Parameter] public EventCallback<NodeMenuRequest> OnNodeMenu { get; set; }
     /// <summary>Clic destro sullo sfondo: punto (già allineato alla griglia) per un nuovo nodo.</summary>
     [Parameter] public EventCallback<MapPoint> OnPlaceRequested { get; set; }
+    /// <summary>Clic destro sullo sfondo con menu (aggiungi nodo, disponi): se impostato sostituisce OnPlaceRequested.</summary>
+    [Parameter] public EventCallback<BackgroundMenuRequest> OnBackgroundMenu { get; set; }
 
     private ElementReference svg;
     private IJSObjectReference? module;
@@ -266,7 +271,10 @@ public partial class NetworkMap : IAsyncDisposable
 
         var b = await GetBoundsAsync();
         var point = Snap((e.ClientX - b.Left - panX) / zoom, (e.ClientY - b.Top - panY) / zoom);
-        await OnPlaceRequested.InvokeAsync(point);
+        if (OnBackgroundMenu.HasDelegate)
+            await OnBackgroundMenu.InvokeAsync(new BackgroundMenuRequest(point, e.ClientX, e.ClientY));
+        else
+            await OnPlaceRequested.InvokeAsync(point);
     }
 
     private void OnWheel(WheelEventArgs e)
@@ -312,7 +320,11 @@ public partial class NetworkMap : IAsyncDisposable
     };
 
     /// <summary>Lato dell'icona del nodo e spazio orizzontale che occupa (margini compresi).</summary>
-    private const int IconSize = 22, IconSpace = 30;
+    private const int IconSize = MapLayout.IconSize, IconSpace = MapLayout.IconSpace;
+
+    /// <summary>Riquadro del nodo come viene disegnato (etichetta con i valori attuali, icona).</summary>
+    public static (double Width, double Height) NodeSize(MapNode node) =>
+        MapLayout.NodeSize(LabelTemplate.Render(node.LabelTemplate, node.Values).Split('\n'), MapIcons.Find(node.Icon) is not null);
 
     /// <summary>Icone presenti sulla mappa, una volta sola: solo queste diventano symbol nei defs.</summary>
     private IEnumerable<MapIcon> UsedIcons() =>

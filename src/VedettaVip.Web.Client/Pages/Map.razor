@@ -124,8 +124,14 @@ else
                         Editable="editMode" Tool="tool" SelectedId="selectedId" PlacePoint="placePoint"
                         OnNodeMoved="SavePositionAsync" OnNodeOpen="OpenNode" OnSelect="Select"
                         OnLinkRequested="CreateLinkAsync" OnPlaceRequested="PlaceAt" OnLinkOpen="OpenChart"
-                        OnNodeMenu="r => nodeMenu = r" />
+                        OnNodeMenu="r => nodeMenu = r" OnBackgroundMenu="r => backgroundMenu = r" />
         </div>
+        @if (editMode && backgroundMenu is { } bm)
+        {
+            <MapMenu @key="bm" X="bm.ClientX" Y="bm.ClientY" SubmapCount="SubmapNodes().Count()"
+                     OnClose="() => backgroundMenu = null" OnAddNode="() => PlaceAt(bm.Point)"
+                     OnArrangeSubmaps="ArrangeSubmapsAsync" />
+        }
         @if (nodeMenu is { } m)
         {
             <NodeMenu @key="m" Node="m.Node" X="m.ClientX" Y="m.ClientY" Editing="editMode"
