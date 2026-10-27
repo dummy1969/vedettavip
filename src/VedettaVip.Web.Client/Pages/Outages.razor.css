@@ -1,0 +1,71 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+/* Stesso aspetto della pagina Eventi e della scheda Interruzioni del dispositivo */
+.outages-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.outages-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0 0 0.75rem;
+}
+
+.outages-filters select { max-width: 240px; width: auto; }
+.outages-filters input { max-width: 280px; }
+
+.outages-table {
+    overflow-x: auto;
+}
+
+.outages-table table {
+    font-size: 0.9rem;
+}
+
+.outages-table thead th {
+    white-space: nowrap;
+}
+
+.outages-table .sort {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font-weight: 600;
+}
+
+.outages-table .sort:hover {
+    color: #0d6efd;
+}
+
+.outages-table tr.active td {
+    background: #fff5f5;
+}
+
+.device-link {
+    text-align: left;
+    vertical-align: baseline;
+}
+
+.flag {
+    margin-right: 0.3rem;
+    color: #dc3545;
+}
+
+.state-active {
+    color: #b02a37;
+    font-weight: 600;
+}
+
+.state-resolved {
+    color: #6c757d;
+}
+
+.detail {
+    min-width: 14rem;
+}

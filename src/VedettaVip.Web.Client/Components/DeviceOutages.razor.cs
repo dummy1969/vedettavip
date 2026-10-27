@@ -30,7 +30,7 @@ public partial class DeviceOutages : IDisposable
 
     private enum SortColumn { Status, Start, Duration, Service }
 
-    private static readonly (string Value, string Label, int Days)[] Periods =
+    internal static readonly (string Value, string Label, int Days)[] Periods =
     [
         ("1", "ultime 24 ore", 1), ("7", "ultimi 7 giorni", 7), ("30", "ultimi 30 giorni", 30), ("90", "ultimi 90 giorni", 90),
         ("365", "ultimo anno", 365), ("all", "tutto lo storico", 0)
@@ -230,7 +230,7 @@ public partial class DeviceOutages : IDisposable
 
     private static string Count(int n, string one, string many) => n == 1 ? $"1 {one}" : $"{n} {many}";
 
-    private static TimeSpan DurationOf(OutageDto o, DateTimeOffset now) => (o.EndedAt ?? now) - o.StartedAt;
+    internal static TimeSpan DurationOf(OutageDto o, DateTimeOffset now) => (o.EndedAt ?? now) - o.StartedAt;
 
     internal static string DurationText(TimeSpan d) => Labels.Duration(d);
 
@@ -244,7 +244,7 @@ public partial class DeviceOutages : IDisposable
     };
 
     /// <summary>Inizio nell'ora locale; l'anno solo se diverso da quello corrente.</summary>
-    private static string StartText(DateTimeOffset at)
+    internal static string StartText(DateTimeOffset at)
     {
         var local = at.ToLocalTime();
         var format = local.Year == DateTimeOffset.Now.Year ? "dd/MM HH:mm:ss" : "dd/MM/yyyy HH:mm:ss";
@@ -253,7 +253,7 @@ public partial class DeviceOutages : IDisposable
 
     private static string FullTime(DateTimeOffset at) => at.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.InvariantCulture);
 
-    private static string RowTitle(OutageDto o) => o.EndedAt is { } end
+    internal static string RowTitle(OutageDto o) => o.EndedAt is { } end
         ? $"Dal {FullTime(o.StartedAt)} al {FullTime(end)}"
         : $"Dal {FullTime(o.StartedAt)}, ancora in corso";
 

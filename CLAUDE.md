@@ -68,7 +68,7 @@ Restano volutamente "netmap"/"NetMap" (non cambiarli):
 | Database            | PostgreSQL + **TimescaleDB** per le metriche                        |
 | ORM                 | EF Core (Npgsql)                                                    |
 | SNMP                | Lextm.SharpSnmpLib (v1/v2c/v3, Get/BulkWalk, trap)                  |
-| RouterOS            | tik4net (API 8728/8729) e/o REST API v7 (`/rest` su HTTPS)          |
+| RouterOS            | client API classico scritto in casa (`RouterOsApiClient`, 8728/8729) |
 | Scheduling          | `BackgroundService` + `PeriodicTimer` (Quartz.NET solo se serve)    |
 | Test                | xUnit                                                               |
 | Deploy              | Docker Compose                                                      |
@@ -165,7 +165,7 @@ VedettaVip.Worker (agente)                         VedettaVip.Api               
   vengono interrogati immediatamente con isteresi azzerata: un device raggiungibile è Up in ~30 s (secondo ping
   al ciclo successivo). Mai due poll in parallelo sullo stesso device. Fallback: refresh periodico
   `Agent:TargetsRefreshSeconds` (120 s) se l'hub non è raggiungibile.
-- **Traffico dei link** (implementato, live, non ancora storicizzato):
+- **Traffico dei link** (implementato, live; storico in `Metrics`, vedi "Storico del traffico"):
   - `AgentTargetDto.IfIndexes` = interfacce usate come sorgente da almeno un link; cambiare DeviceId/IfIndex di
     un link notifica `TargetsChanged` agli agenti.
   - Il Worker aggiunge al GET SNMP di `sysUpTime` (stesso pacchetto) `ifHCInOctets`, `ifHCOutOctets`,
@@ -181,7 +181,7 @@ VedettaVip.Worker (agente)                         VedettaVip.Api               
   - Mappa: tx = From → To. Interfaccia del device del nodo To ⇒ tx = In; altrimenti (nodo From o terzo device)
     tx = Out. Link con sorgente ma senza dati da più di 90 s: grigio con "n/d"; senza sorgente: grigio
     tratteggiato. Il pannello del link mostra ifName e velocità rilevati. Simulazione di traffico e CPU rimossa
-    (`[Cpu]` mostra "?" finché non arriva l'integrazione RouterOS).
+    (`[Cpu]` e le altre variabili RouterOS mostrano "?" finché non arriva una lettura, vedi "Integrazione RouterOS").
 - **Inventario interfacce** (`Services/InterfaceInventoryService.cs`, solo SNMP v2c): walk GetBulk di `ifName`,
   `ifAlias` (il comment di RouterOS), `ifHighSpeed`, `ifOperStatus` con `SnmpProbe.WalkColumnAsync` (request-id
   positivi, **non** `Messenger.BulkWalk`). Al primo avvistamento, al cambio di indirizzo/SNMP, ogni
@@ -214,7 +214,7 @@ VedettaVip.Worker (agente)                         VedettaVip.Api               
 - **ICMP su Linux**: .NET usa socket raw (CAP_NET_RAW), socket ICMP non privilegiati se
   `net.ipv4.ping_group_range` lo consente, altrimenti l'eseguibile `ping`.
 
-## Modello dati (EF Core, migrations `InitialCreate`, `AddDeviceStatusAndAgents`, `AddDeviceInterfaces`)
+## Modello dati (EF Core, migrations in `Data/Migrations`, dalla `InitialCreate` alla `NotificationChannelEvents`)
 
 Entità in `src/VedettaVip.Api/Data/Entities/`, configurazioni Fluent in `Data/Configurations/`,
 seed in `Data/SeedData.cs`, migrations in `Data/Migrations/`. DTO ed enum condivisi in
@@ -225,10 +225,11 @@ Convenzioni: Id `uuid` (generati con `Guid.CreateVersion7()`), tranne `Event.Id`
 enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne PascalCase
 (in psql vanno tra doppi apici: `select "Name" from "Devices"`).
 
-- **Device**: Id, Name(128), Address(255, IP o hostname), Type (`Router/Switch/AccessPoint/Server/Other`),
-  Icon?, SnmpVersion (`None/V1/V2c/V3`), SnmpCredentialId? (**senza FK**: in futuro punterà a
-  *profili* di credenziali condivisi tra più device, cifrati con Data Protection), RouterOsApiEnabled,
-  ParentDeviceId? (FK → Device, `SET NULL`; niente auto-riferimento né cicli, verificati dall'API), Enabled.
+- **Device**: Id, Name(128), Address(255, IP o hostname), Type (`DeviceType`: Router, Switch, AccessPoint, Server,
+  Firewall, Storage, Pc, Printer, Camera, Phone, Ups, Other), Icon?, SnmpVersion (`None/V1/V2c/V3`), SnmpCredentialId?
+  (FK **RESTRICT** → `SnmpCredentials`, profilo SNMP), RouterOsApiEnabled, RouterOsCredentialId? (FK RESTRICT),
+  CustomerId? (FK `SET NULL`), ParentDeviceId? (FK → Device, `SET NULL`; niente auto-riferimento né cicli, verificati
+  dall'API), Enabled.
 - **Map**: Id, Name(128), ParentMapId? (FK → Map, `RESTRICT`), BackgroundImage?(512), GridSize (> 0).
 - **MapNode**: Id, MapId (FK, `CASCADE`), Kind (`Device/Submap/Static`), DeviceId? (FK, `RESTRICT`),
   SubmapId? (FK → Map, `RESTRICT`), X, Y, LabelTemplate(512), Icon?.
@@ -260,8 +261,8 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
   Alias(256)?, SpeedBps?, OperStatus (`Up/Down/Other`), UpdatedAt (orologio dell'API). FK → Device **`CASCADE`**
   (inventario derivato, come DeviceStatus).
 - **Device**: anche DownAfterFailures?, UpAfterSuccesses?, SnmpDegradedAfterFailures? (CHECK 1–100; null = valore
-  generale). Migration `AddDetectionThresholds`. Vendor (`Generic/MikroTik`, testo, default `Generic`; migration
-  `AddDeviceVendorAndWinBox`, che ha segnato MikroTik i device con `RouterOsApiEnabled`). NotificationsMuted (bool,
+  generale). Migration `AddDetectionThresholds`. Vendor (`DeviceVendor`: Generic, MikroTik, Cisco, DrayTek, Fritz, TpLink;
+  testo, default `Generic`; migration `AddDeviceVendorAndWinBox`, che ha segnato MikroTik i device con `RouterOsApiEnabled`). NotificationsMuted (bool,
   migration `DeviceNotificationsMuted`): notifiche disattivate, il device resta monitorato. WinBoxPort? (CHECK 1–65535,
   migration `WinBoxPort`, con `MonitoringSettings.WinBoxDefaultPort`): porta per "Apri con WinBox", null = generale.
   WebAccess/TerminalAccess (testo, default None) + WebPort?/TerminalPort? (CHECK 1–65535; migration `RemoteAccess`, con le
@@ -285,7 +286,7 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
 - **Notifiche** (migration `AddNotifications`): `Customers` (Name unico), `Contacts`, `Subscriptions` (CHECK di
   coerenza ambito/cliente/mappa; FK CASCADE da contatto, cliente e mappa), `NotificationSettings` (riga unica Id = 1,
   segreti cifrati), `NotificationDeliveries` (FK Event CASCADE, Contact SET NULL), `DataProtectionKeys`.
-  `Events` ha in più AgentId?, FromState?, ToState?, NotifyState (`None/Pending/Done/Suppressed`; gli eventi
+  `Events` ha in più AgentId?, FromState?, ToState?, NotifyState (`None/Pending/Done/Suppressed/Maintenance`; gli eventi
   esistenti prima della migration sono `None`; `Maintenance` = rimandato per manutenzione), NotifyAfter?, NotifyNote?,
   AlertKey?, LastReminderAt?, ReminderCount. Migration `AddEventResolvedAt`: ResolvedAt?
   (chiusura automatica al ripristino); gli eventi Info esistenti sono stati marcati presi in carico. Migration
@@ -384,7 +385,7 @@ usare ASP.NET Core Data Protection o un secret store.
 | POST | `/api/discovery/accept`, `/ignore`, `/refresh` | conferma (`DiscoveryAcceptDto`), ignora/ripristina, "Scopri ora"; Operatore |
 | GET/PUT | `/api/settings/remote-access` | `RemoteAccessSettingsDto` (percorsi di WinBox 4 e PuTTY per Windows e Linux, null = ricerca; porte predefinite WinBox/HTTP/HTTPS/SSH/Telnet, null = standard); GET per tutti, PUT Admin |
 | GET | `/api/winbox/handler/{windows\|linux}` | installer del gestore dei link (`winbox://`, `vedettavip-ssh://`, `vedettavip-telnet://`) con i percorsi già scritti (`.cmd` / `.sh`) |
-| GET | `/api/outages` | `?deviceId&customerId&status=All\|Active\|Resolved&service&from&before&limit` (max 2000) → `OutageDto[]`, più recenti prima; senza deviceId = vista globale |
+| GET | `/api/outages` | `?deviceId&customerId&noCustomer&status=All\|Active\|Resolved&service&from&before&limit` (max 2000) → `OutageDto[]`, più recenti prima; senza deviceId = vista globale (`noCustomer` = device senza cliente) |
 | GET | `/api/outages/export` | stessi filtri di `/api/outages` (senza limit) → CSV (max 100.000 righe) |
 | DELETE | `/api/outages/resolved` | `?deviceId&service` → `OutageDeleteResultDto` ("Rimuovi risolte"; gli eventi restano); Operatore |
 | GET | `/api/devices/{id}/availability` | `?from&to` (default 30 giorni) → `OutageSummaryDto` (interruzioni, in corso, tempo giù al ping, disponibilità) |
@@ -602,7 +603,8 @@ usare ASP.NET Core Data Protection o un secret store.
 
 - **Destinatari**: `Customers` (clienti; `Device.CustomerId`, FK `SET NULL`), `Contacts` (email e/o chat Telegram, almeno
   un canale) e `Subscriptions` del contatto: ambito `All` / `Customer` / `Map` (la mappa include le sottomappe),
-  `Filter` (`DownOnly` / `DownAndPartial`), `NotifyRecovery`. Destinatari di un evento sul device D: iscritti a
+  `Filter` (`AlertFilter`: `DownOnly` / `DownAndPartial` / `AllProblems`, quest'ultimo anche per le soglie),
+  `NotifyRecovery`. Destinatari di un evento sul device D: iscritti a
   All + al cliente di D + a ogni mappa (con gli antenati) che contiene D; un solo invio per contatto e canale.
   Eventi degli agenti: solo iscritti a All.
 - **Outbox = Event**: `DeviceStatusService` crea l'evento con `NotifyState = Pending` e `NotifyAfter = adesso +
@@ -679,7 +681,7 @@ usare ASP.NET Core Data Protection o un secret store.
 - `Components/SettingsShell`: sottomenu a sinistra (a schede sotto i 900 px) e titolo/azioni della pagina; dentro c'è
   già `AdminOnly`. Sezioni: **Monitoraggio** (`/settings` e `/settings/monitoring`: rilevazione dello stato, soglie delle
   metriche), **Profili SNMP**, **Profili RouterOS**, **Accesso remoto** (porte, percorsi di WinBox e PuTTY, gestore dei link), **Notifiche** (SMTP, Telegram, invio), **Contatti**, **Clienti**, **Utenti**, **Dashboard**.
-- Menu principale: Home, Mappa, Dispositivi, Eventi, Manutenzione, Impostazioni. Le vecchie route `/users`,
+- Menu principale: Home, Mappa, Dispositivi, Scoperta, Eventi, Interruzioni, Manutenzione, Impostazioni, About. Le vecchie route `/users`,
   `/customers`, `/contacts` restano valide e attivano la stessa voce del sottomenu.
 - Una nuova sezione: pagina con `<SettingsShell Title="...">` e voce in `SettingsShell.Sections`.
 
@@ -797,7 +799,13 @@ usare ASP.NET Core Data Protection o un secret store.
   manutenzione; filtri stato/servizio/periodo, ordinamento per colonna, riepilogo con disponibilità (`OutageStats`), ricarica
   ogni 30 s, "Rimuovi risolte" (Operatore, rispetta il filtro servizio).
 - **Export CSV** (bottone "Esporta CSV" della scheda, con i filtri attivi): vedi "Export CSV" sotto.
-- Vista globale: l'API è pronta (`GET /api/outages` senza deviceId, filtro cliente, nome/indirizzo/cliente nel DTO); manca la pagina.
+- **Pagina globale `/outages`** (voce "Interruzioni" del menu, `Pages/Outages`, per tutti): tutte le interruzioni da
+  `GET /api/outages` senza deviceId (max 2000, le più recenti), colonne stato, inizio, durata (dal vivo), dispositivo
+  (clic = `DeviceCharts` sopra la tabella), cliente, servizio, dettaglio; filtri stato, cliente (anche "senza cliente",
+  `noCustomer`), servizio, periodo (default 30 giorni) e ricerca nel browser su nome, indirizzo, cliente e dettaglio;
+  ordinamento per colonna, ricarica ogni 30 s, "Esporta CSV" con gli stessi filtri (ricerca esclusa). Filtri iniziali
+  dall'indirizzo: `/outages?status=Active&customer=<id|none>`. Niente "Rimuovi risolte" (resta nella scheda del device).
+  Testi e formati condivisi con `DeviceOutages` (`Periods`, `StartText`, `RowTitle`, `DurationOf`, `ServiceLabel`).
 
 ### Export CSV (implementato)
 
@@ -979,8 +987,8 @@ OID utili:
 - [x] Modello dati EF Core (Npgsql) + migration `InitialCreate` con seed del prototipo + API minimal
       (mappe, nodi con invariante sottomappe, CRUD device con 409 se in uso) + CORS per VedettaVip.Web.
 - [x] Mappa caricata dall'API nel client: `/map` (mappa iniziale: ultima usata, poi radice con più nodi) e `/map/{id}`, PUT della posizione
-      al rilascio, doppio clic sulla sottomappa per aprirla, link alla mappa padre. Traffico e CPU ancora
-      simulati. Rimosse le pagine di esempio Counter e Weather.
+      al rilascio, doppio clic sulla sottomappa per aprirla, link alla mappa padre. Rimosse le pagine di esempio Counter e
+      Weather (traffico e CPU, allora simulati, oggi sono reali).
 - [x] Endpoint CRUD per mappe e link (`MapEndpoints`, `MapLinkEndpoints`); più link tra la stessa coppia
       di nodi sono ammessi (uplink ridondanti).
 - [x] Modalità modifica / sola visualizzazione sulla mappa: aggiunta nodi (clic destro), link trascinando tra
@@ -1013,7 +1021,7 @@ OID utili:
       proposte unite per IP, produttore dal MAC (OUI IEEE), "Ignora selezionati". Da fare: auto-layout.
 - [x] Sottomappe con stato aggregato (ricorsivo, live via SignalR, badge e riepilogo nell'etichetta).
 - [x] Storico dei down per device (scheda Interruzioni: ping, SNMP, interfacce, WireGuard, soglie; manutenzione, disponibilità,
-      "Rimuovi risolte"). Da fare: pagina globale delle interruzioni.
+      "Rimuovi risolte") e pagina globale `/outages` (1.3.7).
 - [x] Soglie di rilevazione (ping persi per Down, riusciti per Up, errori SNMP per Partial) configurabili dalla UI:
       generali (pagina Impostazioni) e per singolo device.
 - [x] Notifiche email (MailKit, SMTP configurabile dalla UI) e Telegram, destinatari per cliente/mappa/tutto, outbox

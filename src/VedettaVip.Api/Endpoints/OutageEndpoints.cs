@@ -34,14 +34,14 @@ public static class OutageEndpoints
     /// <summary>
     /// Interruzioni, le più recenti per prime. <paramref name="from"/>: solo quelle che toccano il periodo da lì in poi
     /// (le aperte sempre); <paramref name="before"/>: iniziate prima di quell'istante (pagina successiva). Senza deviceId
-    /// è la vista globale, con il cliente come filtro.
+    /// è la vista globale, con il cliente come filtro (<paramref name="noCustomer"/>: device senza cliente).
     /// </summary>
     private static async Task<Ok<List<OutageDto>>> GetOutagesAsync(
         VedettaVipDbContext db, CancellationToken ct, Guid? deviceId = null, Guid? customerId = null,
         OutageStatusFilter status = OutageStatusFilter.All, OutageService? service = null,
-        DateTimeOffset? from = null, DateTimeOffset? before = null, int limit = 500)
+        DateTimeOffset? from = null, DateTimeOffset? before = null, int limit = 500, bool noCustomer = false)
     {
-        var list = await ListQuery(db, deviceId, customerId, status, service, from, before)
+        var list = await ListQuery(db, deviceId, customerId, noCustomer, status, service, from, before)
             .Take(Math.Clamp(limit, 1, MaxLimit))
             .Select(o => new OutageDto(o.Id, o.DeviceId, o.Device!.Name, o.Device.Address,
                 o.Device.Customer != null ? o.Device.Customer.Name : null,
@@ -57,11 +57,11 @@ public static class OutageEndpoints
     private static async Task<FileContentHttpResult> ExportAsync(
         VedettaVipDbContext db, NotificationSettingsService settings, TimeProvider time, CancellationToken ct,
         Guid? deviceId = null, Guid? customerId = null, OutageStatusFilter status = OutageStatusFilter.All, OutageService? service = null,
-        DateTimeOffset? from = null, DateTimeOffset? before = null)
+        DateTimeOffset? from = null, DateTimeOffset? before = null, bool noCustomer = false)
     {
         var zone = settings.TimeZone(await settings.LoadAsync(db, ct));
         var now = time.GetUtcNow();
-        var rows = await ListQuery(db, deviceId, customerId, status, service, from, before)
+        var rows = await ListQuery(db, deviceId, customerId, noCustomer, status, service, from, before)
             .Take(NotificationEndpoints.MaxExportRows)
             .Select(o => new
             {
@@ -98,11 +98,12 @@ public static class OutageEndpoints
     }
 
     /// <summary>Filtri dell'elenco (condivisi con l'export): le più recenti per prime.</summary>
-    private static IQueryable<Outage> ListQuery(VedettaVipDbContext db, Guid? deviceId, Guid? customerId, OutageStatusFilter status,
-        OutageService? service, DateTimeOffset? from, DateTimeOffset? before)
+    private static IQueryable<Outage> ListQuery(VedettaVipDbContext db, Guid? deviceId, Guid? customerId, bool noCustomer,
+        OutageStatusFilter status, OutageService? service, DateTimeOffset? from, DateTimeOffset? before)
     {
         var query = Filter(db.Outages.AsNoTracking(), deviceId, status, service);
         if (customerId is { } cid) query = query.Where(o => o.Device!.CustomerId == cid);
+        else if (noCustomer) query = query.Where(o => o.Device!.CustomerId == null);
         if (from is { } f)
         {
             var fromUtc = f.ToUniversalTime();

@@ -1,0 +1,146 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@page "/outages"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
+@using VedettaVip.Web.Client.Components
+
+<PageTitle>Interruzioni - VedettaVip</PageTitle>
+
+<div class="outages-header">
+    <h3>Interruzioni</h3>
+    @if (outages is not null)
+    {
+        <span class="small text-muted">
+            @if (ActiveCount() is > 0 and var active)
+            {
+                <span class="badge text-bg-danger me-1">@active in corso</span>
+            }
+            @Visible().Count() di @outages.Count
+        </span>
+    }
+    <a class="btn btn-sm btn-outline-secondary ms-auto" href="@ExportUrl" download
+       title="Le interruzioni in CSV, con i filtri attivi tranne la ricerca (massimo 100.000, le più recenti)">Esporta CSV</a>
+</div>
+
+<p class="small text-muted">
+    Tutti i periodi in cui un servizio di un dispositivo è stato giù: ping (Down), SNMP (Partial), interfacce e tunnel
+    sorvegliati, soglie. Indipendenti dalla presa in carico degli eventi; le durate in corso si aggiornano dal vivo.
+</p>
+
+<div class="outages-filters">
+    <input class="form-control form-control-sm" type="search" placeholder="Cerca dispositivo, indirizzo, dettaglio"
+           aria-label="Cerca" @bind="search" @bind:event="oninput" />
+    <select class="form-select form-select-sm" aria-label="Stato" @bind="status" @bind:after="ReloadAsync">
+        <option value="@nameof(OutageStatusFilter.All)">Tutte</option>
+        <option value="@nameof(OutageStatusFilter.Active)">In corso</option>
+        <option value="@nameof(OutageStatusFilter.Resolved)">Risolte</option>
+    </select>
+    <select class="form-select form-select-sm" aria-label="Cliente" @bind="customer" @bind:after="ReloadAsync">
+        <option value="">Tutti i clienti</option>
+        <option value="@NoneFilter">Senza cliente</option>
+        @foreach (var c in customers)
+        {
+            <option value="@c.Id">@c.Name</option>
+        }
+    </select>
+    <select class="form-select form-select-sm" aria-label="Servizio" @bind="service" @bind:after="ReloadAsync">
+        <option value="">Tutti i servizi</option>
+        @foreach (var s in Services)
+        {
+            <option value="@s">@DeviceOutages.ServiceLabel(s)</option>
+        }
+    </select>
+    <select class="form-select form-select-sm" aria-label="Periodo" @bind="period" @bind:after="ReloadAsync">
+        @foreach (var p in DeviceOutages.Periods)
+        {
+            <option value="@p.Value">@p.Label</option>
+        }
+    </select>
+    @if (FiltersActive)
+    {
+        <button class="btn btn-sm btn-link" @onclick="ResetFiltersAsync">Azzera filtri</button>
+    }
+</div>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger py-1 px-2 small">@error</div>
+}
+
+@if (chartsOutage is { } charted)
+{
+    <DeviceCharts @key="charted.DeviceId" DeviceId="charted.DeviceId" Title="@charted.DeviceName" Address="@charted.DeviceAddress"
+                  OnClose="() => chartsOutage = null" />
+}
+
+@if (outages is null)
+{
+    <p><em>Caricamento...</em></p>
+}
+else if (!Visible().Any())
+{
+    <p class="text-muted">Nessuna interruzione con questi filtri.</p>
+}
+else
+{
+    <div class="outages-table">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Status)">Stato@(SortMark(SortColumn.Status))</button></th>
+                    <th><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Start)">Inizio@(SortMark(SortColumn.Start))</button></th>
+                    <th class="text-end"><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Duration)">Durata@(SortMark(SortColumn.Duration))</button></th>
+                    <th><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Device)">Dispositivo@(SortMark(SortColumn.Device))</button></th>
+                    <th><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Customer)">Cliente@(SortMark(SortColumn.Customer))</button></th>
+                    <th><button type="button" class="sort" @onclick="() => SortBy(SortColumn.Service)">Servizio@(SortMark(SortColumn.Service))</button></th>
+                    <th>Dettaglio</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ var now = DateTimeOffset.UtcNow; }
+                @foreach (var o in Sorted(now))
+                {
+                    <tr class="@(o.EndedAt is null ? "active" : "")" title="@DeviceOutages.RowTitle(o)">
+                        <td class="text-nowrap">
+                            @if (o.EndedAt is null)
+                            {
+                                <span class="flag" aria-hidden="true">⚑</span><span class="state-active">in corso</span>
+                            }
+                            else
+                            {
+                                <span class="state-resolved">risolta</span>
+                            }
+                        </td>
+                        <td class="text-nowrap font-monospace">@DeviceOutages.StartText(o.StartedAt)</td>
+                        <td class="text-nowrap text-end font-monospace">@DeviceOutages.DurationText(DeviceOutages.DurationOf(o, now))</td>
+                        <td>
+                            <button type="button" class="btn btn-link btn-sm p-0 device-link" title="Grafici e interruzioni del dispositivo"
+                                    @onclick="() => chartsOutage = o">@o.DeviceName</button>
+                            <small class="text-muted font-monospace ms-1">@o.DeviceAddress</small>
+                        </td>
+                        <td class="small">@o.CustomerName</td>
+                        <td class="text-nowrap">@DeviceOutages.ServiceLabel(o.Service)</td>
+                        <td class="detail">
+                            @o.Detail
+                            @if (o.Maintenance is { } maintenance)
+                            {
+                                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle ms-1"
+                                      title="Finestra di manutenzione: @maintenance">manutenzione</span>
+                            }
+                            @if (o.EndNote is { } note)
+                            {
+                                <span class="text-muted fst-italic ms-1">(@note)</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (outages.Count >= Limit)
+    {
+        <p class="text-muted small mt-1">Mostrate le @Limit più recenti: restringere periodo o filtri per le altre (l'export CSV le comprende tutte).</p>
+    }
+}

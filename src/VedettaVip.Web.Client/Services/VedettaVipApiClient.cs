@@ -85,20 +85,30 @@ public sealed class VedettaVipApiClient(HttpClient http)
 
     // ---------- Storico dei down ----------
 
-    /// <summary>Interruzioni, le più recenti per prime; deviceId null = tutti i device. from: solo quelle che toccano il periodo.</summary>
+    /// <summary>
+    /// Interruzioni, le più recenti per prime; deviceId null = tutti i device. from: solo quelle che toccano il periodo.
+    /// Vista globale: <paramref name="customerId"/> oppure <paramref name="noCustomer"/> (device senza cliente).
+    /// </summary>
     public async Task<IReadOnlyList<OutageDto>> GetOutagesAsync(Guid? deviceId, OutageStatusFilter status, OutageService? service,
-        DateTimeOffset? from, int limit, CancellationToken ct) =>
-        await SendAsync<List<OutageDto>>(HttpMethod.Get, $"api/outages?{OutagesQuery(deviceId, status, service, from)}&limit={limit}", null, ct);
+        DateTimeOffset? from, int limit, CancellationToken ct, Guid? customerId = null, bool noCustomer = false) =>
+        await SendAsync<List<OutageDto>>(HttpMethod.Get,
+            $"api/outages?{OutagesQuery(deviceId, status, service, from, customerId, noCustomer)}&limit={limit}", null, ct);
 
     /// <summary>URL del CSV delle interruzioni con gli stessi filtri dell'elenco (link diretto, come per i dispositivi).</summary>
-    public string OutagesExportUrl(Guid? deviceId, OutageStatusFilter status, OutageService? service, DateTimeOffset? from) =>
-        new Uri(http.BaseAddress!, $"api/outages/export?{OutagesQuery(deviceId, status, service, from)}").ToString();
+    public string OutagesExportUrl(Guid? deviceId, OutageStatusFilter status, OutageService? service, DateTimeOffset? from,
+        Guid? customerId = null, bool noCustomer = false) =>
+        new Uri(http.BaseAddress!, $"api/outages/export?{OutagesQuery(deviceId, status, service, from, customerId, noCustomer)}").ToString();
 
-    private static string OutagesQuery(Guid? deviceId, OutageStatusFilter status, OutageService? service, DateTimeOffset? from)
+    private static string OutagesQuery(Guid? deviceId, OutageStatusFilter status, OutageService? service, DateTimeOffset? from,
+        Guid? customerId, bool noCustomer)
     {
         var url = $"status={status}";
         if (deviceId is { } d)
             url += $"&deviceId={d}";
+        if (customerId is { } c)
+            url += $"&customerId={c}";
+        else if (noCustomer)
+            url += "&noCustomer=true";
         if (service is { } s)
             url += $"&service={s}";
         if (from is { } f)
