@@ -110,3 +110,9 @@
     color: #1f2a37;
     pointer-events: none;
 }
+
+/* Sfondo (immagine o tasselli): non intercetta il puntatore, pan e menu restano quelli dello sfondo dell'SVG */
+.vedettavip .map-background,
+.vedettavip .map-background image {
+    pointer-events: none;
+}

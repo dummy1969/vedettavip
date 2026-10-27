@@ -5,6 +5,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
+using VedettaVip.Shared.Contracts;
 using VedettaVip.Shared.Models;
 using VedettaVip.Web.Client.Services;
 
@@ -61,6 +62,12 @@ public partial class NetworkMap : IAsyncDisposable
     [Parameter] public EventCallback<NodeMenuRequest> OnNodeMenu { get; set; }
     /// <summary>Clic destro sullo sfondo: punto (già allineato alla griglia) per un nuovo nodo.</summary>
     [Parameter] public EventCallback<MapPoint> OnPlaceRequested { get; set; }
+    /// <summary>Sfondo: immagine (da <see cref="BackgroundImageUrl"/>) o mappa geografica (tasselli da <see cref="TileUrl"/>).</summary>
+    [Parameter] public MapBackgroundDto? Background { get; set; }
+    [Parameter] public string? BackgroundImageUrl { get; set; }
+    /// <summary>Modello di URL dei tasselli con {z} {x} {y} (Impostazioni → Mappe).</summary>
+    [Parameter] public string TileUrl { get; set; } = GeoTiles.DefaultUrl;
+
     /// <summary>Clic destro sullo sfondo con menu (aggiungi nodo, disponi): se impostato sostituisce OnPlaceRequested.</summary>
     [Parameter] public EventCallback<BackgroundMenuRequest> OnBackgroundMenu { get; set; }
 
@@ -81,7 +88,42 @@ public partial class NetworkMap : IAsyncDisposable
     private MapNode? linkTarget;
     private double linkEndX, linkEndY;
 
-    protected override void OnParametersSet() => needsRender = true;
+    // Dimensioni dell'SVG sullo schermo: servono solo a scegliere i tasselli visibili della mappa geografica
+    private double viewWidth = 1920, viewHeight = 1080;
+    private bool viewSizeStale = true;
+
+    protected override void OnParametersSet()
+    {
+        needsRender = true;
+        viewSizeStale = true; // la pagina può aver aperto o chiuso un pannello accanto alla mappa
+        zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+    }
+
+    private bool IsGeo => Background is { Mode: MapBackgroundMode.Geo, Geo: not null };
+    /// <summary>Senza sfondo la griglia c'è sempre; con uno sfondo solo se richiesta.</summary>
+    private bool ShowGrid => Background is null or { Mode: MapBackgroundMode.None } || Background.ShowGrid;
+    // La mappa geografica si allontana di più (una regione intera); le altre mantengono i limiti di sempre
+    private double MinZoom => IsGeo ? 1 / 64.0 : 0.25;
+    private double MaxZoom => IsGeo ? 8 : 4;
+
+    private IReadOnlyList<TilePlacement> VisibleTiles() => Background?.Geo is { } geo
+        ? GeoTiles.Visible(geo.Latitude, geo.Longitude, geo.Zoom,
+            -panX / zoom, -panY / zoom, (viewWidth - panX) / zoom, (viewHeight - panY) / zoom, zoom)
+        : [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!viewSizeStale || !IsGeo)
+            return;
+        viewSizeStale = false;
+        var b = await GetBoundsAsync();
+        if (Math.Abs(b.Width - viewWidth) > 1 || Math.Abs(b.Height - viewHeight) > 1)
+        {
+            (viewWidth, viewHeight) = (b.Width, b.Height);
+            needsRender = true;
+            StateHasChanged();
+        }
+    }
 
     /// <summary>
     /// Trascinamento di un nodo o creazione di un link in corso: il componente tiene un riferimento al nodo, quindi
@@ -279,7 +321,7 @@ public partial class NetworkMap : IAsyncDisposable
 
     private void OnWheel(WheelEventArgs e)
     {
-        zoom = Math.Clamp(zoom * (e.DeltaY < 0 ? 1.1 : 1 / 1.1), 0.25, 4);
+        zoom = Math.Clamp(zoom * (e.DeltaY < 0 ? 1.1 : 1 / 1.1), MinZoom, MaxZoom);
         needsRender = true;
     }
 

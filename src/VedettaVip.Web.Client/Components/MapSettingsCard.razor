@@ -1,0 +1,47 @@
+@* SPDX-License-Identifier: AGPL-3.0-or-later *@
+@* Copyright (C) 2026 Marcello Anderlini *@
+
+@using VedettaVip.Shared.Models
+
+<section class="settings-card card">
+    <div class="card-header"><strong>Tasselli delle mappe geografiche</strong></div>
+    <div class="card-body">
+        @if (error is not null)
+        {
+            <div class="alert alert-danger py-1 px-2 small">@error</div>
+        }
+        @if (loaded)
+        {
+            <p class="small text-muted">
+                Usati dalle mappe con sfondo "Mappa geografica" (Mappa → Modifica → Sfondo). Campi vuoti = OpenStreetMap:
+                gratuito, ma per un uso leggero (qualche utente). Per un monitor sempre acceso o molti utenti serve un fornitore
+                (MapTiler, Thunderforest, Stadia Maps, con piani gratuiti) o un server di tasselli proprio. I tasselli li
+                scarica il browser di chi guarda la mappa: serve internet lì, non sul server.
+            </p>
+
+            <label class="form-label small mb-1" for="m-url">Indirizzo dei tasselli</label>
+            <input id="m-url" class="form-control form-control-sm font-monospace" maxlength="512"
+                   placeholder="@GeoTiles.DefaultUrl" @bind="tileUrl" />
+            <div class="form-text">Con {z}, {x} e {y} (livello, colonna, riga), es. https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=LA_TUA_CHIAVE.
+                La chiave del fornitore è visibile nel browser: usarne una limitata al dominio di VedettaVip.</div>
+
+            <label class="form-label small mb-1 mt-2" for="m-attr">Attribuzione</label>
+            <input id="m-attr" class="form-control form-control-sm" maxlength="256"
+                   placeholder="@GeoTiles.DefaultAttribution" @bind="attribution" />
+            <div class="form-text">Testo obbligatorio mostrato in basso a destra sulla mappa (lo indica il fornitore).</div>
+
+            <label class="form-label small mb-1 mt-2" for="m-attr-url">Link dell'attribuzione (facoltativo)</label>
+            <input id="m-attr-url" class="form-control form-control-sm font-monospace" maxlength="512"
+                   placeholder="@(string.IsNullOrWhiteSpace(tileUrl) ? GeoTiles.DefaultAttributionUrl : "https://...")" @bind="attributionUrl" />
+
+            <div class="d-flex align-items-baseline gap-2 mt-3 flex-wrap">
+                <button class="btn btn-sm btn-primary" disabled="@busy" @onclick="SaveAsync">Salva</button>
+                <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="ResetAsync">Torna a OpenStreetMap</button>
+                @if (savedAt is { } at)
+                {
+                    <span class="small text-success">Salvato alle @at.ToString("HH:mm:ss"): le mappe aperte si aggiornano da sole.</span>
+                }
+            </div>
+        }
+    </div>
+</section>

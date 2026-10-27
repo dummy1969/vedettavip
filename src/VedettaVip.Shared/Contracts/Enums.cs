@@ -24,3 +24,6 @@ public enum SnmpVersion { None, V1, V2c, V3 }
 public enum MapNodeKind { Device, Submap, Static }
 
 public enum EventSeverity { Info, Warning, Error, Critical }
+
+/// <summary>Sfondo di una mappa: nessuno (griglia), immagine caricata (planimetria) o mappa geografica a tasselli.</summary>
+public enum MapBackgroundMode { None, Image, Geo }

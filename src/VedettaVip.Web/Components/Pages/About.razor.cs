@@ -32,6 +32,7 @@ public partial class About
         new("Bootstrap", "5.3.3", "MIT", "https://getbootstrap.com/", "stili dell'interfaccia"),
         new("Tabler Icons", "3.49.0", "MIT", "https://tabler.io/icons", "icone della mappa e dei comandi"),
         new("IEEE Registration Authority (MA-L, MA-M, MA-S)", "", "dati pubblici IEEE", "https://standards-oui.ieee.org/", "produttore dal MAC address"),
+        new("OpenStreetMap (tasselli)", "", "dati ODbL, © OpenStreetMap contributors", "https://www.openstreetmap.org/copyright", "sfondo delle mappe geografiche (caricato dal browser)"),
         new("PostgreSQL", "17", "PostgreSQL License", "https://www.postgresql.org/", "database"),
         new("TimescaleDB", "2.30.2", "Apache-2.0 / Timescale License", "https://github.com/timescale/timescaledb", "metriche (immagine Docker)"),
         new("Caddy", "2.11.6", "Apache-2.0", "https://caddyserver.com/", "reverse proxy HTTPS (immagine Docker)"),

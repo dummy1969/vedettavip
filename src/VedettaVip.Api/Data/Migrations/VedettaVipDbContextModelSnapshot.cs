@@ -1010,6 +1010,29 @@ namespace VedettaVip.Api.Data.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<string>("BackgroundMode")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int>("BackgroundOpacityPct")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("BackgroundScalePct")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("BackgroundShowGrid")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("GeoLatitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("GeoLongitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<int?>("GeoZoom")
+                        .HasColumnType("integer");
+
                     b.Property<int>("GridSize")
                         .HasColumnType("integer");
 
@@ -1027,6 +1050,14 @@ namespace VedettaVip.Api.Data.Migrations
 
                     b.ToTable("Maps", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Maps_BackgroundOpacity", "\"BackgroundOpacityPct\" BETWEEN 10 AND 100");
+
+                            t.HasCheckConstraint("CK_Maps_BackgroundScale", "\"BackgroundScalePct\" BETWEEN 1 AND 1000");
+
+                            t.HasCheckConstraint("CK_Maps_Geo", "(\"GeoLatitude\" IS NULL AND \"GeoLongitude\" IS NULL AND \"GeoZoom\" IS NULL) OR (\"GeoLatitude\" BETWEEN -85.0511 AND 85.0511 AND \"GeoLongitude\" BETWEEN -180 AND 180 AND \"GeoZoom\" BETWEEN 1 AND 19)");
+
+                            t.HasCheckConstraint("CK_Maps_GeoMode", "\"BackgroundMode\" <> 'Geo' OR \"GeoZoom\" IS NOT NULL");
+
                             t.HasCheckConstraint("CK_Maps_GridSize", "\"GridSize\" > 0");
 
                             t.HasCheckConstraint("CK_Maps_ParentNotSelf", "\"ParentMapId\" IS NULL OR \"ParentMapId\" <> \"Id\"");
@@ -1036,15 +1067,54 @@ namespace VedettaVip.Api.Data.Migrations
                         new
                         {
                             Id = new Guid("0198f000-0000-7000-8000-000000000001"),
+                            BackgroundMode = "None",
+                            BackgroundOpacityPct = 100,
+                            BackgroundScalePct = 100,
+                            BackgroundShowGrid = false,
                             GridSize = 20,
                             Name = "Sede principale"
                         },
                         new
                         {
                             Id = new Guid("0198f000-0000-7000-8000-000000000002"),
+                            BackgroundMode = "None",
+                            BackgroundOpacityPct = 100,
+                            BackgroundScalePct = 100,
+                            BackgroundShowGrid = false,
                             GridSize = 20,
                             Name = "Filiale Nord",
                             ParentMapId = new Guid("0198f000-0000-7000-8000-000000000001")
+                        });
+                });
+
+            modelBuilder.Entity("VedettaVip.Api.Data.Entities.MapBackground", b =>
+                {
+                    b.Property<Guid>("MapId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer");
+
+                    b.HasKey("MapId");
+
+                    b.ToTable("MapBackgrounds", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MapBackgrounds_Size", "\"Width\" > 0 AND \"Height\" > 0");
                         });
                 });
 
@@ -1281,6 +1351,18 @@ namespace VedettaVip.Api.Data.Migrations
 
                     b.Property<double?>("LossThresholdPct")
                         .HasColumnType("double precision");
+
+                    b.Property<string>("MapTileAttribution")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("MapTileAttributionUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("MapTileUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<string>("PuttyLinuxPath")
                         .HasMaxLength(512)
@@ -1963,6 +2045,15 @@ namespace VedettaVip.Api.Data.Migrations
                     b.Navigation("ParentMap");
                 });
 
+            modelBuilder.Entity("VedettaVip.Api.Data.Entities.MapBackground", b =>
+                {
+                    b.HasOne("VedettaVip.Api.Data.Entities.Map", null)
+                        .WithOne("Background")
+                        .HasForeignKey("VedettaVip.Api.Data.Entities.MapBackground", "MapId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("VedettaVip.Api.Data.Entities.MapLink", b =>
                 {
                     b.HasOne("VedettaVip.Api.Data.Entities.Device", "Device")
@@ -2131,6 +2222,8 @@ namespace VedettaVip.Api.Data.Migrations
 
             modelBuilder.Entity("VedettaVip.Api.Data.Entities.Map", b =>
                 {
+                    b.Navigation("Background");
+
                     b.Navigation("Links");
 
                     b.Navigation("Nodes");

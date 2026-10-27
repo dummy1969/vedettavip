@@ -1,0 +1,7 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Marcello Anderlini */
+
+.settings-card {
+    max-width: 760px;
+    margin-top: 1rem;
+}

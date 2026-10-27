@@ -54,6 +54,7 @@ network, so their licenses do not need to be compatible with the AGPL, but you m
 | Data | Version | Terms | Notes |
 |---|---|---|---|
 | IEEE Registration Authority public listings (MA-L, MA-M, MA-S) | see `third-party/ieee-oui/VERSION` | public data published by the IEEE at standards-oui.ieee.org, subject to the IEEE website terms of use | reduced to "prefix → organization name" in `src/VedettaVip.Api/Resources/oui.tsv.gz` by `third-party/ieee-oui/generate.py`. The listings are facts (assignments of MAC prefixes) and carry no software license; the IEEE is not affiliated with VedettaVip. |
+| OpenStreetMap map tiles | not bundled | map data © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/); tiles subject to the [OSM Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/) | loaded at runtime by the viewer's browser from `tile.openstreetmap.org` only for maps with the "geographic map" background (default tile server, replaceable in Settings → Maps). The attribution is shown on the map. Light use only: for always-on NOC screens or many users configure another tile provider or your own tile server. Nothing is downloaded or cached by VedettaVip itself. |
 
 ## Separate programs (Docker images used by `deploy/docker-compose.yml`)
 

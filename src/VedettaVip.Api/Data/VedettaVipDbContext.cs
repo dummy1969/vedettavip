@@ -23,6 +23,7 @@ public sealed class VedettaVipDbContext(DbContextOptions<VedettaVipDbContext> op
     public DbSet<Map> Maps => Set<Map>();
     public DbSet<MapNode> MapNodes => Set<MapNode>();
     public DbSet<MapLink> MapLinks => Set<MapLink>();
+    public DbSet<MapBackground> MapBackgrounds => Set<MapBackground>();
     public DbSet<Event> Events => Set<Event>();
     public DbSet<DeviceStatus> DeviceStatuses => Set<DeviceStatus>();
     public DbSet<Agent> Agents => Set<Agent>();
@@ -73,5 +74,6 @@ public sealed class VedettaVipDbContext(DbContextOptions<VedettaVipDbContext> op
         configurationBuilder.Properties<NotificationChannel>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<DeliveryStatus>().HaveConversion<string>().HaveMaxLength(16);
         configurationBuilder.Properties<OutageService>().HaveConversion<string>().HaveMaxLength(16);
+        configurationBuilder.Properties<MapBackgroundMode>().HaveConversion<string>().HaveMaxLength(8);
     }
 }

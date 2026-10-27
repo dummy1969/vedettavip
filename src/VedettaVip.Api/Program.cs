@@ -180,6 +180,7 @@ app.MapAuthEndpoints();
 app.MapTwoFactorEndpoints();
 app.MapMapEndpoints();
 app.MapMapNodeEndpoints();
+app.MapMapBackgroundEndpoints();
 app.MapMapLinkEndpoints();
 app.MapDeviceEndpoints();
 app.MapDeviceImportEndpoints();

@@ -300,6 +300,33 @@ public sealed class VedettaVipApiClient(HttpClient http)
     public Task<DashboardSettingsDto> UpdateDashboardSettingsAsync(DashboardSettingsDto dto, CancellationToken ct) =>
         SendAsync<DashboardSettingsDto>(HttpMethod.Put, "api/settings/dashboard", dto, ct);
 
+    // ---------- Sfondo delle mappe ----------
+
+    public Task<MapBackgroundDto> UpdateMapBackgroundAsync(Guid mapId, MapBackgroundSettingsDto dto, CancellationToken ct) =>
+        SendAsync<MapBackgroundDto>(HttpMethod.Put, $"api/maps/{mapId}/background", dto, ct);
+
+    /// <summary>Carica o sostituisce l'immagine di sfondo (byte del file; il formato lo riconosce l'API dal contenuto).</summary>
+    public Task<MapBackgroundDto> UploadMapBackgroundImageAsync(Guid mapId, byte[] data, string contentType, CancellationToken ct)
+    {
+        var content = new ByteArrayContent(data);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+            string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType);
+        return SendAsync<MapBackgroundDto>(HttpMethod.Put, $"api/maps/{mapId}/background/image", content, ct);
+    }
+
+    public Task<MapBackgroundDto> DeleteMapBackgroundImageAsync(Guid mapId, CancellationToken ct) =>
+        SendAsync<MapBackgroundDto>(HttpMethod.Delete, $"api/maps/{mapId}/background/image", null, ct);
+
+    /// <summary>URL dell'immagine di sfondo con la versione (cache lunga del browser, cambia a ogni caricamento).</summary>
+    public string MapBackgroundImageUrl(Guid mapId, long version) =>
+        new Uri(http.BaseAddress!, $"api/maps/{mapId}/background/image?v={version}").ToString();
+
+    public Task<MapSettingsDto> GetMapSettingsAsync(CancellationToken ct) =>
+        SendAsync<MapSettingsDto>(HttpMethod.Get, "api/settings/maps", null, ct);
+
+    public Task<MapSettingsDto> UpdateMapSettingsAsync(MapSettingsDto dto, CancellationToken ct) =>
+        SendAsync<MapSettingsDto>(HttpMethod.Put, "api/settings/maps", dto, ct);
+
     public Task<RemoteAccessSettingsDto> GetRemoteAccessSettingsAsync(CancellationToken ct) =>
         SendAsync<RemoteAccessSettingsDto>(HttpMethod.Get, "api/settings/remote-access", null, ct);
 
@@ -478,7 +505,9 @@ public sealed class VedettaVipApiClient(HttpClient http)
     private async Task<HttpResponseMessage> SendCoreAsync(HttpMethod method, string url, object? body, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(method, url);
-        if (body is not null)
+        if (body is HttpContent content)
+            request.Content = content; // es. i byte di un'immagine
+        else if (body is not null)
             request.Content = JsonContent.Create(body, body.GetType(), options: Json);
 
         var response = await http.SendAsync(request, ct);

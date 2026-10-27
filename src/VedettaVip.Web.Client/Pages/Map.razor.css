@@ -93,3 +93,23 @@
 .map-name {
     max-width: 18rem;
 }
+
+/* Attribuzione dei tasselli della mappa geografica, in basso a destra sopra la mappa */
+.map-canvas {
+    position: relative;
+}
+
+.map-attribution {
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+    padding: 0 0.35rem;
+    font-size: 0.7rem;
+    background: rgba(255, 255, 255, 0.8);
+    color: #333;
+    pointer-events: auto;
+}
+
+.map-attribution a {
+    color: inherit;
+}

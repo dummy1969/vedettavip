@@ -17,7 +17,59 @@ public sealed record MapDto(
     string? BackgroundImage,
     int GridSize,
     IReadOnlyList<MapNodeDto> Nodes,
-    IReadOnlyList<MapLinkDto> Links);
+    IReadOnlyList<MapLinkDto> Links,
+    MapBackgroundDto? Background = null);
+
+/// <summary>
+/// Sfondo della mappa. Image: dimensioni e versione dell'immagine caricata (null = non ancora caricata), disegnata da (0, 0)
+/// alla scala indicata. Geo: origine e livello della mappa geografica (vedi <see cref="GeoTiles"/>).
+/// </summary>
+public sealed record MapBackgroundDto(
+    MapBackgroundMode Mode,
+    int OpacityPct,
+    int ScalePct,
+    bool ShowGrid,
+    MapImageDto? Image,
+    MapGeoDto? Geo)
+{
+    public static readonly MapBackgroundDto None = new(MapBackgroundMode.None, 100, 100, false, null, null);
+}
+
+public sealed record MapImageDto(int Width, int Height, long Version);
+
+/// <summary>Mappa geografica: latitudine e longitudine del punto (0, 0) della mappa e livello di riferimento dei tasselli.</summary>
+public sealed record MapGeoDto(
+    [property: Range(-GeoTiles.MaxLatitude, GeoTiles.MaxLatitude, ErrorMessage = "Latitudine non valida.")] double Latitude,
+    [property: Range(-180d, 180d, ErrorMessage = "Longitudine non valida.")] double Longitude,
+    [property: Range(GeoTiles.MinZoom, GeoTiles.MaxZoom, ErrorMessage = "Livello non valido.")] int Zoom);
+
+/// <summary>Impostazioni dello sfondo (PUT /api/maps/{id}/background): l'immagine si carica a parte.</summary>
+public sealed record MapBackgroundSettingsDto(
+    [property: Required] MapBackgroundMode? Mode,
+    [property: Range(10, 100, ErrorMessage = "L'opacità va da 10 a 100.")] int OpacityPct = 100,
+    [property: Range(1, 1000, ErrorMessage = "La scala va da 1 a 1000.")] int ScalePct = 100,
+    bool ShowGrid = false,
+    MapGeoDto? Geo = null);
+
+/// <summary>
+/// Tasselli delle mappe geografiche (Impostazioni → Mappe): modello di URL con {z} {x} {y} e attribuzione; null o vuoto =
+/// OpenStreetMap.
+/// </summary>
+public sealed record MapSettingsDto(
+    [property: StringLength(MapSettingsDto.MaxUrlLength)] string? TileUrl,
+    [property: StringLength(MapSettingsDto.MaxAttributionLength)] string? Attribution,
+    [property: StringLength(MapSettingsDto.MaxUrlLength)] string? AttributionUrl)
+{
+    public const int MaxUrlLength = 512, MaxAttributionLength = 256;
+
+    public static readonly MapSettingsDto Default = new(null, null, null);
+
+    public string EffectiveTileUrl => string.IsNullOrWhiteSpace(TileUrl) ? GeoTiles.DefaultUrl : TileUrl;
+    public string EffectiveAttribution => string.IsNullOrWhiteSpace(Attribution) ? GeoTiles.DefaultAttribution : Attribution;
+    /// <summary>Link dell'attribuzione: quello impostato, o la pagina dei diritti di OSM se si usano i tasselli predefiniti.</summary>
+    public string? EffectiveAttributionUrl => !string.IsNullOrWhiteSpace(AttributionUrl) ? AttributionUrl
+        : string.IsNullOrWhiteSpace(TileUrl) ? GeoTiles.DefaultAttributionUrl : null;
+}
 
 /// <summary>
 /// Nodo pronto per la mappa: Name/Address/DeviceType arrivano dal dispositivo (o dalla sottomappa),

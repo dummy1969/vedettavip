@@ -30,6 +30,7 @@ public partial class SettingsShell
         new("settings/contacts", "Contatti", "chi riceve cosa", "contacts"),
         new("settings/customers", "Clienti", "anagrafica, SNMP", "customers"),
         new("settings/users", "Utenti", "accessi e ruoli", "users"),
+        new("settings/maps", "Mappe", "tasselli geografici"),
         new("settings/dashboard", "Dashboard", "pagina iniziale")
     ];
 

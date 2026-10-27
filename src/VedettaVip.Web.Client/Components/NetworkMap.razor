@@ -1,6 +1,7 @@
 @* SPDX-License-Identifier: AGPL-3.0-or-later *@
 @* Copyright (C) 2026 Marcello Anderlini *@
 
+@using VedettaVip.Shared.Contracts
 @using VedettaVip.Shared.Models
 @using VedettaVip.Web.Client.Services
 
@@ -27,7 +28,28 @@
     </defs>
 
     <g transform="translate(@F(panX) @F(panY)) scale(@F(zoom))">
-        <rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#grid)" />
+        @if (Background is { Mode: MapBackgroundMode.Image, Image: { } image } imageBg && BackgroundImageUrl is { } imageUrl)
+        {
+            <image class="map-background" href="@imageUrl" x="0" y="0" preserveAspectRatio="none"
+                   width="@F(image.Width * imageBg.ScalePct / 100.0)" height="@F(image.Height * imageBg.ScalePct / 100.0)"
+                   opacity="@F(imageBg.OpacityPct / 100.0)" />
+        }
+        else if (Background is { Mode: MapBackgroundMode.Geo, Geo: not null } geoBg)
+        {
+            @* Tasselli leggermente sovrapposti (mezzo pixel dello schermo) per non vedere le giunture *@
+            var overlap = 0.5 / zoom;
+            <g class="map-background" opacity="@F(geoBg.OpacityPct / 100.0)">
+                @foreach (var tile in VisibleTiles())
+                {
+                    <image @key="tile" href="@GeoTiles.TileUrl(TileUrl, tile)" x="@F(tile.MapX)" y="@F(tile.MapY)"
+                           width="@F(tile.Size + overlap)" height="@F(tile.Size + overlap)" preserveAspectRatio="none" />
+                }
+            </g>
+        }
+        @if (ShowGrid)
+        {
+            <rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#grid)" />
+        }
 
         @{ var now = DateTimeOffset.UtcNow; }
         @foreach (var link in Links)

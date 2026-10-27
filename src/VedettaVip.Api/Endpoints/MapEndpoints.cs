@@ -111,7 +111,8 @@ public static class MapEndpoints
             .Select(l => new MapLinkDto(l.Id, l.FromNodeId, l.ToNodeId, l.DeviceId, l.IfIndex, l.SpeedBps, l.UtilizationThresholdPct))
             .ToListAsync(ct);
 
-        return TypedResults.Ok(new MapDto(map.Id, map.Name, map.ParentMapId, map.BackgroundImage, map.GridSize, nodes, links));
+        var background = await MapBackgroundEndpoints.LoadAsync(db, map, ct);
+        return TypedResults.Ok(new MapDto(map.Id, map.Name, map.ParentMapId, map.BackgroundImage, map.GridSize, nodes, links, background));
     }
 
     /// <summary>
@@ -187,7 +188,7 @@ public static class MapEndpoints
 
         await notifier.MapsChangedAsync(db, [map.Id]); // selettore delle mappe degli altri browser
         return TypedResults.Created($"/api/maps/{map.Id}",
-            new MapDto(map.Id, map.Name, map.ParentMapId, map.BackgroundImage, map.GridSize, [], []));
+            new MapDto(map.Id, map.Name, map.ParentMapId, map.BackgroundImage, map.GridSize, [], [], MapBackgroundEndpoints.ToDto(map, null)));
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateMapAsync(

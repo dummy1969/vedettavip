@@ -214,7 +214,7 @@ VedettaVip.Worker (agente)                         VedettaVip.Api               
 - **ICMP su Linux**: .NET usa socket raw (CAP_NET_RAW), socket ICMP non privilegiati se
   `net.ipv4.ping_group_range` lo consente, altrimenti l'eseguibile `ping`.
 
-## Modello dati (EF Core, migrations in `Data/Migrations`, dalla `InitialCreate` alla `NotificationChannelEvents`)
+## Modello dati (EF Core, migrations in `Data/Migrations`, dalla `InitialCreate` alla `MapBackgrounds`)
 
 Entità in `src/VedettaVip.Api/Data/Entities/`, configurazioni Fluent in `Data/Configurations/`,
 seed in `Data/SeedData.cs`, migrations in `Data/Migrations/`. DTO ed enum condivisi in
@@ -230,7 +230,12 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
   (FK **RESTRICT** → `SnmpCredentials`, profilo SNMP), RouterOsApiEnabled, RouterOsCredentialId? (FK RESTRICT),
   CustomerId? (FK `SET NULL`), ParentDeviceId? (FK → Device, `SET NULL`; niente auto-riferimento né cicli, verificati
   dall'API), Enabled.
-- **Map**: Id, Name(128), ParentMapId? (FK → Map, `RESTRICT`), BackgroundImage?(512), GridSize (> 0).
+- **Map**: Id, Name(128), ParentMapId? (FK → Map, `RESTRICT`), BackgroundImage?(512, storico, non usato dalla UI: Rinomina lo
+  ripassa invariato), GridSize (> 0). Sfondo (migration `MapBackgrounds`): BackgroundMode (`MapBackgroundMode`: None/Image/Geo,
+  testo), BackgroundOpacityPct (10–100), BackgroundScalePct (1–1000), BackgroundShowGrid, GeoLatitude?/GeoLongitude?/GeoZoom?
+  (tutti o nessuno; CHECK anche Geo ⇒ GeoZoom); la migration mette None/100/100 alle mappe esistenti.
+- **MapBackground** (tabella `MapBackgrounds`): MapId (PK e FK → Map **CASCADE**), ContentType(32), Data (bytea, max 5 MB),
+  Width, Height, UpdatedAt (versione nell'URL). Immagine nel DB: il backup notturno la comprende.
 - **MapNode**: Id, MapId (FK, `CASCADE`), Kind (`Device/Submap/Static`), DeviceId? (FK, `RESTRICT`),
   SubmapId? (FK → Map, `RESTRICT`), X, Y, LabelTemplate(512), Icon?.
   CHECK di coerenza: Device ⇒ solo DeviceId; Submap ⇒ solo SubmapId; Static ⇒ nessuno dei due
@@ -269,7 +274,8 @@ enum salvati come **testo**; tempi `timestamptz` in UTC; nomi tabelle/colonne Pa
   porte generali e i percorsi di PuTTY in `MonitoringSettings`): accessi di gestione, vedi "Accesso remoto".
 - **MonitoringSettings** (riga unica, CHECK Id = 1, creata dalla migration): DownAfterFailures, UpAfterSuccesses,
   SnmpDegradedAfterFailures (1–100), soglie generali di rilevazione; DashboardEventHours (1–168, default 4, migration
-  `AddDashboardSettings`); WinBoxWindowsPath?/WinBoxLinuxPath? (512, migration `AddDeviceVendorAndWinBox`).
+  `AddDashboardSettings`); WinBoxWindowsPath?/WinBoxLinuxPath? (512, migration `AddDeviceVendorAndWinBox`);
+  MapTileUrl?(512)/MapTileAttribution?(256)/MapTileAttributionUrl?(512) (migration `MapBackgrounds`, null = OpenStreetMap).
 - **SnmpCredential** (tabella `SnmpCredentials`, migration `AddSnmpCredentials`): Id, Name(128, unico), Description(512)?,
   CommunityProtected(2048). FK **RESTRICT** da `Devices.SnmpCredentialId`, `Customers.SnmpCredentialId` e
   `MonitoringSettings.DefaultSnmpCredentialId` (l'API risponde 409 con gli utilizzi).
@@ -332,6 +338,9 @@ usare ASP.NET Core Data Protection o un secret store.
 | POST | `/api/maps/{mapId}/nodes` | `CreateMapNodeDto` → 201; 400 se incoerente, 409 se duplicato o ciclo |
 | PUT | `/api/maps/{mapId}/nodes/{nodeId}` | `UpdateMapNodeDto` (LabelTemplate, Icon) → 200 `MapNodeDto`; vuoto = etichetta di default |
 | PUT | `/api/maps/{mapId}/nodes/{nodeId}/position` | `{ "x", "y" }` → 204 / 404 |
+| PUT | `/api/maps/{id}/background` | `MapBackgroundSettingsDto` (Mode, OpacityPct, ScalePct, ShowGrid, Geo?) → `MapBackgroundDto`; Geo senza coordinate né coordinate salvate = 400; Operatore |
+| GET/PUT/DELETE | `/api/maps/{id}/background/image` | immagine (cache lunga con `?v=`); PUT = byte del file (PNG/JPEG/WebP riconosciuti dal contenuto da `Services/ImageInfo`, max 5 MB e 16384 px, niente SVG), passa la mappa a Image se era None; DELETE la riporta a None se era Image; scritture Operatore |
+| GET/PUT | `/api/settings/maps` | `MapSettingsDto` (TileUrl con {z} {x} {y}, Attribution, AttributionUrl; vuoti = OpenStreetMap; con un altro fornitore l'attribuzione è obbligatoria); PUT Admin, `MapsChanged` a tutte le mappe |
 | PUT | `/api/maps/{mapId}/nodes/positions` | `NodePositionsDto` (1–1000 `{ nodeId, x, y }`) → 204; un solo SaveChanges e un solo `MapsChanged`; 400 se un nodo è ripetuto, non è della mappa o ha coordinate non valide |
 | POST | `/api/maps/{mapId}/nodes/{nodeId}/move` | `MoveMapNodeDto` (TargetMapId, X?/Y?: senza = sotto i nodi esistenti) → 200; elimina i link del nodo; un nodo Submap porta con sé la sottomappa e tutto il contenuto |
 | DELETE | `/api/maps/{mapId}/nodes/{nodeId}` | 204; i link cadono in CASCADE |
@@ -680,7 +689,7 @@ usare ASP.NET Core Data Protection o un secret store.
 
 - `Components/SettingsShell`: sottomenu a sinistra (a schede sotto i 900 px) e titolo/azioni della pagina; dentro c'è
   già `AdminOnly`. Sezioni: **Monitoraggio** (`/settings` e `/settings/monitoring`: rilevazione dello stato, soglie delle
-  metriche), **Profili SNMP**, **Profili RouterOS**, **Accesso remoto** (porte, percorsi di WinBox e PuTTY, gestore dei link), **Notifiche** (SMTP, Telegram, invio), **Contatti**, **Clienti**, **Utenti**, **Dashboard**.
+  metriche), **Profili SNMP**, **Profili RouterOS**, **Accesso remoto** (porte, percorsi di WinBox e PuTTY, gestore dei link), **Notifiche** (SMTP, Telegram, invio), **Contatti**, **Clienti**, **Utenti**, **Mappe** (tasselli delle mappe geografiche), **Dashboard**.
 - Menu principale: Home, Mappa, Dispositivi, Scoperta, Eventi, Interruzioni, Manutenzione, Impostazioni, About. Le vecchie route `/users`,
   `/customers`, `/contacts` restano valide e attivano la stessa voce del sottomenu.
 - Una nuova sezione: pagina con `<SettingsShell Title="...">` e voce in `SettingsShell.Sections`.
@@ -741,6 +750,28 @@ usare ASP.NET Core Data Protection o un secret store.
   esiste ancora, altrimenti la radice con più nodi (a parità, per nome).
 - **Gestione della mappa corrente** in modifica: Rinomina (ripassa sfondo e griglia invariati),
   Elimina con conferma (nodi e link compresi; 409 se è ancora una sottomappa; le sue sottomappe diventano radici).
+
+### Sfondo delle mappe (implementato: immagine e mappa geografica)
+
+- **Pannello "Sfondo"** (`Components/MapBackgroundPanel`, bottone nella barra "Questa mappa:" della modalità Modifica, al posto del
+  pannello di modifica): Nessuno (griglia) / Immagine / Mappa geografica, opacità, griglia sopra lo sfondo. Ogni modifica è
+  un'anteprima (`Map.backgroundPreview`); "Salva" la registra, "Chiudi" (o selezionare un nodo, aggiungerne uno, uscire da
+  Modifica) la annulla. L'immagine invece si carica e si rimuove subito.
+- **Immagine** (planimetria, cartina): disegnata da (0, 0) con larghezza × scala %, sotto link e nodi (`NetworkMap`, `<image>`
+  con URL versionato dell'API: il cookie va con la richiesta, stesso sito).
+- **Mappa geografica** (`VedettaVip.Shared/Models/GeoTiles`, coperto da test): Web Mercator, tasselli da 256 px. La mappa ha
+  un'origine (lat/lon del punto 0,0) e un livello di riferimento (`GeoZoom`): a quel livello un'unità della mappa è un pixel del
+  mondo; **i nodi restano in X/Y** e si posizionano trascinandoli sulle località. Nel pannello si inserisce il **centro**
+  ("44.494, 11.342", da Google Maps) e il dettaglio (preset Italia 6 … Strada 16): il centro dei nodi finisce lì
+  (`GeoTiles.OriginFor`). Tasselli visibili per lo zoom della vista (`TileZoom` = livello + round(log2 zoom), max
+  `MaxTiles` 200 scendendo di livello, mondo ripetuto in orizzontale), `@key` per tassello, sovrapposti di mezzo pixel dello schermo.
+  Zoom della vista 1/64–8 solo in modalità geografica (le altre 0,25–4). Dimensioni dell'SVG lette via JS solo quando servono.
+  Attribuzione obbligatoria in basso a destra (`.map-attribution`, link alla pagina dei diritti di OSM).
+- **Tasselli** (Impostazioni → **Mappe**, `/settings/maps`, `MapSettingsCard`): default `https://tile.openstreetmap.org/{z}/{x}/{y}.png`
+  (uso leggero secondo la Tile Usage Policy di OSM); altro fornitore (MapTiler, Thunderforest, Stadia…) o server proprio con
+  attribuzione obbligatoria. Li scarica il browser: serve internet sul PC di chi guarda, non sul server; nessuna cache in
+  VedettaVip. URL validato (`GeoTiles.ValidateUrl`: http/https, {z} {x} {y}, niente spazi/virgolette/< >).
+- Da fare: nodi a grandezza fissa allo zoom lontano (come i segnaposti di Google Maps), posizione X/Y dell'immagine.
 
 ### Icone (implementate)
 
@@ -877,7 +908,7 @@ usare ASP.NET Core Data Protection o un secret store.
 6. Salvataggio della posizione al rilascio del nodo (PUT verso l'API).
 7. Modalità modifica / sola visualizzazione (per monitor NOC). **Fatto.**
 8. Icone per tipo di dispositivo tramite `<symbol>` SVG nei `<defs>`. **Fatto** (Tabler Icons, vedi "Icone").
-9. Sfondo personalizzabile (planimetria o mappa geografica).
+9. Sfondo personalizzabile (planimetria o mappa geografica). **Fatto** (vedi "Sfondo delle mappe").
 10. Auto-layout force-directed (Fruchterman-Reingold) solo per i nodi nuovi dopo la
     discovery; i nodi già posizionati a mano non si spostano.
 
@@ -1028,7 +1059,9 @@ OID utili:
       con ritentativi, dipendenze (soppressione dei figli), flap, agente offline/online, pagina Eventi con presa in carico.
 - [x] Soglie su latenza, perdita e utilizzo dei link (con isteresi), finestre di manutenzione singole e settimanali,
       promemoria dei problemi aperti (migration `AddThresholdsMaintenanceReminders`). Manca: webhook.
-- [x] Icone per tipo di dispositivo (Tabler Icons, scelta per device e per nodo). Da fare: sfondi.
+- [x] Icone per tipo di dispositivo (Tabler Icons, scelta per device e per nodo).
+- [x] Sfondo delle mappe (1.3.8): immagine caricata (planimetria) o mappa geografica a tasselli OpenStreetMap (fornitore
+      configurabile), opacità e griglia. Da fare: nodi a grandezza fissa sulla mappa geografica.
 - [x] Preparazione alla pubblicazione open source (branch `release/public-prep`): nessun dato di installazione nel
       repository (configurazione da `.env`, override del compose, `appsettings.Local.json`; `deploy.sh --config`), licenza
       AGPL-3.0-or-later con NOTICE 7(b), intestazioni SPDX, footer e pagina `/about`, THIRD-PARTY-NOTICES.md (Blazor-ApexCharts

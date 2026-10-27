@@ -4,6 +4,7 @@
 @page "/map"
 @page "/map/{MapId:guid}"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using VedettaVip.Shared.Contracts
 @using VedettaVip.Web.Client.Components
 
 <PageTitle>@(map?.Name ?? "Mappa") - VedettaVip</PageTitle>
@@ -80,6 +81,8 @@
         @if (mapAction == MapAction.None && map is not null)
         {
             <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartMapAction(MapAction.Rename)">Rinomina</button>
+            <button class="btn btn-sm @(backgroundPanel ? "btn-secondary" : "btn-outline-secondary")" @onclick="OpenBackgroundPanel"
+                    title="Immagine (planimetria) o mappa geografica sotto i nodi">Sfondo</button>
             <DeleteButton Busy="mapBusy" Text="Elimina mappa" ConfirmText="@($"Conferma: elimina \"{map.Name}\" con nodi e link")"
                           OnConfirmed="DeleteCurrentMapAsync" />
             <span class="small text-muted">Le sottomappe di una mappa eliminata diventano mappe principali.</span>
@@ -121,10 +124,25 @@ else
     <div class="map-body @(ChartLink is not null || ChartNode is not null ? "with-chart" : "")">
         <div class="map-canvas">
             <NetworkMap @ref="mapView" Nodes="nodes" Links="links" GridSize="map.GridSize"
+                        Background="CurrentBackground" BackgroundImageUrl="@BackgroundImageUrl" TileUrl="@mapSettings.EffectiveTileUrl"
                         Editable="editMode" Tool="tool" SelectedId="selectedId" PlacePoint="placePoint"
                         OnNodeMoved="SavePositionAsync" OnNodeOpen="OpenNode" OnSelect="Select"
                         OnLinkRequested="CreateLinkAsync" OnPlaceRequested="PlaceAt" OnLinkOpen="OpenChart"
                         OnNodeMenu="r => nodeMenu = r" OnBackgroundMenu="r => backgroundMenu = r" />
+            @if (CurrentBackground is { Mode: MapBackgroundMode.Geo, Geo: not null })
+            {
+                @* Attribuzione obbligatoria dei dati dei tasselli (ODbL per OpenStreetMap) *@
+                <div class="map-attribution">
+                    @if (mapSettings.EffectiveAttributionUrl is { } attributionUrl)
+                    {
+                        <a href="@attributionUrl" target="_blank" rel="noopener noreferrer">@mapSettings.EffectiveAttribution</a>
+                    }
+                    else
+                    {
+                        @mapSettings.EffectiveAttribution
+                    }
+                </div>
+            }
         </div>
         @if (editMode && backgroundMenu is { } bm)
         {
@@ -137,7 +155,12 @@ else
             <NodeMenu @key="m" Node="m.Node" X="m.ClientX" Y="m.ClientY" Editing="editMode"
                       OnClose="() => nodeMenu = null" OnOpen="OpenNode" OnProperties="Select" />
         }
-        @if (editMode && newDeviceAt is { } newAt && newDeviceData is { } data)
+        @if (editMode && backgroundPanel)
+        {
+            <MapBackgroundPanel MapId="map.Id" Background="@(map.Background ?? MapBackgroundDto.None)" Nodes="nodes"
+                                OnPreview="bg => backgroundPreview = bg" OnSaved="BackgroundSaved" OnClose="CloseBackgroundPanel" />
+        }
+        else if (editMode && newDeviceAt is { } newAt && newDeviceData is { } data)
         {
             <DeviceEditor @key="newDeviceKey" AllDevices="data.Devices" Defaults="data.Detection" Customers="data.Customers"
                           Metrics="data.Metrics" SnmpProfiles="data.SnmpProfiles" RouterOsProfiles="data.RouterOsProfiles"

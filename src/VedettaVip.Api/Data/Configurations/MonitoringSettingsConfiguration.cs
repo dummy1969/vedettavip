@@ -34,6 +34,9 @@ public sealed class MonitoringSettingsConfiguration : IEntityTypeConfiguration<M
         b.Property(s => s.WinBoxLinuxPath).HasMaxLength(RemoteAccessSettingsDto.MaxPathLength);
         b.Property(s => s.PuttyWindowsPath).HasMaxLength(RemoteAccessSettingsDto.MaxPathLength);
         b.Property(s => s.PuttyLinuxPath).HasMaxLength(RemoteAccessSettingsDto.MaxPathLength);
+        b.Property(s => s.MapTileUrl).HasMaxLength(MapSettingsDto.MaxUrlLength);
+        b.Property(s => s.MapTileAttribution).HasMaxLength(MapSettingsDto.MaxAttributionLength);
+        b.Property(s => s.MapTileAttributionUrl).HasMaxLength(MapSettingsDto.MaxUrlLength);
 
         // La riga esiste sempre: i valori iniziali sono quelli usati prima che fossero configurabili
         var defaults = DetectionThresholdsDto.Default;

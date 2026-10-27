@@ -72,6 +72,16 @@ public partial class Map : IAsyncDisposable
     private NodeMenuRequest? nodeMenu;
     // Menu dello sfondo in modifica (clic destro su un punto vuoto): aggiungi nodo, metti in colonna le sottomappe
     private BackgroundMenuRequest? backgroundMenu;
+    // Pannello "Sfondo" (immagine o mappa geografica) e anteprima delle modifiche non ancora salvate
+    private bool backgroundPanel;
+    private MapBackgroundDto? backgroundPreview;
+    /// <summary>Tasselli delle mappe geografiche e attribuzione (Impostazioni → Mappe).</summary>
+    private MapSettingsDto mapSettings = MapSettingsDto.Default;
+
+    private MapBackgroundDto? CurrentBackground => backgroundPreview ?? map?.Background;
+    private string? BackgroundImageUrl => map is not null && CurrentBackground?.Image is { } image
+        ? Api.MapBackgroundImageUrl(map.Id, image.Version)
+        : null;
     // Nuovo dispositivo creato dalla mappa nel punto scelto: il pannello del device prende il posto di quello di modifica
     private MapPoint? newDeviceAt;
     private int newDeviceKey;
@@ -130,9 +140,12 @@ public partial class Map : IAsyncDisposable
         newDeviceAt = null;
         nodeMenu = null;
         backgroundMenu = null;
+        backgroundPanel = false;
+        backgroundPreview = null;
         chartLinkId = null;
         chartNodeId = null;
 
+        await LoadMapSettingsAsync();
         try
         {
             allMaps = await Api.GetMapsAsync(cts.Token);
@@ -520,6 +533,7 @@ public partial class Map : IAsyncDisposable
     /// </summary>
     private async Task RefreshFromServerAsync(bool current)
     {
+        await LoadMapSettingsAsync(); // anche i tasselli possono essere cambiati (Impostazioni → Mappe)
         try
         {
             allMaps = await Api.GetMapsAsync(cts.Token);
@@ -670,6 +684,7 @@ public partial class Map : IAsyncDisposable
         editMode = !editMode;
         nodeMenu = null;
         backgroundMenu = null;
+        CloseBackgroundPanel();
         tool = MapTool.Move;
         selectedId = null;
         placePoint = null;
@@ -681,6 +696,7 @@ public partial class Map : IAsyncDisposable
         selectedId = id;
         placePoint = null;
         newDeviceAt = null;
+        CloseBackgroundPanel();
     }
 
     private void PlaceAt(MapPoint point)
@@ -688,6 +704,43 @@ public partial class Map : IAsyncDisposable
         selectedId = null;
         placePoint = point;
         newDeviceAt = null;
+        CloseBackgroundPanel();
+    }
+
+    private async Task LoadMapSettingsAsync()
+    {
+        try
+        {
+            mapSettings = await Api.GetMapSettingsAsync(cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            // Restano i tasselli già noti (o OpenStreetMap): la mappa funziona comunque
+            Logger.LogDebug("Impostazioni delle mappe non caricate: {Message}", ex.Message);
+        }
+    }
+
+    private void OpenBackgroundPanel()
+    {
+        selectedId = null;
+        placePoint = null;
+        newDeviceAt = null;
+        backgroundPreview = null;
+        backgroundPanel = true;
+    }
+
+    /// <summary>Chiude il pannello "Sfondo" annullando l'anteprima non salvata.</summary>
+    private void CloseBackgroundPanel()
+    {
+        backgroundPanel = false;
+        backgroundPreview = null;
+    }
+
+    /// <summary>Sfondo salvato o immagine caricata: aggiorna la mappa senza ricaricarla.</summary>
+    private void BackgroundSaved(MapBackgroundDto background)
+    {
+        if (map is not null)
+            map = map with { Background = background };
     }
 
     private IEnumerable<MapNode> SubmapNodes() => nodes.Where(n => n.Kind == MapNodeKind.Submap);

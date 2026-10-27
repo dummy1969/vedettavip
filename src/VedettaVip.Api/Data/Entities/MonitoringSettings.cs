@@ -43,6 +43,14 @@ public sealed class MonitoringSettings
     public int? SshDefaultPort { get; set; }
     public int? TelnetDefaultPort { get; set; }
 
+    /// <summary>
+    /// Tasselli delle mappe geografiche: URL con {z} {x} {y} e attribuzione (testo e link); null = OpenStreetMap
+    /// (<see cref="Shared.Models.GeoTiles"/>).
+    /// </summary>
+    public string? MapTileUrl { get; set; }
+    public string? MapTileAttribution { get; set; }
+    public string? MapTileAttributionUrl { get; set; }
+
     /// <summary>Profilo SNMP dei device senza profilo proprio né del cliente; null = community del Worker.</summary>
     public Guid? DefaultSnmpCredentialId { get; set; }
 
