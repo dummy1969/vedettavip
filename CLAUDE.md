@@ -771,6 +771,9 @@ usare ASP.NET Core Data Protection o un secret store.
   (uso leggero secondo la Tile Usage Policy di OSM); altro fornitore (MapTiler, Thunderforest, Stadia…) o server proprio con
   attribuzione obbligatoria. Li scarica il browser: serve internet sul PC di chi guarda, non sul server; nessuna cache in
   VedettaVip. URL validato (`GeoTiles.ValidateUrl`: http/https, {z} {x} {y}, niente spazi/virgolette/< >).
+- **Preparare una planimetria**: PDF, DWG e SVG non sono accettati, vanno convertiti prima, es.
+  `pdftoppm -png -r 150 -f 1 -l 1 pianta.pdf pianta` e poi `convert pianta-1.png -resize 3000x3000\> -quality 80 pianta.webp`
+  (2000–3000 px di lato bastano: a scala 100 % un nodo è largo ~100 unità; WebP pesa molto meno del PNG).
 - Da fare: nodi a grandezza fissa allo zoom lontano (come i segnaposti di Google Maps), posizione X/Y dell'immagine.
 
 ### Icone (implementate)
